@@ -1,0 +1,317 @@
+diff --git a/.devops/vulkan.Dockerfile b/.devops/vulkan.Dockerfile
+index d3599ffb8..51e4c095d 100644
+--- a/.devops/vulkan.Dockerfile
++++ b/.devops/vulkan.Dockerfile
+@@ -34,7 +34,7 @@ COPY . .
+ COPY --from=web /app/tools/ui/dist tools/ui/dist
+ 
+ RUN cmake -B build -DGGML_NATIVE=OFF -DGGML_VULKAN=ON -DLLAMA_BUILD_TESTS=OFF -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON && \
+-    cmake --build build --config Release -j$(nproc)
++    cmake --build build --config Release -j4
+ 
+ RUN mkdir -p /app/lib && \
+     find build -name "*.so*" -exec cp -P {} /app/lib \;
+diff --git a/ggml/src/ggml-vulkan/ggml-vulkan.cpp b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+index 38ec1f9e8..3c8248b0d 100644
+--- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp
++++ b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+@@ -1193,6 +1193,9 @@ void ggml_vk_wait_events(vk_context& ctx, std::vector<vk::Event>&& events) {
+     );
+ }
+ 
++// Set while sizing a GQA token-packed tile (rows = tokens * gqa_ratio): allows a 32-row scalar tile.
++static bool g_fa_tok_pack_tile = false;
++
+ static vk_fa_tuning_params get_fa_tuning_params_scalar(const vk_device& device, uint32_t hsk, uint32_t hsv, uint32_t n_rows, uint32_t n_kv, ggml_type k_type, ggml_type v_type, bool f32acc) {
+ 
+     vk_fa_tuning_params result{};
+@@ -1234,6 +1237,7 @@ static vk_fa_tuning_params get_fa_tuning_params_scalar(const vk_device& device,
+             result.block_rows = n_rows == 2 ? 2 : ((n_rows <= 4 || reduce_block_rows) ? 4 : 8);
+         } else {
+             result.block_rows = n_rows <= 4 ? 4 : ((n_rows <= 8 || reduce_block_rows) ? 8 : 16);
++            if (g_fa_tok_pack_tile && n_rows > 16 && n_rows <= 32 && !reduce_block_rows) { result.block_rows = 32; }
+         }
+ 
+         result.block_cols = (D & 8) ? 64 : 32;
+@@ -1354,6 +1358,14 @@ vk_fa_tuning_params get_fa_tuning_params(const vk_device& device, uint32_t hsk,
+         }
+     }
+ 
++    // Small GQA-packed shapes (decode / speculative verify: rows = gqa ratio <= 8): coopmat1 pads to a
++    // 16-row tile; the scalar path is 12-22% faster here on RDNA3 (7900 XTX, hd256, 30k KV).
++    if (n_rows > 1 && n_rows <= (g_fa_tok_pack_tile ? 32u : 8u)) { path = FA_SCALAR; }
++    // dev: env override of the FA code path (scalar|cm1)
++    if (const char * fp = getenv("GGML_VK_FA_PATH")) {
++        if (std::string(fp) == "scalar") { path = FA_SCALAR; }
++        else if (std::string(fp) == "cm1" && device->coopmat1_fa_support) { path = FA_COOPMAT1; }
++    }
+     // scalar is faster than coopmat when N==1
+     if (n_rows == 1 && (path == FA_COOPMAT1 || path == FA_COOPMAT2)) {
+         path = FA_SCALAR;
+@@ -8061,6 +8073,7 @@ void ggml_vk_flash_attn(ggml_backend_vk_context * ctx, vk_context& subctx, const
+     assert(dst->type == GGML_TYPE_F32);
+     assert(q->type == GGML_TYPE_F32);
+     uint32_t gqa_ratio = 1;
++    uint32_t tok_pack = 1;
+     uint32_t qk_ratio = neq2 / nek2;
+     uint32_t workgroups_x = (uint32_t)neq1;
+     uint32_t workgroups_y = (uint32_t)neq2;
+@@ -8096,7 +8109,8 @@ void ggml_vk_flash_attn(ggml_backend_vk_context * ctx, vk_context& subctx, const
+     vk_fa_tuning_params tuning_params = get_fa_tuning_params(ctx->device, HSK, HSV, 512, KV, k_type_eff, v_type_eff, f32acc);
+     const uint32_t max_gqa = std::min(tuning_params.block_rows, 32u);
+ 
+-    if (N <= 8 && qk_ratio > 1 && qk_ratio <= max_gqa &&
++    static const uint32_t fa_gqa_max_n = getenv("GGML_VK_FA_GQA_MAX_N") ? (uint32_t) atoi(getenv("GGML_VK_FA_GQA_MAX_N")) : 8;
++    if (N <= fa_gqa_max_n && qk_ratio > 1 && qk_ratio <= max_gqa &&
+         qk_ratio * nek2 == neq2 && nek2 == nev2 && nem2 <= 1) {
+         // grouped query attention - make the N dimension equal to gqa_ratio, reduce
+         // workgroups proportionally in y dimension. The shader will detect gqa_ratio > 1
+@@ -8104,9 +8118,27 @@ void ggml_vk_flash_attn(ggml_backend_vk_context * ctx, vk_context& subctx, const
+         gqa_ratio = qk_ratio;
+         N = gqa_ratio;
+         workgroups_y /= gqa_ratio;
++        // Pack several query tokens into one tile so the KV is read once for all of them (scalar path only).
++        // Measured on 7900 XTX (hd256, gqa 6, 30k KV): 4 tokens pack best at exactly 4 (-32%), otherwise 2 (-24..-29%).
++        // GGML_VK_FA_TOK_PACK=1 disables, =N forces N.
++        static const int fa_tok_pack_env = getenv("GGML_VK_FA_TOK_PACK") ? atoi(getenv("GGML_VK_FA_TOK_PACK")) : -1;
++        const uint32_t fa_tok_pack_want = fa_tok_pack_env >= 0 ? (uint32_t) fa_tok_pack_env : (neq1 == 4 ? 4u : 2u);
++        if (fa_tok_pack_want > 1 && neq1 > 1 && ggml_get_op_params_i32(dst, 4) == 0) {
++            tok_pack = std::min<uint32_t>(fa_tok_pack_want, (uint32_t) neq1);
++            N = gqa_ratio * tok_pack;
++            workgroups_x = CEIL_DIV((uint32_t) neq1, tok_pack);
++        }
+     }
+ 
++    g_fa_tok_pack_tile = tok_pack > 1;
+     tuning_params = get_fa_tuning_params(ctx->device, HSK, HSV, N, KV, k_type_eff, v_type_eff, f32acc);
++    g_fa_tok_pack_tile = false;
++    if (tok_pack > 1 && (tuning_params.path != FA_SCALAR || tuning_params.block_rows < N)) {
++        tok_pack = 1;
++        N = gqa_ratio;
++        workgroups_x = (uint32_t) neq1;
++        tuning_params = get_fa_tuning_params(ctx->device, HSK, HSV, N, KV, k_type_eff, v_type_eff, f32acc);
++    }
+ 
+     float scale         = 1.0f;
+     float max_bias      = 0.0f;
+@@ -8213,6 +8245,8 @@ void ggml_vk_flash_attn(ggml_backend_vk_context * ctx, vk_context& subctx, const
+ 
+     GGML_ASSERT(Br == pipeline->wg_denoms[0]);
+     const uint32_t Tr = CEIL_DIV(N, Br);
++    static const int fa_splitk_env = getenv("GGML_VK_FA_SPLITK_MULT") ? std::max(1, atoi(getenv("GGML_VK_FA_SPLITK_MULT"))) : 0;
++    const uint32_t fa_splitk_mult = fa_splitk_env ? (uint32_t) fa_splitk_env : (gqa_ratio > 1 && workgroups_x > 1 ? 8u : 2u);
+ 
+     // Try to use split_k when KV is large enough to be worth the overhead.
+     // Sparse: split_kv carries n_kv_max, split_k partitions its blocks for occupancy.
+@@ -8220,19 +8254,19 @@ void ggml_vk_flash_attn(ggml_backend_vk_context * ctx, vk_context& subctx, const
+         split_kv = (uint32_t)n_kv_max;
+         const uint32_t total_blocks = CEIL_DIV((uint32_t)n_kv_max, Bc);
+         const uint32_t base_wgs = (gqa_ratio > 1 ? workgroups_x : Tr) * workgroups_y * workgroups_z;
+-        if (base_wgs < shader_core_count * 2) {
+-            split_k = shader_core_count * 2 / base_wgs;
++        if (base_wgs < shader_core_count * fa_splitk_mult) {
++            split_k = shader_core_count * fa_splitk_mult / base_wgs;
+         }
+         split_k = std::max(1u, std::min(split_k, total_blocks));
+         // Match the shader's per-split block count so no split is empty.
+         const uint32_t per_blocks = CEIL_DIV(total_blocks, split_k);
+         split_k = CEIL_DIV(total_blocks, per_blocks);
+     } else if (gqa_ratio > 1 && workgroups_x <= Br) {
+-        split_k = shader_core_count * 2 / (workgroups_x * workgroups_y * workgroups_z);
++        split_k = shader_core_count * fa_splitk_mult / (workgroups_x * workgroups_y * workgroups_z);
+     } else if (gqa_ratio <= 1) {
+         uint32_t total_wgs_no_split = Tr * workgroups_y * workgroups_z;
+-        if (total_wgs_no_split < shader_core_count * 2) {
+-            split_k = shader_core_count * 2 / total_wgs_no_split;
++        if (total_wgs_no_split < shader_core_count * fa_splitk_mult) {
++            split_k = shader_core_count * fa_splitk_mult / total_wgs_no_split;
+         }
+     }
+ 
+@@ -8280,6 +8314,14 @@ void ggml_vk_flash_attn(ggml_backend_vk_context * ctx, vk_context& subctx, const
+         use_mask_opt = false;
+     }
+ 
++    if (getenv("GGML_VK_FA_DEBUG")) {
++        static std::set<std::string> fa_seen;
++        const std::string key = std::to_string(N) + "/" + std::to_string(neq1) + "/" + std::to_string(KV / 4096);
++        if (fa_seen.insert(key).second) {
++            fprintf(stderr, "FA_DEBUG path=%d ntok=%d rows=%u gqa=%u Br=%u Bc=%u KV=%u split_k=%u wg=%ux%ux%u sparse=%d dequant=%d\n",
++                (int) tuning_params.path, (int) neq1, N, gqa_ratio, Br, Bc, (uint32_t) KV, split_k, workgroups_x, workgroups_y, workgroups_z, (int) use_sparse, (int) use_dequant_kv);
++        }
++    }
+     // Reserve space for split_k temporaries. For each split x batch, we need to store the O matrix (D x ne1)
+     // and the per-row m and L values (ne1 rows). We store all the matrices first, followed by the rows.
+     // For matrices, the order is (inner to outer) [HSV, ne1, k, ne2, ne3].
+@@ -8380,7 +8422,7 @@ void ggml_vk_flash_attn(ggml_backend_vk_context * ctx, vk_context& subctx, const
+         v_buf = v_dst;
+     }
+ 
+-    uint32_t mask_n_head_log2 = ((sinks != nullptr) << 24) | n_head_log2;
++    uint32_t mask_n_head_log2 = ((sinks != nullptr) << 24) | (tok_pack << 16) | n_head_log2;
+ 
+     if (use_mask_opt)
+     {
+diff --git a/ggml/src/ggml-vulkan/vulkan-shaders/flash_attn.comp b/ggml/src/ggml-vulkan/vulkan-shaders/flash_attn.comp
+index 107d44aaa..f5680b111 100644
+--- a/ggml/src/ggml-vulkan/vulkan-shaders/flash_attn.comp
++++ b/ggml/src/ggml-vulkan/vulkan-shaders/flash_attn.comp
+@@ -106,6 +106,8 @@ void main() {
+     }
+ 
+ #define tile_row(r) (row_tid * rows_per_thread + (r))
++// Q row offset in floats; with GQA packing a tile row is (token, head) = (r / gqa_ratio, r % gqa_ratio).
++#define Q_ROW_OFF(r) (((p.gqa_ratio > 1) ? (((r) / p.gqa_ratio) * p.nb01 + ((r) % p.gqa_ratio) * q_stride) : ((i * Br + (r)) * q_stride)) / 4)
+ 
+     uint32_t q_offset = gqa_iq1*p.nb01 + (iq2*p.nb02 + iq3*p.nb03) / 4;
+ 
+@@ -115,13 +117,13 @@ void main() {
+         const bool is_in_bounds = r < Br && d < HSK / 4 && i * Br + r < N;
+ #ifndef MMQ
+         if (is_in_bounds) {
+-            Qf[r * qf_stride + d] = FLOAT_TYPEV4(data_qv4[q_offset / 4 + (i * Br + r) * q_stride / 4 + d] * p.scale);
++            Qf[r * qf_stride + d] = FLOAT_TYPEV4(data_qv4[q_offset / 4 + Q_ROW_OFF(r) + d] * p.scale);
+         }
+ #else
+         const uint buf_ib = r * qf_stride + d / 8;
+         const uint buf_iqs = d % 8;
+ 
+-        vec4 vals = is_in_bounds ? data_qv4[q_offset / 4 + (i * Br + r) * q_stride / 4 + d] * p.scale : vec4(0.0f);
++        vec4 vals = is_in_bounds ? data_qv4[q_offset / 4 + Q_ROW_OFF(r) + d] * p.scale : vec4(0.0f);
+         const vec4 abs_vals = abs(vals);
+ 
+         const float thread_max = max(max(abs_vals.x, abs_vals.y), max(abs_vals.z, abs_vals.w));
+@@ -220,8 +222,8 @@ void main() {
+                     if (idx + tid < Bc * Br) {
+                         uint32_t kcol;
+                         bool kv_active = fa_kv_index(j * Bc + c, kcol);
+-                        if (kv_active && (!nem1_bounds_check || i * Br + r < p.nem1)) {
+-                            FLOAT_TYPE m = FLOAT_TYPE(data_m[m_offset + (i * Br + r) * m_stride + kcol]);
++                        if (kv_active && (!nem1_bounds_check || i * Br + r < p.nem1) && (p.gqa_ratio <= 1 || r < N)) {
++                            FLOAT_TYPE m = FLOAT_TYPE(data_m[m_offset + (p.gqa_ratio > 1 ? (r / p.gqa_ratio) * KV : (i * Br + r) * m_stride) + kcol]);
+                             masksh[c * masksh_stride + r] = m;
+                             max_mask = max(max_mask, float(m));
+                         } else {
+@@ -675,7 +677,7 @@ void main() {
+                 const uint row = tile_row(r);
+                 if (row < N) {
+                     [[unroll]] for (uint32_t d = 0; d < HSV_per_thread / 4; ++d) {
+-                        gqaStore(row, d * D_split + d_tid, Of[r][d], o_offset, iq2, N);
++                        gqaStore(row % p.gqa_ratio, d * D_split + d_tid, Of[r][d], o_offset + (row / p.gqa_ratio) * (HSV * p.ne1 * p.k_num / 4), iq2, N);
+                     }
+                 }
+             }
+@@ -684,8 +686,8 @@ void main() {
+             [[unroll]] for (uint32_t r = 0; r < rows_per_thread; ++r) {
+                 const uint row = tile_row(r);
+                 if (row < N) {
+-                    perElemOpStoreCol0(row, 0u, ACC_TYPE(Lf[r]), o_offset, iq2, N);
+-                    perElemOpStoreCol0(row, 0u, ACC_TYPE(Mf[r]), o_offset + p.ne1, iq2, N);
++                    perElemOpStoreCol0(row % p.gqa_ratio, 0u, ACC_TYPE(Lf[r]), o_offset + (row / p.gqa_ratio) * p.ne1 * 2 * p.k_num, iq2, N);
++                    perElemOpStoreCol0(row % p.gqa_ratio, 0u, ACC_TYPE(Mf[r]), o_offset + p.ne1 + (row / p.gqa_ratio) * p.ne1 * 2 * p.k_num, iq2, N);
+                 }
+             }
+         } else {
+@@ -753,7 +755,7 @@ void main() {
+             const uint row = tile_row(r);
+             if (row < N) {
+                 [[unroll]] for (uint32_t d = 0; d < HSV_per_thread / 4; ++d) {
+-                    gqaStore(row, d * D_split + d_tid, Of[r][d], o_offset, iq2, N);
++                    gqaStore(row % p.gqa_ratio, d * D_split + d_tid, Of[r][d], o_offset + (row / p.gqa_ratio) * (HSV * p.ne1 / 4), iq2, N);
+                 }
+             }
+         }
+diff --git a/ggml/src/ggml-vulkan/vulkan-shaders/flash_attn_base.glsl b/ggml/src/ggml-vulkan/vulkan-shaders/flash_attn_base.glsl
+index 2e0e23bc1..f6512387d 100644
+--- a/ggml/src/ggml-vulkan/vulkan-shaders/flash_attn_base.glsl
++++ b/ggml/src/ggml-vulkan/vulkan-shaders/flash_attn_base.glsl
+@@ -154,12 +154,14 @@ void init_indices()
+ {
+     N = p.N;
+     KV = p.KV;
++    // GQA token packing count lives in bits 16..23 of mask_n_head_log2 (push constants are at the 128-byte limit).
++    const uint32_t tok_pack = max((p.mask_n_head_log2 >> 16) & 0xFFu, 1u);
+ 
+     if (p.k_num > 1) {
+         if (p.gqa_ratio > 1) {
+             i = 0;
+             // batch and split_k share gl_WorkGroupID.x
+-            gqa_iq1 = gl_WorkGroupID.x / p.k_num;
++            gqa_iq1 = (gl_WorkGroupID.x / p.k_num) * tok_pack;
+             split_k_index = gl_WorkGroupID.x % p.k_num;
+         } else {
+             gqa_iq1 = 0;
+@@ -168,7 +170,7 @@ void init_indices()
+         }
+     } else if (p.gqa_ratio > 1) {
+         i = 0;
+-        gqa_iq1 = gl_WorkGroupID.x;
++        gqa_iq1 = gl_WorkGroupID.x * tok_pack;
+         split_k_index = 0;
+     } else {
+         i = gl_WorkGroupID.x;
+@@ -176,6 +178,12 @@ void init_indices()
+         split_k_index = 0;
+     }
+ 
++    // GQA token packing: this workgroup handles tok_pack consecutive tokens (rows = token * gqa_ratio + head);
++    // the last workgroup may have fewer.
++    if (p.gqa_ratio > 1 && tok_pack > 1) {
++        N = min(tok_pack, p.ne2 - gqa_iq1) * p.gqa_ratio;
++    }
++
+     Tr = CEIL_DIV(N, Br);
+ 
+     start_j = split_k_index * p.split_kv / Bc;
+diff --git a/src/models/qwen35.cpp b/src/models/qwen35.cpp
+index a1e263500..e7fb9c442 100644
+--- a/src/models/qwen35.cpp
++++ b/src/models/qwen35.cpp
+@@ -454,7 +454,7 @@ ggml_tensor * llama_model_qwen35::graph::build_layer_attn_linear(
+     ggml_tensor * attn_out_norm = build_norm_gated(output, model.layers[il].ssm_norm, z_2d, il);
+ 
+     // Final reshape: [head_dim, n_heads, n_tokens, n_seqs] -> [n_tokens, n_seqs, n_heads * head_dim]
+-    ggml_tensor * final_output = ggml_reshape_3d(ctx0, attn_out_norm, head_v_dim * num_v_heads, n_seq_tokens, n_seqs);
++    ggml_tensor * final_output = ggml_reshape_2d(ctx0, attn_out_norm, head_v_dim * num_v_heads, n_seq_tokens * n_seqs);
+     cb(final_output, "final_output", il);
+ 
+     // Output projection
+diff --git a/src/models/qwen35moe.cpp b/src/models/qwen35moe.cpp
+index bdf772625..53b8fb7dc 100644
+--- a/src/models/qwen35moe.cpp
++++ b/src/models/qwen35moe.cpp
+@@ -478,7 +478,7 @@ ggml_tensor * llama_model_qwen35moe::graph::build_layer_attn_linear(
+     ggml_tensor * attn_out_norm = build_norm_gated(output, model.layers[il].ssm_norm, z_2d, il);
+ 
+     // Final reshape: [head_dim, n_heads, n_tokens, n_seqs] -> [n_tokens, n_seqs, n_heads * head_dim]
+-    ggml_tensor * final_output = ggml_reshape_3d(ctx0, attn_out_norm, head_v_dim * num_v_heads, n_seq_tokens, n_seqs);
++    ggml_tensor * final_output = ggml_reshape_2d(ctx0, attn_out_norm, head_v_dim * num_v_heads, n_seq_tokens * n_seqs);
+     cb(final_output, "final_output", il);
+ 
+     // Output projection
+diff --git a/src/models/qwen3next.cpp b/src/models/qwen3next.cpp
+index b63fc9c6a..1239312f8 100644
+--- a/src/models/qwen3next.cpp
++++ b/src/models/qwen3next.cpp
+@@ -549,7 +549,7 @@ ggml_tensor * llama_model_qwen3next::graph::build_layer_attn_linear(
+     ggml_tensor * attn_out_norm = build_norm_gated(output, model.layers[il].ssm_norm, z_2d, il);
+ 
+     // Final reshape: [head_dim, n_heads, n_tokens, n_seqs] -> [n_tokens, n_seqs, n_heads * head_dim]
+-    ggml_tensor * final_output = ggml_reshape_3d(ctx0, attn_out_norm, head_v_dim * num_v_heads, n_seq_tokens, n_seqs);
++    ggml_tensor * final_output = ggml_reshape_2d(ctx0, attn_out_norm, head_v_dim * num_v_heads, n_seq_tokens * n_seqs);
+     cb(final_output, "final_output", il);
+ 
+     // Output projection
+diff --git a/src/models/qwen4exp.cpp b/src/models/qwen4exp.cpp
+index 319b7b9c1..ecc9d9193 100644
+--- a/src/models/qwen4exp.cpp
++++ b/src/models/qwen4exp.cpp
+@@ -980,7 +980,7 @@ ggml_tensor * llama_model_qwen4exp::graph::build_layer_attn_linear(
+     // gated normalization, as self.norm(core_attn_out, z) in the reference
+     ggml_tensor * attn_out_norm = build_norm_gated(output, model.layers[il].ssm_norm, z_2d, il);
+ 
+-    ggml_tensor * final_output = ggml_reshape_3d(ctx0, attn_out_norm, head_v_dim * num_v_heads, n_seq_tokens, n_seqs);
++    ggml_tensor * final_output = ggml_reshape_2d(ctx0, attn_out_norm, head_v_dim * num_v_heads, n_seq_tokens * n_seqs);
+     cb(final_output, "final_output", il);
+ 
+     cur = build_lora_mm(model.layers[il].ssm_out, final_output, model.layers[il].ssm_out_s);
