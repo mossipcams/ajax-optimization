@@ -1,0 +1,655 @@
+{
+  "accepted": 40000,
+  "achieved_stt_rate": 0.15,
+  "attempts": 57853,
+  "by_capability": {
+    "buttons": 668,
+    "climate": 3855,
+    "covers": 2313,
+    "fans": 2698,
+    "lawn_mowers": 666,
+    "lights": 8481,
+    "locks": 1932,
+    "media_players": 5397,
+    "scenes": 2000,
+    "scripts": 2000,
+    "switches": 3469,
+    "timers": 3855,
+    "todo_lists": 666,
+    "vacuums": 2000
+  },
+  "by_difficulty": {
+    "alias_distractor": 1421,
+    "ambiguity": 2052,
+    "exclusion": 709,
+    "large_home": 1325,
+    "multi_action": 716,
+    "ordinary": 30289,
+    "similar_name": 1360,
+    "unsupported": 2128
+  },
+  "by_home_size": {
+    "8": 4302,
+    "16": 13889,
+    "32": 13011,
+    "64": 8798
+  },
+  "by_operation": {
+    "activate": 1000,
+    "cancel_all": 964,
+    "clean_area": 500,
+    "close": 771,
+    "lock": 644,
+    "mute": 674,
+    "open": 771,
+    "pause": 1639,
+    "play": 675,
+    "query_state": 9795,
+    "return_home": 500,
+    "run": 2000,
+    "set_brightness": 1414,
+    "set_color": 1413,
+    "set_color_temperature": 1413,
+    "set_speed": 674,
+    "set_temperature": 964,
+    "start": 1464,
+    "status": 963,
+    "turn_off": 4884,
+    "turn_on": 4885,
+    "unlock": 644,
+    "volume_set": 675,
+    "volume_up": 674
+  },
+  "by_tier": {
+    "1": 32000,
+    "2": 6000,
+    "3": 2000
+  },
+  "config": {
+    "count": 40000,
+    "home_size_weights": {
+      "8": 10,
+      "16": 35,
+      "32": 35,
+      "64": 20
+    },
+    "near_duplicate_limit": 8,
+    "ordinary_rate": 0.75,
+    "output_path": "training/datasets/synthetic_v3_train.jsonl",
+    "paraphrase_enabled": false,
+    "paraphrase_variants": 0,
+    "seed": 20260903,
+    "split": "train",
+    "stt_noise_rate": 0.15,
+    "tier_proportions": {
+      "1": 0.8,
+      "2": 0.15,
+      "3": 0.05
+    },
+    "token_budget": 4096
+  },
+  "deterministic": 40000,
+  "paraphrased": 0,
+  "quota": {
+    "achieved": {
+      "capability": {
+        "(1, 'climate')": 3855,
+        "(1, 'covers')": 2313,
+        "(1, 'fans')": 2698,
+        "(1, 'lights')": 8481,
+        "(1, 'locks')": 1932,
+        "(1, 'media_players')": 5397,
+        "(1, 'switches')": 3469,
+        "(1, 'timers')": 3855,
+        "(2, 'scenes')": 2000,
+        "(2, 'scripts')": 2000,
+        "(2, 'vacuums')": 2000,
+        "(3, 'buttons')": 668,
+        "(3, 'lawn_mowers')": 666,
+        "(3, 'todo_lists')": 666
+      },
+      "operation": {
+        "(1, 'climate', 'query_state')": 963,
+        "(1, 'climate', 'set_temperature')": 964,
+        "(1, 'climate', 'turn_off')": 964,
+        "(1, 'climate', 'turn_on')": 964,
+        "(1, 'covers', 'close')": 771,
+        "(1, 'covers', 'open')": 771,
+        "(1, 'covers', 'query_state')": 771,
+        "(1, 'fans', 'query_state')": 674,
+        "(1, 'fans', 'set_speed')": 674,
+        "(1, 'fans', 'turn_off')": 675,
+        "(1, 'fans', 'turn_on')": 675,
+        "(1, 'lights', 'query_state')": 1413,
+        "(1, 'lights', 'set_brightness')": 1414,
+        "(1, 'lights', 'set_color')": 1413,
+        "(1, 'lights', 'set_color_temperature')": 1413,
+        "(1, 'lights', 'turn_off')": 1414,
+        "(1, 'lights', 'turn_on')": 1414,
+        "(1, 'locks', 'lock')": 644,
+        "(1, 'locks', 'query_state')": 644,
+        "(1, 'locks', 'unlock')": 644,
+        "(1, 'media_players', 'mute')": 674,
+        "(1, 'media_players', 'pause')": 675,
+        "(1, 'media_players', 'play')": 675,
+        "(1, 'media_players', 'query_state')": 674,
+        "(1, 'media_players', 'turn_off')": 675,
+        "(1, 'media_players', 'turn_on')": 675,
+        "(1, 'media_players', 'volume_set')": 675,
+        "(1, 'media_players', 'volume_up')": 674,
+        "(1, 'switches', 'query_state')": 1156,
+        "(1, 'switches', 'turn_off')": 1156,
+        "(1, 'switches', 'turn_on')": 1157,
+        "(1, 'timers', 'cancel_all')": 964,
+        "(1, 'timers', 'pause')": 964,
+        "(1, 'timers', 'start')": 964,
+        "(1, 'timers', 'status')": 963,
+        "(2, 'scenes', 'activate')": 1000,
+        "(2, 'scenes', 'query_state')": 1000,
+        "(2, 'scripts', 'run')": 2000,
+        "(2, 'vacuums', 'clean_area')": 500,
+        "(2, 'vacuums', 'query_state')": 500,
+        "(2, 'vacuums', 'return_home')": 500,
+        "(2, 'vacuums', 'start')": 500,
+        "(3, 'buttons', 'query_state')": 668,
+        "(3, 'lawn_mowers', 'query_state')": 666,
+        "(3, 'todo_lists', 'query_state')": 666
+      },
+      "tier": {
+        "1": 32000,
+        "2": 6000,
+        "3": 2000
+      }
+    },
+    "requested": {
+      "capability": {
+        "(1, 'climate')": 3855,
+        "(1, 'covers')": 2313,
+        "(1, 'fans')": 2698,
+        "(1, 'lights')": 8481,
+        "(1, 'locks')": 1932,
+        "(1, 'media_players')": 5397,
+        "(1, 'switches')": 3469,
+        "(1, 'timers')": 3855,
+        "(2, 'scenes')": 2000,
+        "(2, 'scripts')": 2000,
+        "(2, 'vacuums')": 2000,
+        "(3, 'buttons')": 668,
+        "(3, 'lawn_mowers')": 666,
+        "(3, 'todo_lists')": 666
+      },
+      "operation": {
+        "(1, 'climate', 'query_state')": 963,
+        "(1, 'climate', 'set_temperature')": 964,
+        "(1, 'climate', 'turn_off')": 964,
+        "(1, 'climate', 'turn_on')": 964,
+        "(1, 'covers', 'close')": 771,
+        "(1, 'covers', 'open')": 771,
+        "(1, 'covers', 'query_state')": 771,
+        "(1, 'fans', 'query_state')": 674,
+        "(1, 'fans', 'set_speed')": 674,
+        "(1, 'fans', 'turn_off')": 675,
+        "(1, 'fans', 'turn_on')": 675,
+        "(1, 'lights', 'query_state')": 1413,
+        "(1, 'lights', 'set_brightness')": 1414,
+        "(1, 'lights', 'set_color')": 1413,
+        "(1, 'lights', 'set_color_temperature')": 1413,
+        "(1, 'lights', 'turn_off')": 1414,
+        "(1, 'lights', 'turn_on')": 1414,
+        "(1, 'locks', 'lock')": 644,
+        "(1, 'locks', 'query_state')": 644,
+        "(1, 'locks', 'unlock')": 644,
+        "(1, 'media_players', 'mute')": 674,
+        "(1, 'media_players', 'pause')": 675,
+        "(1, 'media_players', 'play')": 675,
+        "(1, 'media_players', 'query_state')": 674,
+        "(1, 'media_players', 'turn_off')": 675,
+        "(1, 'media_players', 'turn_on')": 675,
+        "(1, 'media_players', 'volume_set')": 675,
+        "(1, 'media_players', 'volume_up')": 674,
+        "(1, 'switches', 'query_state')": 1156,
+        "(1, 'switches', 'turn_off')": 1156,
+        "(1, 'switches', 'turn_on')": 1157,
+        "(1, 'timers', 'cancel_all')": 964,
+        "(1, 'timers', 'pause')": 964,
+        "(1, 'timers', 'start')": 964,
+        "(1, 'timers', 'status')": 963,
+        "(2, 'scenes', 'activate')": 1000,
+        "(2, 'scenes', 'query_state')": 1000,
+        "(2, 'scripts', 'run')": 2000,
+        "(2, 'vacuums', 'clean_area')": 500,
+        "(2, 'vacuums', 'query_state')": 500,
+        "(2, 'vacuums', 'return_home')": 500,
+        "(2, 'vacuums', 'start')": 500,
+        "(3, 'buttons', 'query_state')": 668,
+        "(3, 'lawn_mowers', 'query_state')": 666,
+        "(3, 'todo_lists', 'query_state')": 666
+      },
+      "tier": {
+        "1": 32000,
+        "2": 6000,
+        "3": 2000
+      }
+    },
+    "shortfall": {
+      "capability": {},
+      "operation": {},
+      "tier": {}
+    }
+  },
+  "registry": {
+    "buttons": {
+      "blocker": "no button tool in Assist schema",
+      "operations": [
+        {
+          "blocker": "no button press tool in Assist schema",
+          "name": "control",
+          "support": "unavailable",
+          "tool": null
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "unavailable",
+      "tier": 3
+    },
+    "climate": {
+      "blocker": null,
+      "operations": [
+        {
+          "blocker": null,
+          "name": "set_temperature",
+          "support": "supported",
+          "tool": "HassClimateSetTemperature"
+        },
+        {
+          "blocker": null,
+          "name": "turn_on",
+          "support": "supported",
+          "tool": "HassTurnOn"
+        },
+        {
+          "blocker": null,
+          "name": "turn_off",
+          "support": "supported",
+          "tool": "HassTurnOff"
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "supported",
+      "tier": 1
+    },
+    "covers": {
+      "blocker": null,
+      "operations": [
+        {
+          "blocker": null,
+          "name": "open",
+          "support": "supported",
+          "tool": "HassTurnOn"
+        },
+        {
+          "blocker": null,
+          "name": "close",
+          "support": "supported",
+          "tool": "HassTurnOff"
+        },
+        {
+          "blocker": "no position tool in Assist schema",
+          "name": "set_position",
+          "support": "unavailable",
+          "tool": null
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "supported",
+      "tier": 1
+    },
+    "fans": {
+      "blocker": null,
+      "operations": [
+        {
+          "blocker": null,
+          "name": "turn_on",
+          "support": "supported",
+          "tool": "HassTurnOn"
+        },
+        {
+          "blocker": null,
+          "name": "turn_off",
+          "support": "supported",
+          "tool": "HassTurnOff"
+        },
+        {
+          "blocker": null,
+          "name": "set_speed",
+          "support": "supported",
+          "tool": "HassFanSetSpeed"
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "supported",
+      "tier": 1
+    },
+    "lawn_mowers": {
+      "blocker": "no lawn mower tool in Assist schema",
+      "operations": [
+        {
+          "blocker": "no lawn mower tool in Assist schema",
+          "name": "control",
+          "support": "unavailable",
+          "tool": null
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "unavailable",
+      "tier": 3
+    },
+    "lights": {
+      "blocker": null,
+      "operations": [
+        {
+          "blocker": null,
+          "name": "turn_on",
+          "support": "supported",
+          "tool": "HassTurnOn"
+        },
+        {
+          "blocker": null,
+          "name": "turn_off",
+          "support": "supported",
+          "tool": "HassTurnOff"
+        },
+        {
+          "blocker": null,
+          "name": "set_brightness",
+          "support": "supported",
+          "tool": "HassLightSet"
+        },
+        {
+          "blocker": null,
+          "name": "set_color",
+          "support": "supported",
+          "tool": "HassLightSet"
+        },
+        {
+          "blocker": null,
+          "name": "set_color_temperature",
+          "support": "supported",
+          "tool": "HassLightSet"
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "supported",
+      "tier": 1
+    },
+    "locks": {
+      "blocker": null,
+      "operations": [
+        {
+          "blocker": null,
+          "name": "lock",
+          "support": "supported",
+          "tool": "HassTurnOn"
+        },
+        {
+          "blocker": null,
+          "name": "unlock",
+          "support": "supported",
+          "tool": "HassTurnOff"
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "supported",
+      "tier": 1
+    },
+    "media_players": {
+      "blocker": null,
+      "operations": [
+        {
+          "blocker": null,
+          "name": "turn_on",
+          "support": "supported",
+          "tool": "HassTurnOn"
+        },
+        {
+          "blocker": null,
+          "name": "turn_off",
+          "support": "supported",
+          "tool": "HassTurnOff"
+        },
+        {
+          "blocker": null,
+          "name": "play",
+          "support": "supported",
+          "tool": "HassMediaUnpause"
+        },
+        {
+          "blocker": null,
+          "name": "pause",
+          "support": "supported",
+          "tool": "HassMediaPause"
+        },
+        {
+          "blocker": null,
+          "name": "volume_set",
+          "support": "supported",
+          "tool": "HassSetVolume"
+        },
+        {
+          "blocker": null,
+          "name": "volume_up",
+          "support": "supported",
+          "tool": "HassSetVolumeRelative"
+        },
+        {
+          "blocker": null,
+          "name": "mute",
+          "support": "supported",
+          "tool": "HassMediaPlayerMute"
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "supported",
+      "tier": 1
+    },
+    "scenes": {
+      "blocker": null,
+      "operations": [
+        {
+          "blocker": null,
+          "name": "activate",
+          "support": "supported",
+          "tool": "HassTurnOn"
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "supported",
+      "tier": 2
+    },
+    "scripts": {
+      "blocker": null,
+      "operations": [
+        {
+          "blocker": null,
+          "name": "run",
+          "support": "supported",
+          "tool": "__script__"
+        },
+        {
+          "blocker": "GetLiveContext excludes the script domain",
+          "name": "query_state",
+          "support": "unavailable",
+          "tool": null
+        }
+      ],
+      "support": "supported",
+      "tier": 2
+    },
+    "switches": {
+      "blocker": null,
+      "operations": [
+        {
+          "blocker": null,
+          "name": "turn_on",
+          "support": "supported",
+          "tool": "HassTurnOn"
+        },
+        {
+          "blocker": null,
+          "name": "turn_off",
+          "support": "supported",
+          "tool": "HassTurnOff"
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "supported",
+      "tier": 1
+    },
+    "timers": {
+      "blocker": null,
+      "operations": [
+        {
+          "blocker": null,
+          "name": "cancel_all",
+          "support": "supported",
+          "tool": "HassCancelAllTimers"
+        },
+        {
+          "blocker": null,
+          "name": "start",
+          "support": "supported",
+          "tool": "HassStartTimer"
+        },
+        {
+          "blocker": null,
+          "name": "pause",
+          "support": "supported",
+          "tool": "HassPauseTimer"
+        },
+        {
+          "blocker": null,
+          "name": "status",
+          "support": "supported",
+          "tool": "HassTimerStatus"
+        }
+      ],
+      "support": "supported",
+      "tier": 1
+    },
+    "todo_lists": {
+      "blocker": "no todo tool in Assist schema",
+      "operations": [
+        {
+          "blocker": "no todo list tool in Assist schema",
+          "name": "control",
+          "support": "unavailable",
+          "tool": null
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "unavailable",
+      "tier": 3
+    },
+    "vacuums": {
+      "blocker": null,
+      "operations": [
+        {
+          "blocker": null,
+          "name": "start",
+          "support": "supported",
+          "tool": "HassVacuumStart"
+        },
+        {
+          "blocker": null,
+          "name": "return_home",
+          "support": "supported",
+          "tool": "HassVacuumReturnToBase"
+        },
+        {
+          "blocker": null,
+          "name": "clean_area",
+          "support": "supported",
+          "tool": "HassVacuumCleanArea"
+        },
+        {
+          "blocker": null,
+          "name": "query_state",
+          "support": "supported",
+          "tool": "GetLiveContext"
+        }
+      ],
+      "support": "supported",
+      "tier": 2
+    }
+  },
+  "rejected": 17853,
+  "rejection_reasons": {
+    "excluded_entity_called": 34,
+    "extra_argument": 391,
+    "missing_expected_target": 5373,
+    "missing_required_argument": 150,
+    "missing_utterance": 5205,
+    "quality_eval_overlap": 6700
+  },
+  "render_path": "training/datasets/sayso_train_v3_40k_render.jsonl",
+  "render_rows": 40000,
+  "requested": 40000,
+  "requested_stt_rate": 0.15,
+  "stt_corrupted": 6000,
+  "unique_semantic_ids": 40000
+}
