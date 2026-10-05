@@ -8,9 +8,6 @@ import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_SATELLITE_ROOT = _REPO_ROOT / "satellite"
-if str(_SATELLITE_ROOT) not in sys.path:
-    sys.path.insert(0, str(_SATELLITE_ROOT))
 
 from sayso.wake.corpus import labeled_positive_events, load_events, set_event_label
 from sayso.wake.replay import production_replay_constants, replay_and_import_session

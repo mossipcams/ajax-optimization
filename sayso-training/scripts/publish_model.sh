@@ -9,7 +9,8 @@ DRY_RUN=0
 [ "${3:-}" = "--dry-run" ] && DRY_RUN=1
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONST="$REPO_ROOT/custom_components/sayso/const.py"
+SAYSO_ROOT="$REPO_ROOT/vendor/SaySo"
+CONST="$SAYSO_ROOT/custom_components/sayso/const.py"
 
 if [ -z "$MODEL" ]; then
   awk 'NR==1 {next} /^#/ {sub(/^# ?/, ""); print; next} {exit}' "${BASH_SOURCE[0]}"
@@ -38,23 +39,23 @@ else
 fi
 echo "    sha256: $SHA"
 
-SLUG="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+SLUG="mossipcams/SaySo"
 URL="https://github.com/$SLUG/releases/download/$TAG/$FILENAME"
 echo "==> target: $URL"
 
 if [ "$DRY_RUN" = "1" ]; then
   echo "==> dry run: no upload, no edit"
 else
-  if gh release view "$TAG" >/dev/null 2>&1; then
+  if gh release view "$TAG" --repo "$SLUG" >/dev/null 2>&1; then
     echo "==> release $TAG exists, uploading asset"
   else
     echo "==> creating release $TAG"
-    gh release create "$TAG" \
+    gh release create "$TAG" --repo "$SLUG" \
       --title "${TITLE:-SaySo model ${TAG#model-}}" \
       --notes "${NOTES:-GGUF weights for the SaySo conversation agent. Downloaded automatically on first setup.}" \
       --latest=false
   fi
-  gh release upload "$TAG" "$MODEL" --clobber
+  gh release upload "$TAG" --repo "$SLUG" "$MODEL" --clobber
 fi
 
 echo "==> repointing $CONST"
@@ -93,5 +94,5 @@ if [ "$DRY_RUN" = "1" ]; then
   echo "Dry run complete. Re-run without --dry-run to publish."
 else
   echo "Done. Review and commit:"
-  echo "    git diff custom_components/sayso/const.py"
+  echo "    git -C \"$SAYSO_ROOT\" diff custom_components/sayso/const.py"
 fi

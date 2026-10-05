@@ -7,15 +7,11 @@ import hashlib
 import json
 import logging
 import re
-import sys
 import wave
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
-
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_REPO_ROOT / "satellite"))
 
 from sayso.wake.livekit import HOP_SAMPLES, SAMPLE_RATE, WINDOW_SAMPLES
 from sayso.wake.replay import ReplayConfig

@@ -10,6 +10,10 @@ import yaml
 _REPO_ROOT = str(Path(__file__).resolve().parents[2])
 if _REPO_ROOT not in sys.path:
     sys.path.append(_REPO_ROOT)
+from training_paths import configure
+
+configure()
+
 from sayso_contract import area_context as _area_context
 
 AreaContext = _area_context.AreaContext

@@ -2,8 +2,9 @@
 
 llama.cpp serving configuration, Vulkan kernel changes and benchmarks for running
 Qwen3.8-27B (UD-Q4_K_M + MTP draft + ngram-mod) on a single AMD RX 7900 XTX (RADV, Vulkan).
+The repository also hosts [SaySo training and wake tooling](sayso-training/README.md).
 
-Goal: maximum decode tok/s inside a fixed layout — 4 slots sharing one 128k unified KV pool, q8_0 KV,
+Serving-only goal and constraints: maximum decode tok/s inside a fixed layout — 4 slots sharing one 128k unified KV pool, q8_0 KV,
 all layers on GPU. No CPU or RAM offload, and no host-side work added.
 
 ## Layout
@@ -16,6 +17,12 @@ all layers on GPU. No CPU or RAM offload, and no host-side work added.
 | `compose/llama-compose.yml` | Production llama-server config (flags, image, sampling defaults). |
 | `bench/` | Bench and profiling scripts (see below). |
 | `docs/RESULTS.md` | Measurements, what worked, what was rejected. |
+| `sayso-training/` | Imported SaySo training, generation, and wake tooling; shared runtime code comes from its pinned `vendor/SaySo` submodule. |
+
+Initialize the shared SaySo checkout with
+`git submodule update --init sayso-training/vendor/SaySo`.
+The imported `sayso-training/scripts/llm-host/llama-compose.yml` overlaps
+`compose/llama-compose.yml`; these configurations have not been merged.
 
 ## Reproduce the kernel change
 

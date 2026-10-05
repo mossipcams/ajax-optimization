@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import sys
 import time
 import wave
 from pathlib import Path
@@ -36,7 +35,6 @@ def main() -> int:
 
     from livekit.wakeword import WakeWordModel
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "satellite"))
     from sayso.wake.streaming import CachedEmbeddingScorer
 
     audio = read_wav(args.audio)

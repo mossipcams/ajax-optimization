@@ -1,6 +1,5 @@
 import glob, json, os, sys, wave
 import numpy as np
-sys.path.insert(0, "/opt/sayso-satellite")
 from sayso.wake.streaming import single_threaded_ort
 from livekit.wakeword import WakeWordModel
 

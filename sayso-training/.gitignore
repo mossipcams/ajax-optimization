@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
+.venv/
+training/runs/
+training/checkpoints/
+training/output/
+training/prepared/
+training/datasets/candidates/
+satellite/models/data/
+satellite/models/output*/

@@ -20,11 +20,6 @@ import numpy as np
 import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_SATELLITE_ROOT = _REPO_ROOT / "satellite"
-if str(_SATELLITE_ROOT) not in sys.path:
-    sys.path.insert(0, str(_SATELLITE_ROOT))
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
 
 from sayso.wake.eval import (
     run_wake_eval,

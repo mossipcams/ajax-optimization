@@ -11,9 +11,6 @@ from collections import defaultdict
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_SATELLITE_ROOT = _REPO_ROOT / "satellite"
-if str(_SATELLITE_ROOT) not in sys.path:
-    sys.path.insert(0, str(_SATELLITE_ROOT))
 
 from sayso.wake.mining import ingest_record, write_ack
 from sayso.wake.corpus import (

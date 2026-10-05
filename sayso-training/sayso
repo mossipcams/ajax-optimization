@@ -12,6 +12,10 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from training_paths import configure
+
+configure()
+
 ROOT = Path(__file__).resolve().parent
 PYTHON = Path(os.environ.get("PYTHON", ROOT / "training/.venv/bin/python"))
 STATE = ROOT / "training/runs/promotion"
@@ -21,6 +25,7 @@ BASE_MODEL = os.environ.get("BASE_MODEL", "/srv/llm/lfm/models/LFM2.5-230M-Base"
 DATASET_DIR = Path(os.environ.get("DATASET_DIR", "/srv/llm/data/lfm/datasets"))
 EVAL_RESULTS = Path(os.environ.get("EVAL_RESULTS", "/srv/llm/lfm/runs/sayso-promotion"))
 HOST = "/workspace/host"
+HOST_TRAINING = os.environ.get("SAYSO_TRAINING_HOST_ROOT", f"{HOST}/ajax-optimization/sayso-training")
 os.environ.setdefault("HF_HOME", "/srv/llm/hf-cache")
 
 
@@ -112,8 +117,9 @@ def eval_checkpoint(checkpoint: str, out_name: str, suite: str) -> tuple[bool, d
     out = f"{HOST}/lfm/runs/sayso-promotion/{out_name}"
     results = EVAL_RESULTS / out_name
     cmd = ["docker", "exec", "-e", "CUDA_VISIBLE_DEVICES=", "-e", "HIP_VISIBLE_DEVICES=",
-           "-w", f"{HOST}/sayso", "unsloth", "python",
-           f"{HOST}/sayso/training/scripts/eval_checkpoint_cpu.py", checkpoint,
+           "-w", HOST_TRAINING, "unsloth", "bash", "-c",
+           'source ./env.sh && exec python "$@"', "sayso-eval",
+           f"{HOST_TRAINING}/training/scripts/eval_checkpoint_cpu.py", checkpoint,
            "--suite", suite, "--out", out]
     if suite == "smoke":
         for tag in ("recipe-lock", "gold", "shadow", "grounding"):
@@ -178,7 +184,7 @@ def cmd_canary(_: argparse.Namespace) -> None:
     out = f"{HOST}/lfm/runs/sayso-promotion/{run_id}-canary"
     checkpoint = f"{out}/final"
     try:
-        run([GPU_LOCK, "train", "lfm", "python", f"{HOST}/sayso/training/scripts/train_unsloth_full.py",
+        run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/train_unsloth_full.py",
              "--data", data, "--canary", "--out", out])
     finally:
         settle_gpu()
@@ -227,8 +233,8 @@ def cmd_train(_: argparse.Namespace) -> None:
     record.update(trained=False, final_eval_passed=False)
     write_current(record)
     try:
-        run([GPU_LOCK, "train", "lfm", "python", f"{HOST}/sayso/training/scripts/train_unsloth_full.py",
-             "--data", data, "--out", out, "--promotion-record", f"{HOST}/sayso/training/runs/promotion/promoted_dataset.json"])
+        run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/train_unsloth_full.py",
+             "--data", data, "--out", out, "--promotion-record", f"{HOST_TRAINING}/training/runs/promotion/promoted_dataset.json"])
     except BaseException:
         settle_gpu()
         raise
