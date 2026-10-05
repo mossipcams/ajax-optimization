@@ -1,0 +1,1 @@
+../../vendor/SaySo/training/scripts/fetch_ha_home.py

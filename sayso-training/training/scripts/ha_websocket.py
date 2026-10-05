@@ -1,0 +1,1 @@
+../../vendor/SaySo/training/scripts/ha_websocket.py

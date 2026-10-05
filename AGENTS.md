@@ -34,10 +34,11 @@ correctness or remote execution.
 ## Repository scope
 
 This repo holds the llama.cpp serving configuration, Vulkan kernel patches, and
-benchmarks for Qwen3.8-27B on a single RX 7900 XTX. Goal: maximum decode tok/s
-inside a fixed layout.
+benchmarks for Qwen3.8-27B on a single RX 7900 XTX, plus SaySo training and wake
+tooling in `sayso-training/`. The serving goal is maximum decode tok/s inside a
+fixed layout.
 
-Hard constraints unless the user says otherwise:
+Serving-only hard constraints unless the user says otherwise:
 
 - Keep 4 slots sharing one 128k unified KV pool (`--parallel -1`, `--kv-unified`,
   `-c 131072`). Propose layout changes; never apply them.

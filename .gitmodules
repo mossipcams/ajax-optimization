@@ -1,0 +1,3 @@
+[submodule "sayso-training/vendor/SaySo"]
+	path = sayso-training/vendor/SaySo
+	url = https://github.com/mossipcams/SaySo.git
