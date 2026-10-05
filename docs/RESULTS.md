@@ -43,6 +43,11 @@ Traffic is ~70% single-stream, so the weighted gain is smaller than the PAIR fig
 - Layout changes (2 x 64k slots, non-unified KV) are faster for pairs but violate the fixed-layout constraint.
 
 ## Notes
+- GPU power cap (2026-10-05): the `llm` VM's RX 7900 XTX allows 294–327 W;
+  the cap was set by hand to the 294 W minimum. No tok/s impact has been measured.
+  `host/gpu-power-cap.service` provides boot persistence; the unit has not been
+  installed on any host as part of this change. See the README for installation
+  and revert commands.
 - The FA sparse-gather path exists but is dead here: the graph always passes `n_kv_max = 0` and the host restricts sparse to f16 KV.
 - The full `FLASH_ATTN_EXT` suite in `test-backend-ops` already fails ~1800 cases on this build without the patch (sinks, odd head sizes). The Qwen shapes in `patches/0002` pass, including with packing.
 - Remaining per-cycle cost (solo, ~36 ms): weights ~25 ms, dispatch ~7 ms, draft steps ~4 ms. The draft lm_head (q4_0, 248k x 5120) is bandwidth-bound at ~880 GB/s.
