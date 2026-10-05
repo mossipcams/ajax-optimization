@@ -1,0 +1,13 @@
+[Unit]
+Description=Set the llm VM GPU power cap to 294 W
+Wants=systemd-udev-settle.service
+After=systemd-modules-load.service systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'echo 294000000 > /sys/class/drm/card0/device/hwmon/hwmon0/power1_cap'
+ExecStop=/bin/sh -c 'echo 0 > /sys/class/drm/card0/device/hwmon/hwmon0/power1_cap'
+
+[Install]
+WantedBy=multi-user.target

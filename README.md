@@ -40,3 +40,27 @@ Everything runs on the GPU host inside a lock turn (`gpu run <label> -- <cmd>`);
 - `bench/mtp_ab.sh`, `bench/quant_ab.sh`, `bench/slotbench.sh`, `bench/specbench.sh`, `bench/cachebench.sh` — draft head, quant, slot layout, speculative and cache experiments.
 
 Paths in the scripts (`/srv/llm/...`) are the GPU host's; adjust for another machine.
+
+## GPU power cap
+
+The `llm` VM's RX 7900 XTX allows 294–327 W. Its cap was set by hand to
+294 W (the minimum) on 2026-10-05. No tok/s impact has been measured.
+`host/gpu-power-cap.service` persists this cap at boot after module loading and
+udev device initialization, using the VM's fixed
+`/sys/class/drm/card0/device/hwmon/hwmon0/power1_cap` path (values in microwatts).
+
+To install and enable it, run from a checkout on the `llm` VM:
+
+```bash
+sudo install -m 0644 host/gpu-power-cap.service /etc/systemd/system/gpu-power-cap.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now gpu-power-cap.service
+```
+
+To revert, disable the unit and write `0` to restore the default cap (stopping
+the unit also writes `0`):
+
+```bash
+sudo systemctl disable --now gpu-power-cap.service
+sudo sh -c 'echo 0 > /sys/class/drm/card0/device/hwmon/hwmon0/power1_cap'
+```
