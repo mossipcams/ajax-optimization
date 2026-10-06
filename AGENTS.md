@@ -49,6 +49,21 @@ Serving-only hard constraints unless the user says otherwise:
   verify), and report what it costs. Do not ask the user to arbitrate secondary
   trade-offs.
 
+## SaySo training
+
+- SaySo model training design lives in
+  `sayso-training/docs/SAYSO_LFM_TRAINING_PLAN.md`; wake-word training has its
+  own `sayso-training/docs/SAYSO_WAKE_WORD_TRAINING_PLAN.md`. The model target
+  is `LFM2.5-230M-Base` with schema-conditioned function calling.
+  `ALLOWED_HASS_TOOLS` validates the pinned training contract only — it does
+  not define runtime support.
+- Do not train on ChatML `<tool_call>` labels or on eval case IDs/utterances
+  from `sayso-training/evals/cases/`.
+- Do not expand corpora past the reviewed `sayso-training/evals/cases/`
+  and training gold sets.
+- Training and wake tooling runbooks are summarized in
+  `sayso-training/README.md`.
+
 ## GPU host safety
 
 - Every GPU job runs inside a lock turn: `gpu run <label> -- <cmd>`. Prod
@@ -81,35 +96,45 @@ Serving-only hard constraints unless the user says otherwise:
 
 ## Delegation
 
-All subagent and delegate work goes through the Ajax Model Router: call the
-`model-router` skill, then dispatch via acpx (`scripts/run-delegate` from the
-Ajax repo). Never spawn native harness subagents (Cursor Task, best-of-n,
-Claude/Codex/Pi task children, or pstack explorers) for any reason, including
-missing `acpx`. Never use Composer 2.5 Fast (`composer-2.5-fast` or any Fast
-Composer variant) as a native Task or subagent model. Missing `acpx` is stop,
-not a license to Task or parent-local writes.
+The local agent does the work; the frontier agent orchestrates. All
+exploration, implementation, testing, diagnosis, and reporting go through the
+Ajax Model Router: call the `model-router` skill, which emits one `EXECUTION`
+decision (agent, model, risk, scope, verify, fallback). The selected local
+delegate runs the full loop inside that scope: explore, implement, test,
+diagnose failures, and report. The frontier agent reviews the actual delta and
+report and accepts or rejects it. It does not explore the tree, implement,
+test, diagnose, commit, push, or open pull requests itself. A delegate report
+is evidence, not approval. Live-host operations (running benchmarks, deploying
+to the GPU host) are not repository writes and do not need delegation.
 
-Always use `model-router` for implementation writes to repository files. The
-orchestrator writes plans when required, emits one `EXECUTION` decision, and
-reviews delegate work. It does not explore the tree, implement, commit, push, or
-open pull requests. Do not duplicate model rankings or exact model IDs in this
-file. Live-host operations (running benchmarks, deploying to the GPU host) are
-not repository writes and do not need delegation.
+Never spawn native harness subagents (Cursor Task, best-of-n, Claude/Codex/Pi
+task children) for any work. A delegate must run in-process. When the delegate
+fails, re-route through the router; do not take over. Do not duplicate model
+rankings or exact model IDs in this file.
 
-If the user explicitly approved bypassing delegation for this request, the
-active agent may implement, commit, push, and open pull requests in-process.
-That approval is per-request; it does not change the default.
+Only an explicit user approval to bypass delegation for this request lets the
+frontier agent run the loop in-process (explore, implement, test, diagnose,
+report, commit, push, open pull requests). That approval is per-request; it
+does not change the default, and silence or a delegate failure is not approval.
 
-Delegates must not merge, rebase, force-push, or switch branches unless the user
-explicitly authorizes that behavior.
+When the user asks to create a PR, the selected delegate runs the repository's
+local verification gate (the checks in this file's 'Verification and
+reporting' section), commits, pushes, and opens the PR with `gh pr create`; the
+orchestrator reports the PR URL after reviewing the delta. After an explicit
+bypass, the frontier agent does that same PR path in-process. Delegates must not
+merge, rebase, force-push, or switch branches unless the user explicitly
+authorizes that behavior.
 
 Every delegated task must be bounded by scope, acceptance criteria,
 verification, and stop conditions. The active agent must inspect the actual
-delta, confirm scope, and independently accept or reject the result. A delegate
-report is evidence, not approval.
+delta, confirm scope, and independently accept or reject the result.
 
-Harness-specific workflows are optional. They cannot override repository
-requirements or become dependencies for other harnesses.
+## No code comments
+
+Code must never contain comments. Do not add `#` comments or docstrings to
+`.py` files, and do not add `#` comments to `.sh` files — new or existing.
+Shebang lines on line 1 are the only allowed `#` line. If a change seems to
+need a comment, restructure the code or name it so the comment is unnecessary.
 
 ## Verification and reporting
 
