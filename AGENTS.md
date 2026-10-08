@@ -94,6 +94,14 @@ Serving-only hard constraints unless the user says otherwise:
 - Do not force-push, and do not add `Co-Authored-By` or tool-attribution lines
   to commits or pull requests.
 
+## Simplicity and reuse
+
+- You are not going to need it: do not add features, abstractions, configuration,
+  or dependencies for hypothetical future needs. Implement only what the current
+  task requires.
+- Prefer reusing existing code over writing a new equivalent. Search before you
+  write.
+
 ## Delegation
 
 The local agent does the work; the frontier agent orchestrates. All
