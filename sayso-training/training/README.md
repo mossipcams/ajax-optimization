@@ -164,7 +164,7 @@ Home Assistant entities add roughly 280-670 system-prompt tokens. A 40k run at
 7168 rejected 469 rows and starved the correction family (1,697 of 2,242); a
 3,000-row sample at 8000 had no budget rejects and a 7,453-token maximum. 8000
 plus the 160-token output still fits the 8,192 training context.
-Full 40k runs at the v5 shares failed allocation (correction 1,759 of 2,242; settings 2,963 of 2,989) because the generator yields only about 250 distinct correction scenarios at `near_duplicate_limit` 8 — also true of the pre-v6 code. v6 therefore moves 0.02 from correction and 0.005 from settings to ordinary instead of admitting more duplicate utterances.
+Full 40k runs failed allocation because the 10% real-home quota exceeds what the real home can supply at `near_duplicate_limit` 8; once the quota forces the tail onto the saturated real home, every row is a duplicate. The pipeline now falls back to a synthetic home for such rows (as the pre-import generator did), so the achieved real-home share can land below 10%; the manifest records it.
 
 The historical v3 build wrote canonical JSONL and its TRL render in one pass
 and recorded `render_rows` in the manifest; it had to equal `accepted`. Current

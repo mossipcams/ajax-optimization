@@ -47,6 +47,10 @@ from generators.stats import empty_stats, finalize_stats, record_accept, record_
 
 REAL_HOME_RETRY_LIMIT = 4
 
+_REAL_HOME_FALLBACK_REASONS = frozenset(
+    {"family_mismatch", "duplicate_semantic_id", "exact_duplicate_utterance"}
+)
+
 
 def _discrimination_recipe_slot(
     plan: AllocationPlan, tracker: FamilyTracker, rng: random.Random, closed: set[int]
@@ -430,6 +434,12 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
         while True:
             if exclusion_cadence:
                 real_sel = real_home_selected
+            elif (
+                real_home_retries == 1
+                and real_home_forced
+                and reason in _REAL_HOME_FALLBACK_REASONS
+            ):
+                real_sel = False
             else:
                 real_sel = True if real_home_retries else real_home_selected
             row_rng = (

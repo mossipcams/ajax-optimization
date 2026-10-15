@@ -12,14 +12,13 @@ tokenizer:
 schema:
   path: schemas/sayso-tool-schema-v2.json
 
-# ponytail: correction/settings trimmed to fit the generator correction pool (~250 scenarios at near_duplicate_limit 8); restore 0.06/0.08 once correction scenario diversity is fixed in slot planning.
 allocations:
-  ordinary: 0.245
+  ordinary: 0.22
   follow_up: 0.13
   status: 0.10
-  settings: 0.075
+  settings: 0.08
   clarify: 0.08
-  correction: 0.04
+  correction: 0.06
   junk: 0.06
   multi_action: 0.06
   exclusion: 0.05

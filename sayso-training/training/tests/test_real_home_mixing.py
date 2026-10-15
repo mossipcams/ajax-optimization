@@ -156,3 +156,24 @@ def test_live_snapshot_requires_assist_exposure_and_stale_exports_fail(tmp_path)
     require_exposure_source(FIXTURE, allowed=TESTABLE_EXPOSURE_SOURCES)
     with pytest.raises(ValueError, match="exposure_source"):
         require_exposure_source(FIXTURE, allowed=LIVE_EXPOSURE_SOURCES)
+
+
+def test_saturated_real_home_falls_back_to_synthetic():
+    config = GeneratorConfig(
+        count=250,
+        seed=515,
+        real_home_path=FIXTURE,
+        real_home_rate=0.6,
+        paraphrase_enabled=False,
+        allocations={"correction": 0.86, "ordinary": 0.08, "status": 0.06},
+        min_positive_per_operation=0,
+        min_positive_per_tool=0,
+        max_absence_rate=1.0,
+        get_datetime_positive_min=0,
+    )
+    result = run_generation(config)
+    assert result["stats"]["accepted"] == 250
+    real = result["stats"]["real_home"]
+    assert real["rows"] < 0.6 * 250
+    assert real["achieved_rate"] < 0.6
+    assert real["rows"] == sum(1 for row in result["rows"] if row["metadata"]["real_home"])
