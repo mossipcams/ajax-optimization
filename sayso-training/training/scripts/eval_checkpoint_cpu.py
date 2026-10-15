@@ -22,7 +22,7 @@ from evals.scorer import summarize
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("checkpoint")
-    parser.add_argument("--suite", choices=("smoke", "promotion"), default="smoke")
+    parser.add_argument("--suite", choices=("smoke", "promotion", "context"), default="smoke")
     parser.add_argument("--tag", action="append", default=[])
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--baseline", type=Path, default=ROOT / "training/configs/training_baseline.json")
@@ -54,14 +54,14 @@ def main() -> int:
             cases=cases,
             results=results,
             adapter=adapter,
-            suite=label if label in {"smoke", "promotion"} else None,
+            suite=label if label in {"smoke", "promotion", "context"} else None,
             extra_metadata={"checkpoint": args.checkpoint, "gate_label": label},
         )
         print(f"{label}: {summary['passed']}/{summary['total']} passed -> {dest}")
         from evals.cases import load_gates
         from evals.scorer import check_gates
 
-        gate_suite = args.suite if label == args.suite and args.suite in {"smoke", "promotion"} else None
+        gate_suite = args.suite if label == args.suite and args.suite in {"smoke", "promotion", "context"} else None
         if gate_suite:
             failures.extend(
                 f"{label} {failure}"

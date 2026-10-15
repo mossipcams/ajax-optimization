@@ -47,7 +47,14 @@ def git_commit() -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     except (OSError, subprocess.CalledProcessError):
+        pass
+    try:
+        value = (ROOT / "REVISION").read_text(encoding="utf-8").strip()
+    except OSError:
         return "unknown"
+    if len(value) == 40 and all(ch in "0123456789abcdef" for ch in value):
+        return value
+    return "unknown"
 
 
 def save(path: Path, data: dict) -> None:
@@ -123,7 +130,7 @@ def eval_checkpoint(checkpoint: str, out_name: str, suite: str) -> tuple[bool, d
            f"{HOST_TRAINING}/training/scripts/eval_checkpoint_cpu.py", checkpoint,
            "--suite", suite, "--out", out]
     if suite == "smoke":
-        for tag in ("recipe-lock", "gold", "shadow", "grounding"):
+        for tag in ("recipe-lock", "gold", "shadow", "grounding", "context"):
             cmd.extend(("--tag", tag))
     result = subprocess.run(cmd, cwd=ROOT)
     summaries: dict[str, dict] = {}
@@ -140,16 +147,23 @@ def eval_checkpoint(checkpoint: str, out_name: str, suite: str) -> tuple[bool, d
 def cmd_generate(_: argparse.Namespace) -> None:
     if not PYTHON.is_file():
         raise SystemExit(f"Missing Python environment: {PYTHON}")
+    import yaml
+    recipe = yaml.safe_load((ROOT / GENERATION_CONFIG).read_text(encoding="utf-8"))
+    paraphrase = bool(recipe.get("generation", {}).get("paraphrase_enabled"))
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     CANDIDATES.mkdir(parents=True, exist_ok=True)
     dataset = CANDIDATES / f"{run_id}.jsonl"
     manifest = CANDIDATES / f"{run_id}.manifest.json"
-    gpu("serve")
-    try:
-        run([str(PYTHON), "-m", "generators.cli", "--config", Path(GENERATION_CONFIG).relative_to("training").as_posix(),
-             "--output", str(dataset), "--manifest", str(manifest)], cwd=ROOT / "training")
-    finally:
-        gpu("stop")
+    generator = [str(PYTHON), "-m", "generators.cli", "--config", Path(GENERATION_CONFIG).relative_to("training").as_posix(),
+                 "--output", str(dataset), "--manifest", str(manifest)]
+    if paraphrase:
+        gpu("serve")
+        try:
+            run(generator, cwd=ROOT / "training")
+        finally:
+            gpu("stop")
+    else:
+        run(generator, cwd=ROOT / "training")
     record = {"run_id": run_id, "dataset_path": str(dataset), "manifest_path": str(manifest),
               "rendered_path": str(CANDIDATES / f"{run_id}.rendered.jsonl"), "git_commit": git_commit(),
               "config": GENERATION_CONFIG,
@@ -251,11 +265,17 @@ def cmd_eval(_: argparse.Namespace) -> None:
     ensure_vm()
     record["final_eval_passed"] = False
     write_current(record)
-    passed, metrics = eval_checkpoint(record["checkpoint"], f"{record['run_id']}-final-eval", "promotion")
-    record.update(final_metrics=metrics, final_eval_passed=passed)
+    metrics: dict[str, dict] = {}
+    failed: list[str] = []
+    for suite, suffix in (("promotion", "final-eval"), ("context", "final-context")):
+        passed, summaries = eval_checkpoint(record["checkpoint"], f"{record['run_id']}-{suffix}", suite)
+        metrics.update(summaries)
+        if not passed:
+            failed.append(suite)
+    record.update(final_metrics=metrics, final_eval_passed=not failed)
     write_current(record)
-    if not passed:
-        raise SystemExit("Final promotion-suite evaluation failed; model was not promoted")
+    if failed:
+        raise SystemExit(f"Final {', '.join(failed)}-suite evaluation failed; model was not promoted")
 
 
 def cmd_promote_model(args: argparse.Namespace) -> None:
