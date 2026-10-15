@@ -282,6 +282,54 @@ def _eval_entity_names() -> frozenset[str]:
     return frozenset(name.casefold() for name in names)
 
 
+_CONTEXT_PERSON_NAMES = (
+    "Alice Morgan", "Ben Carter", "Chloe Nguyen", "David Osei", "Emma Lindqvist",
+    "Farid Haddad", "Grace Kim", "Hugo Martins", "Ines Duarte", "Jonas Weber",
+)
+
+
+def _context_entities_for(
+    entities: list[dict[str, Any]], rooms: list[str], index: int, size: int
+) -> list[dict[str, Any]]:
+    rng = random.Random(f"context:{index}:{size}")
+    taken: set[str] = set()
+    for entity in entities:
+        taken.add(entity["name"].casefold())
+        for alias in entity.get("aliases", []):
+            taken.add(alias.casefold())
+    reserved = _eval_entity_names()
+    items: list[dict[str, Any]] = []
+
+    def add(name: str, domain: str, area: str | None = None) -> None:
+        if name.casefold() in taken or name.casefold() in reserved:
+            return
+        taken.add(name.casefold())
+        item: dict[str, Any] = {"name": name, "domain": domain}
+        if area:
+            item["area"] = area
+        items.append(item)
+
+    for entity in entities:
+        if entity["capability"] == "media_players" and rng.random() < 0.8:
+            add(f"{entity['name']} Active app", "sensor", entity.get("area"))
+            add(f"{entity['name']} Application", "select", entity.get("area"))
+    for entity in entities:
+        if entity["capability"] in {"lights", "switches"} and rng.random() < 0.15:
+            add(f"{entity['name']} {rng.choice(('Power', 'Energy'))}", "sensor", entity.get("area"))
+    for area in rooms:
+        if rng.random() < 0.25:
+            add(f"{area} Temperature", "sensor", area)
+            add(f"{area} Humidity", "sensor", area)
+            add(f"{area} Motion", "binary_sensor", area)
+    for name in rng.sample(_CONTEXT_PERSON_NAMES, rng.randint(1, 3)):
+        add(name, "person")
+    if rng.random() < 0.9:
+        add("Sun", "sun")
+    if rng.random() < 0.85:
+        add("Date", "sensor")
+    return items
+
+
 def _random_entity_name(
     capability: str,
     area: str,
@@ -437,6 +485,7 @@ def generate_home(
         "active_timers": _synthetic_timers(rng) if rng.random() < 0.3 else [],
         "areas": rooms, "area_floors": floors, "owners": owners,
         "exposure_source": "synthetic",
+        "context_entities": _context_entities_for(entities, rooms, index, size),
     }
 
 

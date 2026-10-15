@@ -403,6 +403,129 @@
       ]
     }
   ],
+  "context_entities": [
+    {
+      "name": "Apollo MSR-2 Radar Moving Target",
+      "domain": "binary_sensor",
+      "area": "Bedroom"
+    },
+    {
+      "name": "Aqara Dryer Sensor",
+      "domain": "binary_sensor",
+      "area": "Kitchen"
+    },
+    {
+      "name": "Date",
+      "domain": "sensor"
+    },
+    {
+      "name": "Date & Time",
+      "domain": "sensor"
+    },
+    {
+      "name": "Home Assistant Climate",
+      "domain": "sensor"
+    },
+    {
+      "name": "Home Assistant Lights",
+      "domain": "sensor"
+    },
+    {
+      "name": "Home Assistant Media players",
+      "domain": "sensor"
+    },
+    {
+      "name": "Home Assistant Switches",
+      "domain": "sensor"
+    },
+    {
+      "name": "Home Assistant Timers",
+      "domain": "sensor"
+    },
+    {
+      "name": "Home Assistant To-do lists",
+      "domain": "sensor"
+    },
+    {
+      "name": "Humidifier Plugin Bedroomcontrol",
+      "domain": "humidifier",
+      "area": "Bedroom"
+    },
+    {
+      "name": "Pending Notifications",
+      "domain": "binary_sensor"
+    },
+    {
+      "name": "Person One",
+      "domain": "person"
+    },
+    {
+      "name": "Person Two",
+      "domain": "person"
+    },
+    {
+      "name": "PirateWeather Daytime High Temperature 0d",
+      "domain": "sensor"
+    },
+    {
+      "name": "PirateWeather Overnight Low Temperature 0d",
+      "domain": "sensor"
+    },
+    {
+      "name": "SaySo (local)",
+      "domain": "conversation",
+      "area": "Living Room"
+    },
+    {
+      "name": "Sonoff Sensor Humidity",
+      "domain": "sensor",
+      "area": "Bedroom"
+    },
+    {
+      "name": "Sonoff Sensor Temperature",
+      "domain": "sensor",
+      "area": "Bedroom"
+    },
+    {
+      "name": "Sun",
+      "domain": "sun"
+    },
+    {
+      "name": "TV Active app",
+      "domain": "sensor",
+      "area": "Living Room"
+    },
+    {
+      "name": "TV Application",
+      "domain": "select",
+      "area": "Living Room"
+    },
+    {
+      "name": "Thermo Humidity",
+      "domain": "sensor",
+      "area": "Hallway"
+    },
+    {
+      "name": "Thermostat Current Temperature",
+      "domain": "sensor",
+      "area": "Hallway"
+    },
+    {
+      "name": "Thermostat Motion",
+      "domain": "binary_sensor",
+      "area": "Hallway"
+    },
+    {
+      "name": "Third Reality Temp Temperature",
+      "domain": "sensor",
+      "area": "Office"
+    },
+    {
+      "name": "Third reality humidity",
+      "domain": "sensor",
+      "area": "Office"
+    }
+  ],
   "active_timers": [],
   "areas": [
     "Hallway",

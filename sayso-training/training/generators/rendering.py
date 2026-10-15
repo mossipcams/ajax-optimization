@@ -14,6 +14,11 @@ from generators.planning import CORE_TOOL_NAMES
 from generators.tools import namespaced_tool_name, production_catalog, script_tools
 
 
+def _emit_arguments(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    if name in {"HassTurnOn", "HassTurnOff"} and "name" in arguments and not ({"area", "floor"} & set(arguments)):
+        return {key: value for key, value in arguments.items() if key != "domain"}
+    return dict(arguments)
+
 def scenario_to_spec(scenario: dict[str, Any]) -> dict[str, Any]:
     from generators.gold import target_names_from_expected
 
@@ -191,7 +196,7 @@ def _append_action_turn(
                 "type": "function",
                 "function": {
                     "name": tool_name(call["name"]),
-                    "arguments": json.dumps(call["arguments"], ensure_ascii=False, sort_keys=True),
+                    "arguments": json.dumps(_emit_arguments(call["name"], call["arguments"]), ensure_ascii=False, sort_keys=True),
                 },
             }
         )
@@ -304,7 +309,7 @@ def _render_correction(spec: dict[str, Any]) -> dict[str, Any]:
                     "type": "function",
                     "function": {
                         "name": tool_name(bad_call["name"]),
-                        "arguments": json.dumps(bad_call["arguments"], ensure_ascii=False, sort_keys=True),
+                        "arguments": json.dumps(_emit_arguments(bad_call["name"], bad_call["arguments"]), ensure_ascii=False, sort_keys=True),
                     },
                 }
             ],
@@ -334,7 +339,7 @@ def _render_correction(spec: dict[str, Any]) -> dict[str, Any]:
                     "type": "function",
                     "function": {
                         "name": tool_name(correct_call["name"]),
-                        "arguments": json.dumps(correct_call["arguments"], ensure_ascii=False, sort_keys=True),
+                        "arguments": json.dumps(_emit_arguments(correct_call["name"], correct_call["arguments"]), ensure_ascii=False, sort_keys=True),
                     },
                 }
             ],
@@ -388,7 +393,7 @@ def render_example(spec: dict[str, Any]) -> dict[str, Any]:
                     "type": "function",
                     "function": {
                         "name": tool_name(call["name"]),
-                        "arguments": json.dumps(call["arguments"], ensure_ascii=False, sort_keys=True),
+                        "arguments": json.dumps(_emit_arguments(call["name"], call["arguments"]), ensure_ascii=False, sort_keys=True),
                     },
                 }
             )

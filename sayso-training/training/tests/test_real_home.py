@@ -20,6 +20,7 @@ from generators.scenarios import build_scenario
 ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parent
 FIXTURE = ROOT / "fixtures" / "real_home.json"
+ASSIST_STATIC_CONTEXT = ROOT / "fixtures" / "real_home_assist_static_context.yaml"
 SMOKE = ROOT / "configs" / "generation" / "smoke.yaml"
 
 
@@ -128,6 +129,70 @@ def test_build_scenario_injects_capabilities_the_real_home_lacks():
     )
     assert scenario["target_entity"]["capability"] == "locks"
 
+def _full_fixture_home() -> dict:
+    raw = json.load(open(FIXTURE, encoding="utf-8"))
+    entities = split_entities(raw["entities"], "train") + split_entities(raw["entities"], "holdout")
+    for entity in entities:
+        entity["name"] = " ".join(entity["name"].split())
+        if entity.get("aliases"):
+            entity["aliases"] = [" ".join(alias.split()) for alias in entity["aliases"]]
+    context_entities = []
+    for context_entity in raw.get("context_entities") or []:
+        context_entity = dict(context_entity)
+        context_entity["name"] = " ".join(context_entity["name"].split())
+        context_entities.append(context_entity)
+    home = dict(raw)
+    home["entities"] = entities
+    home["context_entities"] = context_entities
+    return home
+
+
+def test_full_fixture_renders_the_captured_live_static_context():
+    from generators.context import _dump, exposed_entities
+
+    rendered = _dump(exposed_entities(_full_fixture_home()))
+    assert rendered == ASSIST_STATIC_CONTEXT.read_text(encoding="utf-8")
+
+
+def test_generated_rows_never_mention_unassigned():
+    from generators.pipeline import run_generation
+
+    config = _cfg(
+        count=80,
+        seed=97,
+        real_home_path=FIXTURE,
+        real_home_rate=1.0,
+        synthetic_only=False,
+        allocations={"ordinary": 0.35, "status": 0.2, "settings": 0.15, "multi_action": 0.15, "correction": 0.15},
+    )
+    rows = run_generation(config)["rows"]
+    assert any(row["metadata"].get("real_home") for row in rows), "no rows used the real home"
+    for row in rows:
+        blob = json.dumps(row["messages"]).casefold()
+        assert "unassigned" not in blob, blob
+
+
+def test_validate_serialized_row_rejects_placeholder_area():
+    from generators import validation
+
+    def make_row(area):
+        return {
+            "tools": [{"type": "function", "function": {"name": "HassSetVolume", "description": "", "parameters": {}}}],
+            "messages": [
+                {"role": "user", "content": f"Turn volume up in {area}"},
+                {"role": "assistant", "content": ""},
+            ],
+        }
+
+    rejected = validation.validate_serialized_row(
+        make_row("Unassigned"), token_budget=10_000, tokenizer_model="LiquidAI/LFM2.5-230M-Base"
+    )
+    assert rejected == "placeholder_area"
+    kitchen = validation.validate_serialized_row(
+        make_row("Kitchen"), token_budget=10_000, tokenizer_model="LiquidAI/LFM2.5-230M-Base"
+    )
+    assert kitchen != "placeholder_area"
+
 
 def test_build_scenario_without_a_home_is_unchanged():
     kwargs = dict(index=5, seed=2, capability="lights", operation="turn_on", home_size=16)
@@ -201,3 +266,39 @@ def test_no_real_home_means_no_cap_bookkeeping():
 
     report = run_generation(_cfg(count=80, seed=3))["stats"]
     assert "real_home" not in report
+
+
+def test_context_entities_survive_both_splits_identical():
+    train = load_real_home(FIXTURE, split="train")
+    holdout = load_real_home(FIXTURE, split="holdout")
+    assert len(train["context_entities"]) == 27
+    assert train["context_entities"] == holdout["context_entities"]
+
+
+def test_context_entity_names_never_collide_with_targets():
+    home = load_real_home(FIXTURE, split="train")
+    context_names = {c["name"] for c in home["context_entities"]}
+    target_names = set()
+    for entity in home["entities"]:
+        target_names.add(entity["name"])
+        target_names.update(entity.get("aliases", []))
+    assert not {n.casefold() for n in context_names} & {t.casefold() for t in target_names}
+
+
+def test_context_entity_names_are_whitespace_normalised(tmp_path):
+    fixture = json.load(open(FIXTURE, encoding="utf-8"))
+    fixture["context_entities"] = [{"name": "  TV   Active   app ", "domain": "sensor"}]
+    path = tmp_path / "home.json"
+    path.write_text(json.dumps(fixture), encoding="utf-8")
+    home = load_real_home(path)
+    assert [c["name"] for c in home["context_entities"]] == ["TV Active app"]
+
+
+def test_exposed_entities_list_context_entries_alongside_targets():
+    from generators.context import exposed_entities
+
+    home = load_real_home(FIXTURE, split="train")
+    names = [entry["names"] for entry in exposed_entities(home)]
+    assert "TV Active app" in names
+    assert names[names.index("TV")] == "TV"
+    assert names[names.index("TV") + 1] == "TV Active app"

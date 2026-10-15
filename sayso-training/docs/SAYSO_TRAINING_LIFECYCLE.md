@@ -26,7 +26,7 @@ python scripts/preflight.py
 ./sayso promote-model
 ```
 
-`./sayso generate` builds the configured `full_sft_v5.yaml` dataset under
+`./sayso generate` builds the configured `full_sft_v6.yaml` dataset under
 `training/datasets/candidates/<run-id>.jsonl`. Each run also has a manifest and
 metadata record. Generation never changes the promoted-dataset pointer.
 

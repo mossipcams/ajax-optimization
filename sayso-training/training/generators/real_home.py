@@ -56,6 +56,8 @@ def _load(path: str, split: str) -> dict[str, Any]:
         if entity.get("aliases"):
             entity["aliases"] = [" ".join(alias.split()) for alias in entity["aliases"]]
     entities = split_entities(home["entities"], split)
+    for context_entity in home.get("context_entities") or []:
+        context_entity["name"] = " ".join(context_entity["name"].split())
     if not entities:
         msg = f"{path} has no entities in split {split!r}"
         raise ValueError(msg)
@@ -67,6 +69,16 @@ def _load(path: str, split: str) -> dict[str, Any]:
         "entities": entities,
         "sayso_entity_area": (
             home["sayso_entity_area"] if home["sayso_entity_area"] in areas else entities[0]["area"]
+        ),
+        **({
+            "areas": [area for area in home["areas"] if area != "Unassigned"],
+        }
+        if home.get("areas")
+        else {}),
+        **(
+            {"area_floors": {k: v for k, v in home["area_floors"].items() if k != "Unassigned"}}
+            if home.get("area_floors")
+            else {}
         ),
     }
 

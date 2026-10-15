@@ -88,3 +88,36 @@ def test_lock_labels_carry_no_device_class():
     assert build_turn_off(lock)["arguments"] == {"name": "Front Door Lock"}
     area = build_area_call("locks", "lock", "Garage")["arguments"]
     assert area == {"area": "Garage", "domain": ["lock"]}
+
+
+def test_single_entity_on_off_labels_drop_domain_at_emission():
+    import json
+
+    from generators.rendering import render_example
+
+    home = generate_home(0, 64, random.Random(1))
+    light = next(e for e in home["entities"] if e["domain"] == "light")
+    on_call = {"name": "HassTurnOn", "arguments": {"name": light["name"], "domain": ["light"]}}
+    spec = {
+        "candidate_id": "c-domain-strip",
+        "home": home,
+        "utterance": f"Turn on the {light['name']}",
+        "target_names": [light["name"]],
+        "expected": {"kind": "action", "calls": [on_call]},
+    }
+    row = render_example(spec)
+    calls = next(m for m in row["messages"] if m.get("tool_calls"))["tool_calls"]
+    args = json.loads(calls[0]["function"]["arguments"])
+    assert args == {"name": light["name"]}
+    assert spec["expected"]["calls"][0]["arguments"]["domain"] == ["light"]
+
+    off_call = {"name": "HassTurnOff", "arguments": {"area": "Kitchen", "domain": ["light"]}}
+    area_spec = {
+        "candidate_id": "c-domain-keep",
+        "home": home,
+        "utterance": "Turn off the kitchen lights",
+        "expected": {"kind": "action", "calls": [off_call]},
+    }
+    area_row = render_example(area_spec)
+    area_calls = next(m for m in area_row["messages"] if m.get("tool_calls"))["tool_calls"]
+    assert json.loads(area_calls[0]["function"]["arguments"]) == {"area": "Kitchen", "domain": ["light"]}

@@ -80,16 +80,24 @@ def _dump(data: list[dict[str, Any]]) -> str:
 
 
 def exposed_entities(home: dict[str, Any]) -> list[dict[str, Any]]:
-    entities = []
-    for entity in sorted(home.get("entities", []), key=lambda item: item["name"]):
+    items: list[tuple[str, dict[str, Any]]] = []
+    for entity in home.get("entities", []):
         if entity["domain"] in OVERVIEW_EXCLUDED_DOMAINS:
             continue
         names = dict.fromkeys([entity["name"], *entity.get("aliases", [])])
         info: dict[str, Any] = {"names": ", ".join(names), "domain": entity["domain"]}
-        if entity.get("area"):
+        if entity.get("area") and entity["area"] != "Unassigned":
             info["areas"] = entity["area"]
-        entities.append(info)
-    return entities
+        items.append((entity["name"], info))
+    for context_entity in home.get("context_entities") or []:
+        domain = context_entity["domain"]
+        if domain in OVERVIEW_EXCLUDED_DOMAINS:
+            continue
+        info = {"names": context_entity["name"], "domain": domain}
+        if context_entity.get("area") and context_entity["area"] != "Unassigned":
+            info["areas"] = context_entity["area"]
+        items.append((context_entity["name"], info))
+    return [info for _, info in sorted(items, key=lambda pair: pair[0])]
 
 
 def _namespaced(text: str) -> str:
@@ -102,7 +110,9 @@ def _namespaced(text: str) -> str:
 
 def home_areas(home: dict[str, Any]) -> dict[str, list[str]]:
     areas: dict[str, list[str]] = {
-        area: [] for area in [*(home.get("areas") or []), *(e.get("area") for e in home.get("entities", []))] if area
+        area: []
+        for area in [*(home.get("areas") or []), *(e.get("area") for e in home.get("entities", []))]
+        if area and area != "Unassigned"
     }
     for area, aliases in (home.get("area_aliases") or {}).items():
         areas[area] = list(aliases)

@@ -205,7 +205,7 @@ HA_URL=http://homeassistant.local:8123 HA_TOKEN=... \
 ```
 
 The legacy `production.yaml` recipe is synthetic-only. Active full training uses
-`full_sft_v5.yaml`, which configures a 10% real-home mix. Use `./sayso generate`
+`full_sft_v6.yaml`, which configures a 10% real-home mix. Use `./sayso generate`
 to build a training candidate; do not build a full training corpus through an
 ad hoc generator command.
 
