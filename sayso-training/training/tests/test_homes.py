@@ -101,6 +101,30 @@ def test_context_entities_are_seed_deterministic() -> None:
     assert first == second
 
 
+def test_context_entities_are_deterministic_for_same_seed() -> None:
+    a = generate_home(3, 32, random.Random(77))
+    b = generate_home(3, 32, random.Random(77))
+    assert a["context_entities"] == b["context_entities"]
+
+
+def test_context_entities_vary_across_rng_seeds() -> None:
+    layouts = [
+        tuple(item["name"] for item in generate_home(3, 32, random.Random(seed))["context_entities"])
+        for seed in (101, 102, 103, 104)
+    ]
+    assert len(set(layouts)) > 1
+
+
+def test_generate_home_does_not_consume_extra_rng_draws() -> None:
+    first = random.Random(555)
+    home_a = generate_home(6, 32, first)
+    next_a = first.random()
+    second = random.Random(555)
+    home_b = generate_home(6, 32, second)
+    assert home_a["entities"] == home_b["entities"]
+    assert next_a == second.random()
+
+
 def test_apostrophe_names_stay_represented_but_not_dominant() -> None:
     names: list[str] = []
     rng = random.Random(4)

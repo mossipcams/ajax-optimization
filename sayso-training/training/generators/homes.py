@@ -289,9 +289,10 @@ _CONTEXT_PERSON_NAMES = (
 
 
 def _context_entities_for(
-    entities: list[dict[str, Any]], rooms: list[str], index: int, size: int
+    entities: list[dict[str, Any]], rooms: list[str], index: int, size: int,
+    rng_state: tuple[int, tuple[int, ...], None | Any]
 ) -> list[dict[str, Any]]:
-    rng = random.Random(f"context:{index}:{size}")
+    rng = random.Random(f"context:{index}:{size}:{rng_state}")
     taken: set[str] = set()
     for entity in entities:
         taken.add(entity["name"].casefold())
@@ -485,7 +486,7 @@ def generate_home(
         "active_timers": _synthetic_timers(rng) if rng.random() < 0.3 else [],
         "areas": rooms, "area_floors": floors, "owners": owners,
         "exposure_source": "synthetic",
-        "context_entities": _context_entities_for(entities, rooms, index, size),
+        "context_entities": _context_entities_for(entities, rooms, index, size, rng.getstate()),
     }
 
 

@@ -159,6 +159,12 @@ anything because nothing enforced them; do not read them as evidence that earlie
 corpora were short. A row whose count had to fall back to the estimate is now
 flagged `metadata._token_length_estimated`.
 
+The v6 recipe raises `generation.token_budget` to 8000 because the context-only
+Home Assistant entities add roughly 280-670 system-prompt tokens. A 40k run at
+7168 rejected 469 rows and starved the correction family (1,697 of 2,242); a
+3,000-row sample at 8000 had no budget rejects and a 7,453-token maximum. 8000
+plus the 160-token output still fits the 8,192 training context.
+
 The historical v3 build wrote canonical JSONL and its TRL render in one pass
 and recorded `render_rows` in the manifest; it had to equal `accepted`. Current
 training derives its rendered view after preflight through the lifecycle
