@@ -28,10 +28,12 @@ PRIMARY_FAMILIES = (
 REAL_HOME_EXCLUDED_FAMILIES = frozenset({
     "unavailable",
     "unsupported",
-    "junk",
     "datetime",
-    "absence",
+    "area",
 })
+
+REAL_HOME_REFUSAL_FAMILIES = frozenset({"absence", "junk"})
+REAL_HOME_REFUSAL_SHARE_CAP = 0.25
 
 CORE_TOOL_NAMES = frozenset({"GetDateTime", "GetLiveContext", "HassTurnOn", "HassTurnOff"})
 
@@ -296,10 +298,11 @@ def _eligible_real_home_slots(
     eligible = sum(
         count
         for family, count in family_counts.items()
-        if family not in REAL_HOME_EXCLUDED_FAMILIES
+        if family not in REAL_HOME_EXCLUDED_FAMILIES | REAL_HOME_REFUSAL_FAMILIES
     )
-    eligible += sum(area_required.values())
-    return eligible
+    refusals = sum(family_counts.get(family, 0) for family in REAL_HOME_REFUSAL_FAMILIES)
+    refusal_cap = int(eligible * REAL_HOME_REFUSAL_SHARE_CAP / (1 - REAL_HOME_REFUSAL_SHARE_CAP))
+    return eligible + min(refusals, refusal_cap)
 
 
 def verify_feasible(
@@ -313,14 +316,18 @@ def verify_feasible(
     real_home_path: Path | None = None,
     real_home_rate: float = 0.0,
     refusal_on_synthetic_only: bool = True,
+    datetime_required: int = 0,
 ) -> None:
-    family_counts = _distribute_shares(count, allocations)
     if area_required:
         area_total = sum(area_required.values())
         if area_total > count:
             raise ValueError(
                 f"area scenario minimums ({area_total}) exceed corpus size ({count})"
             )
+    primary_count = count - sum(area_required.values()) - datetime_required
+    if primary_count < 0:
+        raise ValueError("area and datetime slots exceed corpus size")
+    family_counts = _distribute_shares(primary_count, allocations)
     if grounding_rate > 0:
         max_grounding = grounding_variants * near_duplicate_limit
         requested = int(round(count * grounding_rate))
@@ -331,12 +338,15 @@ def verify_feasible(
             )
     if real_home_path and real_home_rate > 0:
         real_target = int(round(count * real_home_rate))
-        eligible = _eligible_real_home_slots(family_counts, area_required)
+        # The datetime slot is synthetic but the runtime falls back to synthetic for
+        # one stray row, so it does not make a full-rate request infeasible.
+        eligible = _eligible_real_home_slots(family_counts, area_required) + datetime_required
         if real_target > eligible:
             raise ValueError(
                 f"real_home rate {real_home_rate} requests {real_target} rows but only "
                 f"{eligible} slots may use the real home once "
-                f"{sorted(REAL_HOME_EXCLUDED_FAMILIES)} stay synthetic"
+                f"{sorted(REAL_HOME_EXCLUDED_FAMILIES)} stay synthetic and real-home "
+                f"refusals are capped at {REAL_HOME_REFUSAL_SHARE_CAP:.0%}"
             )
         ceilings = _refusal_identity_ceiling(
             real_home_path,
@@ -386,6 +396,7 @@ def build_plan(
         grounding_rate=grounding_rate,
         real_home_path=real_home_path,
         real_home_rate=real_home_rate,
+        datetime_required=datetime_required,
     )
     requested = _distribute_shares(primary_count, allocations)
     if datetime_required:

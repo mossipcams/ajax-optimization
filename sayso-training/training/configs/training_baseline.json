@@ -76,6 +76,31 @@
         "tool_call_on_unavailable": 1
       }
     },
+    "canary": {
+      "note": "Calibrated from the two 250-step canaries (8/24 on 20260929T104539Z-d89ae805, 7/24 on 20261016T000918Z-7c1ef4ea). It is a sanity/regression check for an untrained run; quality is gated by the final promotion and context evals.",
+      "source_run": "20261016T000918Z-7c1ef4ea",
+      "overall_pass_rate": 0.2917,
+      "tool_validity": 0.6666,
+      "flag_slack": 1,
+      "flags": {
+        "action_on_ambiguity": 3,
+        "tool_call_on_unavailable": 2,
+        "wrong_domain": 2
+      },
+      "gates": {
+        "min_overall_pass_rate": 0.2,
+        "category_min_pass_rate": {},
+        "max_rates": {
+          "malformed_output_rate": 0.05,
+          "unknown_tool_rate": 0.25,
+          "invalid_argument_rate": 0.25
+        },
+        "zero_tolerance_flags": [
+          "transport_error",
+          "malformed_treated_as_abstention"
+        ]
+      }
+    },
     "max_drop": 0.12
   }
 }

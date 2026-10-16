@@ -17,12 +17,14 @@ from evals.adapters import InMemoryAdapter
 from evals.cases import select_cases
 from evals.outcomes import PRODUCTION_MAX_OUTPUT_TOKENS
 from evals.scorer import summarize
+from eval_baseline import baseline_failures
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("checkpoint")
-    parser.add_argument("--suite", choices=("smoke", "promotion"), default="smoke")
+    parser.add_argument("--suite", choices=("smoke", "promotion", "context"), default="smoke")
+    parser.add_argument("--profile", choices=("checkpoint", "canary"), default="checkpoint")
     parser.add_argument("--tag", action="append", default=[])
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--baseline", type=Path, default=ROOT / "training/configs/training_baseline.json")
@@ -54,35 +56,23 @@ def main() -> int:
             cases=cases,
             results=results,
             adapter=adapter,
-            suite=label if label in {"smoke", "promotion"} else None,
+            suite=label if label in {"smoke", "promotion", "context"} else None,
             extra_metadata={"checkpoint": args.checkpoint, "gate_label": label},
         )
         print(f"{label}: {summary['passed']}/{summary['total']} passed -> {dest}")
         from evals.cases import load_gates
         from evals.scorer import check_gates
 
-        gate_suite = args.suite if label == args.suite and args.suite in {"smoke", "promotion"} else None
+        gate_suite = args.suite if label == args.suite and args.suite in {"smoke", "promotion", "context"} else None
         if gate_suite:
+            gates = baseline["canary"]["gates"] if args.profile == "canary" else load_gates(gate_suite)
             failures.extend(
                 f"{label} {failure}"
-                for failure in check_gates(summary, load_gates(gate_suite), expected_count=len(cases))
+                for failure in check_gates(summary, gates, expected_count=len(cases))
             )
         if label != "smoke":
             continue
-        accepted = baseline["smoke"]
-        tolerance = baseline["max_drop"]
-        rates = {"overall_pass_rate": summary["overall_pass_rate"], **summary["category_pass_rate"]}
-        for metric, old_rate in {"overall_pass_rate": accepted["overall_pass_rate"], **accepted["category_pass_rate"]}.items():
-            actual = rates.get(metric)
-            if actual is None or actual < old_rate - tolerance:
-                failures.append(f"smoke {metric}: {actual} < baseline {old_rate:.4f} - {tolerance:.2f}")
-        tool_validity = 1 - summary["malformed_output_rate"] - summary["unknown_tool_rate"] - summary["invalid_argument_rate"]
-        if tool_validity < accepted["tool_validity"] - tolerance:
-            failures.append(f"smoke tool_validity: {tool_validity:.4f} < baseline {accepted['tool_validity']:.4f} - {tolerance:.2f}")
-        for flag, old_count in accepted.get("flags", {}).items():
-            count = summary["flags"].get(flag, 0)
-            if count > old_count:
-                failures.append(f"smoke {flag}: {count} > baseline {old_count}")
+        failures.extend(baseline_failures(summary, baseline, args.profile))
 
     for failure in failures:
         print(f"EVAL FAIL: {failure}", file=sys.stderr)

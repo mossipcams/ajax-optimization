@@ -21,11 +21,12 @@ PYTHON = Path(os.environ.get("PYTHON", ROOT / "training/.venv/bin/python"))
 STATE = ROOT / "training/runs/promotion"
 CANDIDATES = ROOT / "training/datasets/candidates"
 GPU_LOCK = os.environ.get("GPU_LOCK", "/srv/llm/bin/gpu")
+GENERATION_CONFIG = "training/configs/generation/full_sft_v6.yaml"
 BASE_MODEL = os.environ.get("BASE_MODEL", "/srv/llm/lfm/models/LFM2.5-230M-Base")
 DATASET_DIR = Path(os.environ.get("DATASET_DIR", "/srv/llm/data/lfm/datasets"))
 EVAL_RESULTS = Path(os.environ.get("EVAL_RESULTS", "/srv/llm/lfm/runs/sayso-promotion"))
 HOST = "/workspace/host"
-HOST_TRAINING = os.environ.get("SAYSO_TRAINING_HOST_ROOT", f"{HOST}/ajax-optimization/sayso-training")
+HOST_TRAINING = os.environ.get("SAYSO_TRAINING_HOST_ROOT", f"{HOST}/lfm/ajax-optimization/sayso-training")
 os.environ.setdefault("HF_HOME", "/srv/llm/hf-cache")
 
 
@@ -46,7 +47,14 @@ def git_commit() -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     except (OSError, subprocess.CalledProcessError):
+        pass
+    try:
+        value = (ROOT / "REVISION").read_text(encoding="utf-8").strip()
+    except OSError:
         return "unknown"
+    if len(value) == 40 and all(ch in "0123456789abcdef" for ch in value):
+        return value
+    return "unknown"
 
 
 def save(path: Path, data: dict) -> None:
@@ -112,7 +120,7 @@ def render_and_stage(record: dict) -> str:
     return record["staged_data"]
 
 
-def eval_checkpoint(checkpoint: str, out_name: str, suite: str) -> tuple[bool, dict]:
+def eval_checkpoint(checkpoint: str, out_name: str, suite: str, profile: str | None = None) -> tuple[bool, dict]:
     out_name = f"{out_name}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     out = f"{HOST}/lfm/runs/sayso-promotion/{out_name}"
     results = EVAL_RESULTS / out_name
@@ -121,8 +129,10 @@ def eval_checkpoint(checkpoint: str, out_name: str, suite: str) -> tuple[bool, d
            'source ./env.sh && exec python "$@"', "sayso-eval",
            f"{HOST_TRAINING}/training/scripts/eval_checkpoint_cpu.py", checkpoint,
            "--suite", suite, "--out", out]
+    if profile:
+        cmd.extend(("--profile", profile))
     if suite == "smoke":
-        for tag in ("recipe-lock", "gold", "shadow", "grounding"):
+        for tag in ("recipe-lock", "gold", "shadow", "grounding", "context"):
             cmd.extend(("--tag", tag))
     result = subprocess.run(cmd, cwd=ROOT)
     summaries: dict[str, dict] = {}
@@ -139,20 +149,27 @@ def eval_checkpoint(checkpoint: str, out_name: str, suite: str) -> tuple[bool, d
 def cmd_generate(_: argparse.Namespace) -> None:
     if not PYTHON.is_file():
         raise SystemExit(f"Missing Python environment: {PYTHON}")
+    import yaml
+    recipe = yaml.safe_load((ROOT / GENERATION_CONFIG).read_text(encoding="utf-8"))
+    paraphrase = bool(recipe.get("generation", {}).get("paraphrase_enabled"))
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     CANDIDATES.mkdir(parents=True, exist_ok=True)
     dataset = CANDIDATES / f"{run_id}.jsonl"
     manifest = CANDIDATES / f"{run_id}.manifest.json"
-    gpu("serve")
-    try:
-        run([str(PYTHON), "-m", "generators.cli", "--config", "configs/generation/full_sft_v5.yaml",
-             "--output", str(dataset), "--manifest", str(manifest)], cwd=ROOT / "training")
-    finally:
-        gpu("stop")
+    generator = [str(PYTHON), "-m", "generators.cli", "--config", Path(GENERATION_CONFIG).relative_to("training").as_posix(),
+                 "--output", str(dataset), "--manifest", str(manifest)]
+    if paraphrase:
+        gpu("serve")
+        try:
+            run(generator, cwd=ROOT / "training")
+        finally:
+            gpu("stop")
+    else:
+        run(generator, cwd=ROOT / "training")
     record = {"run_id": run_id, "dataset_path": str(dataset), "manifest_path": str(manifest),
               "rendered_path": str(CANDIDATES / f"{run_id}.rendered.jsonl"), "git_commit": git_commit(),
-              "config": "training/configs/generation/full_sft_v5.yaml",
-              "config_sha256": digest(ROOT / "training/configs/generation/full_sft_v5.yaml"),
+              "config": GENERATION_CONFIG,
+              "config_sha256": digest(ROOT / GENERATION_CONFIG),
               "created_at": datetime.now(timezone.utc).isoformat(),
               "dataset_sha256": digest(dataset), "validated": False, "canary_passed": False,
               "trained": False, "final_eval_passed": False}
@@ -172,7 +189,7 @@ def cmd_validate(_: argparse.Namespace) -> None:
     write_current(record)
 
 
-def cmd_canary(_: argparse.Namespace) -> None:
+def cmd_canary(args: argparse.Namespace) -> None:
     record = current()
     if not record.get("validated") or record.get("validated_sha256") != digest(Path(record["dataset_path"])):
         raise SystemExit("Candidate must pass ./sayso validate after its last change")
@@ -183,12 +200,16 @@ def cmd_canary(_: argparse.Namespace) -> None:
     run_id = record["run_id"]
     out = f"{HOST}/lfm/runs/sayso-promotion/{run_id}-canary"
     checkpoint = f"{out}/final"
-    try:
-        run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/train_unsloth_full.py",
-             "--data", data, "--canary", "--out", out])
-    finally:
-        settle_gpu()
-    passed, metrics = eval_checkpoint(checkpoint, f"{run_id}-canary-eval", "smoke")
+    if args.reuse_checkpoint:
+        if not (EVAL_RESULTS / f"{run_id}-canary" / "final").is_dir():
+            raise SystemExit(f"No canary checkpoint to reuse: {checkpoint}")
+    else:
+        try:
+            run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/train_unsloth_full.py",
+                 "--data", data, "--canary", "--out", out])
+        finally:
+            settle_gpu()
+    passed, metrics = eval_checkpoint(checkpoint, f"{run_id}-canary-eval", "smoke", "canary")
     record.update(rendered_sha256=digest(Path(record["rendered_path"])), canary_checkpoint=checkpoint,
                   canary_metrics=metrics, canary_passed=passed)
     write_current(record)
@@ -250,11 +271,17 @@ def cmd_eval(_: argparse.Namespace) -> None:
     ensure_vm()
     record["final_eval_passed"] = False
     write_current(record)
-    passed, metrics = eval_checkpoint(record["checkpoint"], f"{record['run_id']}-final-eval", "promotion")
-    record.update(final_metrics=metrics, final_eval_passed=passed)
+    metrics: dict[str, dict] = {}
+    failed: list[str] = []
+    for suite, suffix in (("promotion", "final-eval"), ("context", "final-context")):
+        passed, summaries = eval_checkpoint(record["checkpoint"], f"{record['run_id']}-{suffix}", suite)
+        metrics.update(summaries)
+        if not passed:
+            failed.append(suite)
+    record.update(final_metrics=metrics, final_eval_passed=not failed)
     write_current(record)
-    if not passed:
-        raise SystemExit("Final promotion-suite evaluation failed; model was not promoted")
+    if failed:
+        raise SystemExit(f"Final {', '.join(failed)}-suite evaluation failed; model was not promoted")
 
 
 def cmd_promote_model(args: argparse.Namespace) -> None:
@@ -284,6 +311,9 @@ def main() -> int:
                           ("promote-dataset", cmd_promote_dataset), ("train", cmd_train),
                           ("eval", cmd_eval), ("promote-model", cmd_promote_model)):
         command = sub.add_parser(name)
+        if name == "canary":
+            command.add_argument("--reuse-checkpoint", action="store_true",
+                                 help="skip canary training and evaluate the existing checkpoint")
         if name == "promote-model":
             command.add_argument("--manual-override", action="store_true",
                                  help="promote an evaluated model whose final gates failed")

@@ -26,7 +26,7 @@ python scripts/preflight.py
 ./sayso promote-model
 ```
 
-`./sayso generate` builds the configured `full_sft_v5.yaml` dataset under
+`./sayso generate` builds the configured `full_sft_v6.yaml` dataset under
 `training/datasets/candidates/<run-id>.jsonl`. Each run also has a manifest and
 metadata record. Generation never changes the promoted-dataset pointer.
 
@@ -41,7 +41,8 @@ utterances. A failed check leaves the candidate unvalidated.
 candidate, then runs 250 steps through the same Unsloth trainer and training
 settings used for full training; only the step limit and output directory differ.
 The shared scorer evaluates the smoke suite and records recipe-lock, gold, shadow,
-and grounding diagnostics. The smoke gate checks suite requirements and compares
+grounding, and context diagnostics. The context tag reports the live-home
+context cases without gating. The smoke gate checks suite requirements and compares
 important category and tool-validity rates with the accepted baseline using its
 configured tolerance.
 
@@ -57,11 +58,14 @@ the promotion record and verifies the rendered-data hash before training. If a
 newer candidate exists, this command still trains the latest explicitly promoted
 dataset, not the unpromoted candidate.
 
-`./sayso eval` scores the completed full checkpoint on the locked 120-case
-promotion suite using the shared runner and scorer. The suite enforces its
-existing overall and category gates, including media, ambiguity, unavailable,
-multi-action, status, and basic tool selection behavior. A failure clears the
-final-eval pass state.
+`./sayso eval` scores the completed full checkpoint on two locked suites using
+the shared runner and scorer: the 120-case promotion suite and the context
+suite. The promotion suite enforces its existing overall and category gates,
+including media, ambiguity, unavailable, multi-action, status, and basic tool
+selection behavior. The context suite is a hard gate: it requires a 100% overall
+pass rate and applies zero tolerance to the `wrong_domain` and
+`context_entity_targeted` flags. Both suites must pass for the final evaluation
+to pass; a failure in either clears the final-eval pass state.
 
 `./sayso promote-model` writes the latest model-promotion record only after final
 evaluation passes. Promotion records model and dataset run IDs, generation

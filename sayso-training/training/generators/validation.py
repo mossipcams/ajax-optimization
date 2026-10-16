@@ -16,6 +16,7 @@ from generators.gold import _type_label
 from generators.stt_noise import _int_to_words, utterance_contains_target
 
 _BANNED = re.compile(r"<tool_call>|evals/cases/|tool_call_start", re.I)
+_PLACEHOLDER_AREA = "unassigned"
 
 
 def _normalize_prompt(text: str) -> str:
@@ -86,10 +87,13 @@ def validate_spec(spec: dict[str, Any]) -> str | None:
         if expected.get("response") == "device_unsupported":
             named = expected.get("unsupported_names") or []
             by_name = {e["name"]: e for e in spec.get("home", {}).get("entities", [])}
+            context_names = {e["name"] for e in spec.get("home", {}).get("context_entities") or []}
             if not named:
                 return "device_unsupported_without_names"
             for name in named:
                 if name not in by_name:
+                    if name in context_names:
+                        continue
                     return "unknown_canonical_entity"
                 if entity_supports(by_name[name], spec.get("capability"), spec.get("operation")):
                     return "contradictory_device_support"
@@ -357,6 +361,8 @@ def validate_serialized_row(
     token_budget: int,
     tokenizer_model: str,
 ) -> str | None:
+    if _PLACEHOLDER_AREA in json.dumps(row.get("messages") or []).casefold():
+        return "placeholder_area"
     if not row.get("tools"):
         return "missing_tools"
     for message in row.get("messages", []):

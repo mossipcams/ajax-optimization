@@ -159,6 +159,13 @@ anything because nothing enforced them; do not read them as evidence that earlie
 corpora were short. A row whose count had to fall back to the estimate is now
 flagged `metadata._token_length_estimated`.
 
+The v6 recipe raises `generation.token_budget` to 8000 because the context-only
+Home Assistant entities add roughly 280-670 system-prompt tokens. A 40k run at
+7168 rejected 469 rows and starved the correction family (1,697 of 2,242); a
+3,000-row sample at 8000 had no budget rejects and a 7,453-token maximum. 8000
+plus the 160-token output still fits the 8,192 training context.
+Full 40k runs failed allocation because the 10% real-home quota exceeds what the real home can supply at `near_duplicate_limit` 8; once the quota forces the tail onto the saturated real home, every row is a duplicate. The pipeline now falls back to a synthetic home for such rows (as the pre-import generator did), so the achieved real-home share can land below 10%; the manifest records it.
+
 The historical v3 build wrote canonical JSONL and its TRL render in one pass
 and recorded `render_rows` in the manifest; it had to equal `accepted`. Current
 training derives its rendered view after preflight through the lifecycle
@@ -205,7 +212,7 @@ HA_URL=http://homeassistant.local:8123 HA_TOKEN=... \
 ```
 
 The legacy `production.yaml` recipe is synthetic-only. Active full training uses
-`full_sft_v5.yaml`, which configures a 10% real-home mix. Use `./sayso generate`
+`full_sft_v6.yaml`, which configures a 10% real-home mix. Use `./sayso generate`
 to build a training candidate; do not build a full training corpus through an
 ad hoc generator command.
 

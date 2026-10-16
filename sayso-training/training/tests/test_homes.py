@@ -59,6 +59,72 @@ def test_generator_cannot_emit_an_eval_entity_name() -> None:
     assert not generated & eval_names, sorted(generated & eval_names)
 
 
+def _all_target_names(home) -> set[str]:
+    names: set[str] = set()
+    for entity in home["entities"]:
+        names.add(entity["name"].casefold())
+        names.update(alias.casefold() for alias in entity.get("aliases", []))
+    return names
+
+
+def test_context_entities_present_and_noncolliding() -> None:
+    from generators.homes import _eval_entity_names
+
+    rng = random.Random(99)
+    for index, size in enumerate([16, 32, 64] * 20):
+        home = generate_home(index, size, rng)
+        context = home["context_entities"]
+        assert context, f"home {index}/{size} has no context entities"
+        for item in context:
+            assert set(item) <= {"name", "domain", "area"}
+            assert item["domain"] in {
+                "sensor", "binary_sensor", "person", "sun", "select",
+            }, f"{item['name']} has targetable domain {item['domain']}"
+        target_names = _all_target_names(home)
+        reserved = _eval_entity_names()
+        context_names = [item["name"].casefold() for item in context]
+        assert len(context_names) == len(set(context_names)), f"duplicate context names in home {index}"
+        assert not (set(context_names) & target_names), f"context name collision in home {index}"
+        assert not (set(context_names) & reserved), f"eval name leaked into context in home {index}"
+
+
+def test_context_entities_scale_with_home_size() -> None:
+    for index, size in [(1, 16), (2, 32), (3, 64)]:
+        home = generate_home(index, size, random.Random(5))
+        ratio = len(home["context_entities"]) / len(home["entities"])
+        assert 0.1 <= ratio < 1.25, f"size {size}: {ratio:.2f}"
+
+
+def test_context_entities_are_seed_deterministic() -> None:
+    first = generate_home(7, 32, random.Random(1))["context_entities"]
+    second = generate_home(7, 32, random.Random(1))["context_entities"]
+    assert first == second
+
+
+def test_context_entities_are_deterministic_for_same_seed() -> None:
+    a = generate_home(3, 32, random.Random(77))
+    b = generate_home(3, 32, random.Random(77))
+    assert a["context_entities"] == b["context_entities"]
+
+
+def test_context_entities_vary_across_rng_seeds() -> None:
+    layouts = [
+        tuple(item["name"] for item in generate_home(3, 32, random.Random(seed))["context_entities"])
+        for seed in (101, 102, 103, 104)
+    ]
+    assert len(set(layouts)) > 1
+
+
+def test_generate_home_does_not_consume_extra_rng_draws() -> None:
+    first = random.Random(555)
+    home_a = generate_home(6, 32, first)
+    next_a = first.random()
+    second = random.Random(555)
+    home_b = generate_home(6, 32, second)
+    assert home_a["entities"] == home_b["entities"]
+    assert next_a == second.random()
+
+
 def test_apostrophe_names_stay_represented_but_not_dominant() -> None:
     names: list[str] = []
     rng = random.Random(4)
