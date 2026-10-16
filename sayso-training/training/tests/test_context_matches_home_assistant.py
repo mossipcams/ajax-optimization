@@ -7,6 +7,7 @@ from pathlib import Path
 import yaml
 
 from generators.context import (
+    DYNAMIC_CONTEXT_PROMPT,
     SAYSO_SYSTEM_PROMPT,
     exposed_entities,
     serialize_context,
@@ -39,6 +40,12 @@ HOME = {
         },
     ],
 }
+
+
+def test_dynamic_context_prompt_matches_production_wording() -> None:
+    assert "retrieving live context" in DYNAMIC_CONTEXT_PROMPT
+    assert "use the provided tool to retrieve live context" in DYNAMIC_CONTEXT_PROMPT
+    assert "GetLiveContext" not in DYNAMIC_CONTEXT_PROMPT
 
 
 def test_sayso_prompt_matches_the_integration_default() -> None:
@@ -153,7 +160,7 @@ def test_serialized_context_is_yaml_and_omits_live_state() -> None:
     assert prompt.endswith(
         "Area context:\nsatellite_area: Kitchen\ntarget_area: Kitchen\ntarget_area_source: satellite"
     )
-    assert "homeassistant__GetLiveContext" in prompt
+    assert "homeassistant__GetLiveContext" not in prompt
 
     block = prompt.split("smart home:\n", 1)[1].split("\nWhen controlling Home Assistant", 1)[0]
     assert "locked" not in block and "off" not in block
