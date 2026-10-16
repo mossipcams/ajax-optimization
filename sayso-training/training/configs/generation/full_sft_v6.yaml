@@ -13,7 +13,7 @@ schema:
   path: schemas/sayso-tool-schema-v2.json
 
 allocations:
-  ordinary: 0.22
+  ordinary: 0.18
   follow_up: 0.13
   status: 0.10
   settings: 0.08
@@ -24,8 +24,8 @@ allocations:
   exclusion: 0.05
   aliases: 0.05
   unavailable: 0.04
-  unsupported: 0.04
-  absence: 0.03
+  unsupported: 0.06
+  absence: 0.05
 
 cross_cutting:
   area:
