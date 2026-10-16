@@ -87,10 +87,13 @@ def validate_spec(spec: dict[str, Any]) -> str | None:
         if expected.get("response") == "device_unsupported":
             named = expected.get("unsupported_names") or []
             by_name = {e["name"]: e for e in spec.get("home", {}).get("entities", [])}
+            context_names = {e["name"] for e in spec.get("home", {}).get("context_entities") or []}
             if not named:
                 return "device_unsupported_without_names"
             for name in named:
                 if name not in by_name:
+                    if name in context_names:
+                        continue
                     return "unknown_canonical_entity"
                 if entity_supports(by_name[name], spec.get("capability"), spec.get("operation")):
                     return "contradictory_device_support"

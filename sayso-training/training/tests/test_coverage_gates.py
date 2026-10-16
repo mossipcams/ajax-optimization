@@ -49,7 +49,7 @@ def _row(tool_calls, *, capability="media_players", operation="turn_on", tier=1,
          tools=None, final="Done."):
     messages = [
         {"role": "system", "content": "ctx"},
-        {"role": "user", "content": "turn on the living room tv"},
+        {"role": "user", "content": "turn on the den tv"},
     ]
     if tool_calls:
         messages.append({"role": "assistant", "content": "", "tool_calls": tool_calls})

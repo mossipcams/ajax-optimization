@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import Counter
 
 import copy
+import json
 import random
 from typing import Any
 
@@ -12,15 +13,16 @@ from generators.config import GeneratorConfig
 from generators.deduplication import DuplicateTracker, pair_hash
 from generators.grounding import pick_variant
 from generators.correction import entity_name_contains_area
-from generators.gold import expected_action, gold_matches_family, target_names_from_expected
+from generators.gold import expected_action, expected_no_action, gold_from_scenario, gold_matches_family, target_names_from_expected
 from generators.labels import render_example, scenario_to_spec
 from generators.real_home import load_real_home
 from generators.scenarios import build_scenario, pick_robustness, pick_targeting
+from generators.scenarios.core import home_areas, semantic_id
 from generators.scenarios.discrimination import (
     call_carries_value,
     pick_discriminating_description,
 )
-from generators.planning import CORE_TOOL_NAMES, REAL_HOME_EXCLUDED_FAMILIES
+from generators.planning import CORE_TOOL_NAMES, REAL_HOME_EXCLUDED_FAMILIES, REAL_HOME_REFUSAL_FAMILIES
 from generators.scenarios.unavailable import unique_no_action_hint
 from generators.stt_noise import apply_log_stt_noise, apply_stt_noise
 from generators.utterances import (
@@ -34,6 +36,8 @@ from generators.validation import (
     validate_row,
     validate_serialized_row,
 )
+
+CONTEXT_HARD_NEGATIVE_RATE = 0.30
 
 _DATETIME_UTTERANCES = (
     "what time is it",
@@ -136,7 +140,12 @@ def generate_row(
     if area_scenario:
         from generators.scenarios.area import build_area_spec
 
-        spec = build_area_spec(area_scenario, slot["index"], config.seed)
+        # Area specs are seeded by slot index, so a retry would rebuild the same
+        # eval-overlapping utterance; shift the index until it clears.
+        for shift in range(8):
+            spec = build_area_spec(area_scenario, slot["index"] + shift * 100_000, config.seed)
+            if not check_quality_eval_overlap(spec["utterance"]):
+                break
         spec["full_tool_catalog"] = True
         if check_quality_eval_overlap(spec["utterance"]):
             return None, "quality_eval_overlap"
@@ -181,6 +190,8 @@ def generate_row(
     family = slot.get("family")
     home_size = slot["home_size"]
     home = None
+    real_home_context = None
+    absence_area = None
     real_home_row = False
     grounding_family = None
     variant = None
@@ -228,6 +239,28 @@ def generate_row(
             pass
         elif config.real_home_path and select_real_home:
             home = load_real_home(config.real_home_path, split="train")
+            real_home_context = json.loads(config.real_home_path.read_text(encoding="utf-8"))
+            for entity in [*real_home_context["entities"], *real_home_context.get("context_entities", [])]:
+                entity["name"] = " ".join(entity["name"].split())
+                if entity.get("aliases"):
+                    entity["aliases"] = [" ".join(alias.split()) for alias in entity["aliases"]]
+            if family in REAL_HOME_REFUSAL_FAMILIES:
+                home = copy.deepcopy(real_home_context)
+                inject_missing = False
+                robustness = "ambiguity"
+                targeting = "area"
+                if family == "absence":
+                    areas, _ = home_areas(home)
+                    absent_areas = [
+                        area for area in areas
+                        if area != "Unassigned" and not any(
+                            entity["domain"] == cap.domain and entity.get("area") == area
+                            for entity in home["entities"]
+                        )
+                    ]
+                    if not absent_areas:
+                        return None, "family_mismatch"
+                    absence_area = rng.choice(absent_areas)
             real_home_row = True
         elif grounding_rate and grounding_required:
             variant = pick_variant(capability, operation, slot["index"] + attempt)
@@ -257,10 +290,26 @@ def generate_row(
         home=home,
         inject_missing=inject_missing,
         target_usage=real_home_usage if real_home_row else None,
-        family=family,
+        family=None if real_home_row and family in REAL_HOME_REFUSAL_FAMILIES else family,
         bare_name_rate=config.bare_name_rate,
-        request_intent=variant.get("request_intent") if variant else None,
+        request_intent={"area": absence_area} if absence_area else (
+            variant.get("request_intent") if variant else None
+        ),
     )
+    if real_home_row:
+        targets = [*(scenario.get("target_entities") or [])]
+        if scenario.get("target_entity"):
+            targets.append(scenario["target_entity"])
+        if any(entity not in real_home_context["entities"] for entity in targets):
+            return None, "family_mismatch"
+        scenario["home"] = real_home_context
+        if family in REAL_HOME_REFUSAL_FAMILIES and scenario["robustness"] == "ambiguity":
+            scenario["expected"] = gold_from_scenario(scenario, rng)
+        if family == "junk":
+            scenario["expected"] = expected_no_action("not_understood")
+        scenario["semantic_id"] = semantic_id(scenario)
+        if absence_area:
+            scenario["semantic_id"] += f"_{pair_hash(absence_area, real_home_context)[:8]}"
     if grounding_family:
         scenario["phrasing_seed"] = variant["phrasing_seed"]
 
@@ -286,9 +335,13 @@ def generate_row(
             return None, "family_mismatch"
         follow_up_clarify_candidates = candidates[:2]
     if expected.get("kind") == "no_action":
-        spec["request_hint"] = unique_no_action_hint(spec, rng)
+        hint_spec = spec
+        if absence_area:
+            hint_spec = {**spec, "home": {**spec["home"], "sayso_entity_area": absence_area}}
+        spec["request_hint"] = unique_no_action_hint(hint_spec, rng)
     elif robustness == "ambiguity":
         apply_generic_wording(spec)
+    context_hard_negative = False
     if family == "datetime":
         spec["utterance"] = _datetime_utterance(rng, slot["index"])
         spec["linguistics"] = [{"source": "sayso_fallback", "intent": "GetDateTime"}]
@@ -296,6 +349,24 @@ def generate_row(
         spec["utterance"] = _junk_utterance(rng, slot["index"])
         spec["linguistics"] = [{"source": "sayso_fallback", "intent": "not_understood"}]
         spec["expected"] = {**expected, "response": "not_understood"}
+        spec.pop("request_hint", None)
+        spec.pop("clarify_question", None)
+    elif (
+        family == "unsupported"
+        and spec["home"].get("context_entities")
+        and rng.random() < CONTEXT_HARD_NEGATIVE_RATE
+    ):
+        context_hard_negative = True
+        name = rng.choice(spec["home"]["context_entities"])["name"]
+        state = rng.choice(("on", "off"))
+        template = rng.choice((
+            "turn {state} {name}",
+            "switch {name} {state}",
+            "could you turn {name} {state}?",
+        ))
+        spec["utterance"] = template.format(name=name, state=state)
+        spec["linguistics"] = [{"source": "sayso_fallback", "intent": "device_unsupported"}]
+        spec["expected"] = expected_no_action("device_unsupported", unsupported_names=[name])
         spec.pop("request_hint", None)
         spec.pop("clarify_question", None)
     elif family == "follow_up":
@@ -352,12 +423,12 @@ def generate_row(
     if check_quality_eval_overlap(spec["utterance"]):
         return None, "quality_eval_overlap"
 
-    if family != "junk":
+    if family != "junk" and not context_hard_negative:
         spec["utterance"] = finalize_training_utterance(
             spec["utterance"], rng, upper=_balanced_upper(casing_counts, spec)
         )
 
-    if family != "junk" and rows_remaining > 0:
+    if family != "junk" and not context_hard_negative and rows_remaining > 0:
         if stt_log_remaining > 0 and rng.random() < stt_log_remaining / rows_remaining:
             corrupted, kind = apply_log_stt_noise(
                 spec["utterance"], rng, target_names=spec.get("target_names")

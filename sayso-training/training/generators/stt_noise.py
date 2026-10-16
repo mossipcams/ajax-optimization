@@ -86,6 +86,8 @@ def fold_stt_text(text: str) -> str:
     folded = text.casefold()
     folded = re.sub(r"\blibrarian\b", "living room", folded)
     folded = re.sub(r"\bribbon\b", "living", folded)
+    folded = re.sub(r"\blivingium\b", "living room", folded)
+    folded = re.sub(r"\blittle(?= lights?\b)", "living room", folded)
     folded = re.sub(r"t\s*\.?\s*v", "tv", folded)
     tokens = re.findall(r"[a-z0-9]+", folded)
     mapped = [_stem(_ASR_TOKEN_MAP.get(token, token)) for token in tokens]
@@ -143,6 +145,9 @@ def _corruption_pool() -> tuple[tuple[re.Pattern[str], Any, str], ...]:
 _CORRUPTIONS = _corruption_pool()
 
 _LIVING_ROOM = re.compile(r"\bliving room\b", re.I)
+_LIVING_ROOM_LIGHT = re.compile(r"\bliving room(?= lights?\b)", re.I)
+# Leftover wake word from satellite captures ("kda turn on the tv").
+_WAKE_PREFIXES = ("kda", "koda")
 _FILLER = re.compile(
     r"\b(the|a|an|uh|um|please|just|like|could you|can you|for me)\b",
     re.I,
@@ -170,6 +175,11 @@ def apply_log_stt_noise(
     if _LIVING_ROOM.search(utterance):
         candidates.append((_LIVING_ROOM.sub("ribbon room", utterance, count=1), "log_living_ribbon"))
         candidates.append((_LIVING_ROOM.sub("librarian", utterance, count=1), "log_living_librarian"))
+        candidates.append((_LIVING_ROOM.sub("livingium", utterance, count=1), "log_living_livingium"))
+    if _LIVING_ROOM_LIGHT.search(utterance):
+        candidates.append((_LIVING_ROOM_LIGHT.sub("little", utterance, count=1), "log_living_little"))
+    if utterance:
+        candidates.append((f"{rng.choice(_WAKE_PREFIXES)} {utterance}", "log_wake_prefix"))
     dropped = _FILLER.sub("", utterance, count=1)
     if dropped != utterance:
         candidates.append((dropped, "log_dropped_filler"))

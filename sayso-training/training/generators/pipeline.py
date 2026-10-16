@@ -26,6 +26,8 @@ from generators.coverage import bare_tool_name, row_calls
 from generators.planning import (
     CORE_TOOL_NAMES,
     REAL_HOME_EXCLUDED_FAMILIES,
+    REAL_HOME_REFUSAL_FAMILIES,
+    REAL_HOME_REFUSAL_SHARE_CAP,
     AllocationPlan,
     FamilyTracker,
     GenerationSlot,
@@ -321,6 +323,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
     semantic_ids: set[str] = set()
     accepted_prompts: set[str] = set()
     real_home_rows = 0
+    real_home_refusal_rows = 0
     grounding_rows: Counter[str] = Counter()
     required_grounding = required_training_variants()
     grounding_missing = (
@@ -431,6 +434,12 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             and slot["operation"] in {"turn_on", "turn_off", "open", "close"}
         )
         real_home_retries = 0
+        if (
+            slot.get("family") in REAL_HOME_REFUSAL_FAMILIES
+            and real_home_refusal_rows + 1 > REAL_HOME_REFUSAL_SHARE_CAP * (real_home_rows + 1)
+        ):
+            real_home_selected = False
+            real_home_forced = False
         while True:
             if exclusion_cadence:
                 real_sel = real_home_selected
@@ -531,6 +540,10 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
         ):
             datetime_accepted += 1
         real_home_rows += bool(row["metadata"].get("real_home"))
+        real_home_refusal_rows += bool(
+            row["metadata"].get("real_home")
+            and row["metadata"].get("family") in REAL_HOME_REFUSAL_FAMILIES
+        )
         if row["metadata"].get("grounding_family"):
             family = row["metadata"]["grounding_family"]
             grounding_rows[family] += 1
@@ -622,6 +635,8 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             "requested_rate": config.real_home_rate,
             "synthetic_only": config.synthetic_only,
             "rows": real_home_rows,
+            "refusal_rows": real_home_refusal_rows,
+            "refusal_share_cap": REAL_HOME_REFUSAL_SHARE_CAP,
             "achieved_rate": round(real_home_rows / max(len(accepted), 1), 4),
             "entity_cap": real_home_entity_cap,
             "entities_used": len(real_home_targets),
