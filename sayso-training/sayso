@@ -19,6 +19,7 @@ configure()
 ROOT = Path(__file__).resolve().parent
 PYTHON = Path(os.environ.get("PYTHON", ROOT / "training/.venv/bin/python"))
 STATE = ROOT / "training/runs/promotion"
+SELECT_TOP_N = 3
 CANDIDATES = ROOT / "training/datasets/candidates"
 GPU_LOCK = os.environ.get("GPU_LOCK", "/srv/llm/bin/gpu")
 GENERATION_CONFIG = "training/configs/generation/full_sft_v6.yaml"
@@ -189,6 +190,17 @@ def cmd_validate(_: argparse.Namespace) -> None:
     write_current(record)
 
 
+def passed_count(summaries: dict | None) -> int:
+    return sum(entry.get("summary", {}).get("passed", 0) for entry in (summaries or {}).values())
+
+
+def rank_candidates(rows: list[dict]) -> list[dict]:
+    return sorted(
+        rows,
+        key=lambda row: (-row["context"], -(row["smoke"] or 0), row["step"]),
+    )
+
+
 def trainer_args() -> list[str]:
     args: list[str] = []
     model_path = os.environ.get("TRAIN_MODEL") or BASE_MODEL
@@ -198,6 +210,8 @@ def trainer_args() -> list[str]:
     args.extend(("--lr", lr))
     if warmup := os.environ.get("TRAIN_WARMUP_RATIO"):
         args.extend(("--warmup-ratio", str(float(warmup))))
+    if save_total_limit := os.environ.get("TRAIN_SAVE_TOTAL_LIMIT"):
+        args.extend(("--save-total-limit", str(int(save_total_limit))))
     return args
 
 
@@ -290,6 +304,43 @@ def cmd_train(_: argparse.Namespace) -> None:
     settle_gpu()
 
 
+
+def cmd_select_checkpoint(_: argparse.Namespace) -> None:
+    record = current()
+    if not record.get("trained"):
+        raise SystemExit("Checkpoint selection requires a completed full training run")
+    ensure_vm()
+    out_dir = Path(record["full_output"])
+    steps: list[tuple[int, Path | None]] = []
+    for path in sorted(out_dir.glob("checkpoint-*"), key=lambda p: int(p.name.rsplit("-", 1)[1])):
+        steps.append((int(path.name.rsplit("-", 1)[1]), path))
+    final = out_dir / "final"
+    if final.is_dir():
+        steps.append((float("inf"), final))
+    rows: list[dict] = [{"candidate": path.name, "step": step, "path": str(path),
+                         "context": 0, "smoke": None} for step, path in steps]
+    run_id = record["run_id"]
+    for row in rows:
+        _, summaries = eval_checkpoint(row["path"], f"{run_id}-select-{row['candidate']}", "context")
+        row["context"] = passed_count(summaries)
+    for row in rank_candidates(rows)[:SELECT_TOP_N]:
+        _, summaries = eval_checkpoint(row["path"], f"{run_id}-select-{row['candidate']}", "smoke")
+        row["smoke"] = passed_count(summaries)
+    ranked = rank_candidates(rows)
+    table = [{"candidate": row["candidate"],
+              "step": "final" if isinstance(row["step"], float) else row["step"],
+              "context": row["context"], "smoke": row["smoke"]} for row in ranked]
+    save(STATE / f"{run_id}-selection.json", table)
+    print(f"{'CANDIDATE':<28} {'STEP':>10} {'CONTEXT':>9} {'SMOKE':>7}")
+    for entry in table:
+        smoke = "-" if entry["smoke"] is None else str(entry["smoke"])
+        print(f"{entry['candidate']:<28} {str(entry['step']):>10} {entry['context']:>9} {smoke:>7}")
+    winner_path = ranked[0]["path"]
+    record.update(checkpoint=winner_path, selected_checkpoint=winner_path)
+    write_current(record)
+    print(f"Selected checkpoint: {winner_path}")
+
+
 def cmd_eval(_: argparse.Namespace) -> None:
     record = current()
     if not record.get("trained"):
@@ -335,7 +386,8 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     for name, handler in (("generate", cmd_generate), ("validate", cmd_validate), ("canary", cmd_canary),
                           ("promote-dataset", cmd_promote_dataset), ("train", cmd_train),
-                          ("eval", cmd_eval), ("promote-model", cmd_promote_model)):
+                          ("eval", cmd_eval), ("promote-model", cmd_promote_model),
+                          ("select-checkpoint", cmd_select_checkpoint)):
         command = sub.add_parser(name)
         if name == "canary":
             command.add_argument("--reuse-checkpoint", action="store_true",
@@ -347,7 +399,8 @@ def main() -> int:
     args = parser.parse_args()
     {"generate": cmd_generate, "validate": cmd_validate, "canary": cmd_canary,
      "promote-dataset": cmd_promote_dataset, "train": cmd_train,
-     "eval": cmd_eval, "promote-model": cmd_promote_model}[args.command](args)
+     "eval": cmd_eval, "promote-model": cmd_promote_model,
+     "select-checkpoint": cmd_select_checkpoint}[args.command](args)
     return 0
 
 

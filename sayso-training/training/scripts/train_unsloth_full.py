@@ -29,6 +29,8 @@ def main() -> int:
     parser.add_argument("--canary", action="store_true", help="Run 250 production-config optimizer steps")
     parser.add_argument("--warmup-ratio", type=float, default=0.03)
     parser.add_argument("--promotion-record", help="Required promotion metadata for full training")
+    parser.add_argument("--save-total-limit", type=int, default=3,
+                        help="Keep at most this many checkpoint-* dirs; 0 keeps every checkpoint (model files only)")
     args = parser.parse_args()
     if args.canary:
         args.max_steps = 250
@@ -92,8 +94,10 @@ def main() -> int:
     if too_long or empty:
         sys.exit("preflight failed")
     dataset = dataset.remove_columns(["length", "supervised"])
+    save_total_limit = None if args.save_total_limit == 0 else args.save_total_limit
     trainer = Trainer(
         model=model,
+        processing_class=tokenizer,
         train_dataset=dataset,
         data_collator=DataCollatorForSeq2Seq(tokenizer, padding=True),
         args=TrainingArguments(
@@ -111,8 +115,9 @@ def main() -> int:
             logging_steps=5,
             save_strategy="steps",
             save_steps=200,
-            save_total_limit=3,
+            save_total_limit=save_total_limit,
             report_to="none",
+            save_only_model=args.save_total_limit == 0,
             seed=20260922,
         ),
     )
