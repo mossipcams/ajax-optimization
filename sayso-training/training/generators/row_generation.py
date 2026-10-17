@@ -15,7 +15,7 @@ from generators.grounding import pick_variant
 from generators.correction import entity_name_contains_area
 from generators.gold import expected_action, expected_no_action, gold_from_scenario, gold_matches_family, target_names_from_expected
 from generators.labels import render_example, scenario_to_spec
-from generators.real_home import load_real_home
+from generators.real_home import holdout_entity_names
 from generators.scenarios import build_scenario, pick_robustness, pick_targeting
 from generators.scenarios.core import home_areas, semantic_id
 from generators.scenarios.discrimination import (
@@ -26,6 +26,7 @@ from generators.planning import CORE_TOOL_NAMES, REAL_HOME_EXCLUDED_FAMILIES, RE
 from generators.scenarios.unavailable import unique_no_action_hint
 from generators.stt_noise import apply_log_stt_noise, apply_stt_noise
 from generators.utterances import (
+    _CONVERSATIONAL,
     apply_generic_wording,
     expand_utterance,
     finalize_training_utterance,
@@ -238,15 +239,16 @@ def generate_row(
         if variant is not None:
             pass
         elif config.real_home_path and select_real_home:
-            home = load_real_home(config.real_home_path, split="train")
+            # Labels are decided on the exact home that is rendered: the full
+            # snapshot, holdouts included. Holdouts are only barred as named targets.
             real_home_context = json.loads(config.real_home_path.read_text(encoding="utf-8"))
             for entity in [*real_home_context["entities"], *real_home_context.get("context_entities", [])]:
                 entity["name"] = " ".join(entity["name"].split())
                 if entity.get("aliases"):
                     entity["aliases"] = [" ".join(alias.split()) for alias in entity["aliases"]]
+            home = copy.deepcopy(real_home_context)
+            inject_missing = False
             if family in REAL_HOME_REFUSAL_FAMILIES:
-                home = copy.deepcopy(real_home_context)
-                inject_missing = False
                 robustness = "ambiguity"
                 targeting = "area"
                 if family == "absence":
@@ -277,6 +279,13 @@ def generate_row(
         if variant is not None and variant.get("rng_index") is not None:
             scenario_index = variant["rng_index"]
 
+    real_home_target_usage = None
+    if real_home_row:
+        frozen_entities = copy.deepcopy(home["entities"])
+        holdouts = holdout_entity_names(config.real_home_path)
+        # pick_target takes the least-used candidate, so holdouts lose every tie.
+        real_home_target_usage = Counter(real_home_usage or ())
+        real_home_target_usage.update(dict.fromkeys(holdouts, 10**9))
     scenario = build_scenario(
         index=scenario_index,
         seed=config.seed ^ (attempt << 16) ^ (retry << 24),
@@ -289,7 +298,7 @@ def generate_row(
         attempt=attempt,
         home=home,
         inject_missing=inject_missing,
-        target_usage=real_home_usage if real_home_row else None,
+        target_usage=real_home_target_usage,
         family=None if real_home_row and family in REAL_HOME_REFUSAL_FAMILIES else family,
         bare_name_rate=config.bare_name_rate,
         request_intent={"area": absence_area} if absence_area else (
@@ -297,12 +306,10 @@ def generate_row(
         ),
     )
     if real_home_row:
-        targets = [*(scenario.get("target_entities") or [])]
-        if scenario.get("target_entity"):
-            targets.append(scenario["target_entity"])
-        if any(entity not in real_home_context["entities"] for entity in targets):
+        # Scenario builders pad or rewrite a home they are given; a real-home
+        # row must show production's home unchanged, so reject any rewrite.
+        if scenario["home"]["entities"] != frozen_entities:
             return None, "family_mismatch"
-        scenario["home"] = real_home_context
         if family in REAL_HOME_REFUSAL_FAMILIES and scenario["robustness"] == "ambiguity":
             scenario["expected"] = gold_from_scenario(scenario, rng)
         if family == "junk":
@@ -420,6 +427,20 @@ def generate_row(
     if grounding_required and not grounding_family:
         return None, "grounding_variant_miss"
 
+    if (
+        check_quality_eval_overlap(spec["utterance"])
+        and expected.get("kind") == "action"
+        and family not in {"follow_up", "datetime", "junk"}
+        and not context_hard_negative
+    ):
+        # Canonical phrasing is deterministic, so a retry rebuilds the same
+        # eval sentence (e.g. "turn on the living room tv"); rephrase instead.
+        action = request_seed_from_spec(spec)
+        for template in rng.sample(_CONVERSATIONAL, len(_CONVERSATIONAL)):
+            candidate = template.format(action=action)
+            if not check_quality_eval_overlap(candidate):
+                spec["utterance"] = candidate
+                break
     if check_quality_eval_overlap(spec["utterance"]):
         return None, "quality_eval_overlap"
 
@@ -484,6 +505,12 @@ def generate_row(
     except ValueError as exc:
         return None, str(exc)
 
+    if real_home_row and any(
+        json.loads(call["function"]["arguments"]).get("name") in holdouts
+        for message in row["messages"]
+        for call in message.get("tool_calls") or []
+    ):
+        return None, "family_mismatch"
     row["metadata"]["real_home"] = real_home_row
     row["metadata"]["grounding_family"] = grounding_family
     row["metadata"]["discrimination"] = discrimination
