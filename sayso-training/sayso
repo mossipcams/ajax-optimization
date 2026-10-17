@@ -189,11 +189,35 @@ def cmd_validate(_: argparse.Namespace) -> None:
     write_current(record)
 
 
+def trainer_args() -> list[str]:
+    args: list[str] = []
+    model_path = os.environ.get("TRAIN_MODEL") or BASE_MODEL
+    if os.environ.get("TRAIN_MODEL"):
+        args.extend(("--model", model_path))
+    lr = os.environ.get("TRAIN_LR") or "2e-5"
+    args.extend(("--lr", lr))
+    if warmup := os.environ.get("TRAIN_WARMUP_RATIO"):
+        args.extend(("--warmup-ratio", str(float(warmup))))
+    return args
+
+
+def record_training_fields(record: dict) -> None:
+    model_path = os.environ.get("TRAIN_MODEL") or BASE_MODEL
+    lr = os.environ.get("TRAIN_LR") or "2e-5"
+    record["learning_rate"] = float(lr)
+    if os.environ.get("TRAIN_MODEL"):
+        record["model_path"] = model_path
+        weights = Path(model_path) / "model.safetensors"
+        if weights.is_file():
+            record["model_sha256"] = digest(weights)
+
+
 def cmd_canary(args: argparse.Namespace) -> None:
     record = current()
     if not record.get("validated") or record.get("validated_sha256") != digest(Path(record["dataset_path"])):
         raise SystemExit("Candidate must pass ./sayso validate after its last change")
     ensure_vm()
+    record_training_fields(record)
     record["canary_passed"] = False
     write_current(record)
     data = render_and_stage(record)
@@ -206,7 +230,7 @@ def cmd_canary(args: argparse.Namespace) -> None:
     else:
         try:
             run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/train_unsloth_full.py",
-                 "--data", data, "--canary", "--out", out])
+                 "--data", data, *trainer_args(), "--canary", "--out", out])
         finally:
             settle_gpu()
     passed, metrics = eval_checkpoint(checkpoint, f"{run_id}-canary-eval", "smoke", "canary")
@@ -247,6 +271,8 @@ def cmd_train(_: argparse.Namespace) -> None:
     if promotion["dataset_sha256"] != digest(Path(record["dataset_path"])):
         raise SystemExit("Full training blocked: promoted dataset changed after promotion")
     ensure_vm()
+    record_training_fields(record)
+    write_current(record)
     data = render_and_stage(record)
     if digest(Path(record["rendered_path"])) != promotion["rendered_sha256"]:
         raise SystemExit("Rendered dataset changed after promotion; promote the dataset again")
@@ -255,7 +281,7 @@ def cmd_train(_: argparse.Namespace) -> None:
     write_current(record)
     try:
         run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/train_unsloth_full.py",
-             "--data", data, "--out", out, "--promotion-record", f"{HOST_TRAINING}/training/runs/promotion/promoted_dataset.json"])
+             "--data", data, *trainer_args(), "--out", out, "--promotion-record", f"{HOST_TRAINING}/training/runs/promotion/promoted_dataset.json"])
     except BaseException:
         settle_gpu()
         raise

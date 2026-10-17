@@ -27,6 +27,7 @@ def main() -> int:
     parser.add_argument("--accum", type=int, default=32)
     parser.add_argument("--max-steps", type=int, default=-1)
     parser.add_argument("--canary", action="store_true", help="Run 250 production-config optimizer steps")
+    parser.add_argument("--warmup-ratio", type=float, default=0.03)
     parser.add_argument("--promotion-record", help="Required promotion metadata for full training")
     args = parser.parse_args()
     if args.canary:
@@ -103,7 +104,7 @@ def main() -> int:
             max_steps=args.max_steps,
             learning_rate=args.lr,
             lr_scheduler_type="cosine",
-            warmup_ratio=0.03,
+            warmup_ratio=args.warmup_ratio,
             weight_decay=0.0,
             bf16=True,
             optim="adamw_torch",
