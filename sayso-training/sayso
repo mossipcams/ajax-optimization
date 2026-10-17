@@ -27,6 +27,7 @@ BASE_MODEL = os.environ.get("BASE_MODEL", "/srv/llm/lfm/models/LFM2.5-230M-Base"
 DATASET_DIR = Path(os.environ.get("DATASET_DIR", "/srv/llm/data/lfm/datasets"))
 EVAL_RESULTS = Path(os.environ.get("EVAL_RESULTS", "/srv/llm/lfm/runs/sayso-promotion"))
 HOST = "/workspace/host"
+HOST_LFM = "/srv/llm/lfm"
 HOST_TRAINING = os.environ.get("SAYSO_TRAINING_HOST_ROOT", f"{HOST}/lfm/ajax-optimization/sayso-training")
 os.environ.setdefault("HF_HOME", "/srv/llm/hf-cache")
 
@@ -68,6 +69,20 @@ def save(path: Path, data: dict) -> None:
 def load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
+
+def host_path(path: str) -> str:
+    prefix = f"{HOST}/lfm"
+    value = str(path)
+    if value == prefix or value.startswith(prefix + "/"):
+        return HOST_LFM + value[len(prefix):]
+    return value
+
+
+def container_path(path: str) -> str:
+    value = str(path)
+    if value == HOST_LFM or value.startswith(HOST_LFM + "/"):
+        return f"{HOST}/lfm" + value[len(HOST_LFM):]
+    return value
 
 def current() -> dict:
     pointer = STATE / "current.json"
@@ -205,7 +220,7 @@ def trainer_args() -> list[str]:
     args: list[str] = []
     model_path = os.environ.get("TRAIN_MODEL") or BASE_MODEL
     if os.environ.get("TRAIN_MODEL"):
-        args.extend(("--model", model_path))
+        args.extend(("--model", container_path(model_path)))
     lr = os.environ.get("TRAIN_LR") or "2e-5"
     args.extend(("--lr", lr))
     if warmup := os.environ.get("TRAIN_WARMUP_RATIO"):
@@ -221,9 +236,10 @@ def record_training_fields(record: dict) -> None:
     record["learning_rate"] = float(lr)
     if os.environ.get("TRAIN_MODEL"):
         record["model_path"] = model_path
-        weights = Path(model_path) / "model.safetensors"
-        if weights.is_file():
-            record["model_sha256"] = digest(weights)
+        weights = Path(host_path(model_path)) / "model.safetensors"
+        if not weights.is_file():
+            raise SystemExit(f"Training model weights missing on host: {weights}")
+        record["model_sha256"] = digest(weights)
 
 
 def cmd_canary(args: argparse.Namespace) -> None:
@@ -305,19 +321,22 @@ def cmd_train(_: argparse.Namespace) -> None:
 
 
 
+
+def find_candidates(out_dir: Path) -> list[tuple[int, str]]:
+    steps: list[tuple[int, str]] = []
+    for path in sorted(out_dir.glob("checkpoint-*"), key=lambda p: int(p.name.rsplit("-", 1)[1])):
+        steps.append((int(path.name.rsplit("-", 1)[1]), container_path(path)))
+    final = out_dir / "final"
+    if final.is_dir():
+        steps.append((float("inf"), container_path(final)))
+    return steps
 def cmd_select_checkpoint(_: argparse.Namespace) -> None:
     record = current()
     if not record.get("trained"):
         raise SystemExit("Checkpoint selection requires a completed full training run")
     ensure_vm()
-    out_dir = Path(record["full_output"])
-    steps: list[tuple[int, Path | None]] = []
-    for path in sorted(out_dir.glob("checkpoint-*"), key=lambda p: int(p.name.rsplit("-", 1)[1])):
-        steps.append((int(path.name.rsplit("-", 1)[1]), path))
-    final = out_dir / "final"
-    if final.is_dir():
-        steps.append((float("inf"), final))
-    rows: list[dict] = [{"candidate": path.name, "step": step, "path": str(path),
+    steps = find_candidates(Path(host_path(record["full_output"])))
+    rows: list[dict] = [{"candidate": Path(path).name, "step": step, "path": path,
                          "context": 0, "smoke": None} for step, path in steps]
     run_id = record["run_id"]
     for row in rows:

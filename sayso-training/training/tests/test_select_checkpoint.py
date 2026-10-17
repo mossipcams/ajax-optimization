@@ -83,3 +83,31 @@ def test_trainer_args_save_total_limit_env(monkeypatch):
     assert module.trainer_args() == ["--lr", "2e-5"]
     monkeypatch.setenv("TRAIN_SAVE_TOTAL_LIMIT", "0")
     assert module.trainer_args() == ["--lr", "2e-5", "--save-total-limit", "0"]
+
+
+def test_find_candidates_reads_host_dir_and_returns_container_paths(monkeypatch, tmp_path):
+    monkeypatch.delenv("SAYSO_TRAINING_HOST_ROOT", raising=False)
+    module = load_sayso()
+    out_dir = tmp_path / "host" / "runs" / "r1-full"
+    for name in ("checkpoint-200", "checkpoint-100"):
+        (out_dir / name).mkdir(parents=True)
+    (out_dir / "final").mkdir()
+    monkeypatch.setattr(module, "HOST_LFM", str(tmp_path / "host"))
+    steps = module.find_candidates(out_dir)
+    assert [step for step, _ in steps] == [100, 200, float("inf")]
+    assert [path for _, path in steps] == [
+        "/workspace/host/lfm/runs/r1-full/checkpoint-100",
+        "/workspace/host/lfm/runs/r1-full/checkpoint-200",
+        "/workspace/host/lfm/runs/r1-full/final",
+    ]
+
+
+def test_find_candidates_no_final_dir(monkeypatch, tmp_path):
+    monkeypatch.delenv("SAYSO_TRAINING_HOST_ROOT", raising=False)
+    module = load_sayso()
+    out_dir = tmp_path / "host" / "runs" / "r1-full"
+    (out_dir / "checkpoint-50").mkdir(parents=True)
+    monkeypatch.setattr(module, "HOST_LFM", str(tmp_path / "host"))
+    assert module.find_candidates(out_dir) == [
+        (50, "/workspace/host/lfm/runs/r1-full/checkpoint-50")
+    ]
