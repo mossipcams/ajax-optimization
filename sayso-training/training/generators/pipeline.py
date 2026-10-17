@@ -24,7 +24,7 @@ from generators.grounding import (
 )
 from generators.paraphrase import load_paraphraser
 from generators.coverage import bare_tool_name, row_calls
-from generators.pairs import clarify_sibling, withheld_sibling
+from generators.pairs import clarify_sibling, real_home_contrast_siblings, withheld_sibling
 from generators.planning import (
     CORE_TOOL_NAMES,
     REAL_HOME_EXCLUDED_FAMILIES,
@@ -66,6 +66,12 @@ _PAIR_KINDS = (
         frozenset({"real_home", "grounding_family", "discrimination"}),
     ),
     ("clarify", "clarify", clarify_sibling, frozenset({"real_home"})),
+    (
+        "real_home_contrast",
+        "real_home_contrast",
+        real_home_contrast_siblings,
+        frozenset({"real_home"}),
+    ),
 )
 
 
@@ -81,6 +87,7 @@ def _pair_sibling_rows(
     if spec is None:
         return
     original_meta = row.setdefault("metadata", {})
+    spec["real_home"] = bool(original_meta.get("real_home"))
     for pair_kind, group_prefix, build, inherited in _PAIR_KINDS:
         rate = config.pair_rates.get(pair_kind, 0.0)
         if rate <= 0.0:
@@ -89,31 +96,33 @@ def _pair_sibling_rows(
             return
         if rng.random() >= rate:
             continue
-        sibling_spec = build(spec, rng)
-        if sibling_spec is None:
-            continue
-        group_id = f"{group_prefix}_{spec.get('candidate_id')}"
-        sibling_spec["contrastive_group"] = group_id
-        try:
-            sibling_row = render_example(sibling_spec)
-        except ValueError:
-            continue
-        sibling_meta = sibling_row["metadata"]
-        for key in ("real_home", "grounding_family", "discrimination"):
-            sibling_meta[key] = original_meta.get(key) if key in inherited else None
-        sibling_meta["pair_kind"] = pair_kind
-        if validate_serialized_row(
-            sibling_row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
-        ) is not None:
-            continue
-        if dup_tracker is not None and dup_tracker.would_reject(sibling_spec) is not None:
-            continue
-        sibling_row["_final_spec"] = sibling_spec
-        if not accept(sibling_row):
-            continue
-        original_meta["contrastive_group"] = group_id
-        sibling_meta["contrastive_group"] = group_id
-        remaining -= 1
+        built = build(spec, rng)
+        specs = built if isinstance(built, list) else ([built] if built is not None else [])
+        for sibling_spec in specs:
+            if remaining <= 0:
+                return
+            group_id = f"{group_prefix}_{spec.get('candidate_id')}"
+            sibling_spec["contrastive_group"] = group_id
+            try:
+                sibling_row = render_example(sibling_spec)
+            except ValueError:
+                continue
+            sibling_meta = sibling_row["metadata"]
+            for key in ("real_home", "grounding_family", "discrimination"):
+                sibling_meta[key] = original_meta.get(key) if key in inherited else None
+            sibling_meta["pair_kind"] = pair_kind
+            if validate_serialized_row(
+                sibling_row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
+            ) is not None:
+                continue
+            if dup_tracker is not None and dup_tracker.would_reject(sibling_spec) is not None:
+                continue
+            sibling_row["_final_spec"] = sibling_spec
+            if not accept(sibling_row):
+                continue
+            original_meta["contrastive_group"] = group_id
+            sibling_meta["contrastive_group"] = group_id
+            remaining -= 1
 
 
 def _withheld_sibling_row(
@@ -466,12 +475,17 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
         )
 
     def accept_pair_sibling(sibling_row: dict[str, Any]) -> bool:
+        nonlocal real_home_rows, real_home_refusal_rows
         if not _accept_sibling_row(sibling_row, config, tracker, quota, dup_tracker, len(accepted)):
             return False
         sem = sibling_row.get("metadata", {}).get("semantic_id")
         if sem:
             semantic_ids.add(sem)
         accepted.append(sibling_row)
+        if sibling_row.get("metadata", {}).get("real_home"):
+            real_home_rows += 1
+            if sibling_row["metadata"].get("family") in REAL_HOME_REFUSAL_FAMILIES:
+                real_home_refusal_rows += 1
         record_accept(stats, sibling_row)
         return True
 
