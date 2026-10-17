@@ -378,7 +378,8 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             if slot_family in REAL_HOME_EXCLUDED_FAMILIES:
                 real_home_selected = False
             else:
-                real_home_forced = real_home_remaining >= rows_remaining
+                # Reserved datetime rows are always synthetic.
+                real_home_forced = real_home_remaining >= rows_remaining - max(datetime_deficit, 0)
                 real_home_selected = real_home_forced or rng.random() < real_home_remaining / rows_remaining
 
         grounding_deficit = grounding_target - sum(grounding_rows.values())

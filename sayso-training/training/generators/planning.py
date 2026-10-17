@@ -27,12 +27,13 @@ PRIMARY_FAMILIES = (
 
 REAL_HOME_EXCLUDED_FAMILIES = frozenset({
     "unavailable",
-    "unsupported",
     "datetime",
     "area",
 })
 
-REAL_HOME_REFUSAL_FAMILIES = frozenset({"absence", "junk"})
+# On the real home, "unsupported" rows name one of its context-only entries
+# (a sensor, select, person...) so they contrast with actions on the same context.
+REAL_HOME_REFUSAL_FAMILIES = frozenset({"absence", "junk", "unsupported"})
 REAL_HOME_REFUSAL_SHARE_CAP = 0.25
 
 CORE_TOOL_NAMES = frozenset({"GetDateTime", "GetLiveContext", "HassTurnOn", "HassTurnOff"})

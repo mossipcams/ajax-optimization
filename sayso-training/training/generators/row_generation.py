@@ -6,11 +6,12 @@ from collections import Counter
 import copy
 import json
 import random
+import re
 from typing import Any
 
 from generators.capability_registry import CAPABILITIES, operation_spec
 from generators.config import GeneratorConfig
-from generators.deduplication import DuplicateTracker, pair_hash
+from generators.deduplication import DuplicateTracker, input_hash, pair_hash
 from generators.grounding import pick_variant
 from generators.correction import entity_name_contains_area
 from generators.gold import expected_action, expected_no_action, gold_from_scenario, gold_matches_family, target_names_from_expected
@@ -26,7 +27,6 @@ from generators.planning import CORE_TOOL_NAMES, REAL_HOME_EXCLUDED_FAMILIES, RE
 from generators.scenarios.unavailable import unique_no_action_hint
 from generators.stt_noise import apply_log_stt_noise, apply_stt_noise
 from generators.utterances import (
-    _CONVERSATIONAL,
     apply_generic_wording,
     expand_utterance,
     finalize_training_utterance,
@@ -164,7 +164,7 @@ def generate_row(
         if reject:
             return None, reject
         spec["candidate_id"] = (
-            f"{spec['semantic_id']}_{pair_hash(spec['utterance'], spec['home'])[:8]}"
+            f"{spec['semantic_id']}_{input_hash(spec)[:8]}"
             f"_{dup_tracker.occurrences(spec)}"
         )
         try:
@@ -192,6 +192,7 @@ def generate_row(
     home_size = slot["home_size"]
     home = None
     real_home_context = None
+    real_context_refusal = None
     absence_area = None
     real_home_row = False
     grounding_family = None
@@ -286,34 +287,53 @@ def generate_row(
         # pick_target takes the least-used candidate, so holdouts lose every tie.
         real_home_target_usage = Counter(real_home_usage or ())
         real_home_target_usage.update(dict.fromkeys(holdouts, 10**9))
-    scenario = build_scenario(
-        index=scenario_index,
-        seed=config.seed ^ (attempt << 16) ^ (retry << 24),
-        capability=capability,
-        operation=operation,
-        home_size=home_size,
-        targeting=targeting,
-        robustness=robustness,
-        split=config.split,
-        attempt=attempt,
-        home=home,
-        inject_missing=inject_missing,
-        target_usage=real_home_target_usage,
-        family=None if real_home_row and family in REAL_HOME_REFUSAL_FAMILIES else family,
-        bare_name_rate=config.bare_name_rate,
-        request_intent={"area": absence_area} if absence_area else (
-            variant.get("request_intent") if variant else None
-        ),
-    )
+    # Scenario builders pad or rewrite a home they are given; a real-home row
+    # must show production's home unchanged. Another seed picks another area,
+    # so retry a few builds before giving up on the real home for this slot.
+    for shift in range(4 if real_home_row else 1):
+        scenario = build_scenario(
+            index=scenario_index + shift * 7919,
+            seed=config.seed ^ (attempt << 16) ^ (retry << 24),
+            capability=capability,
+            operation=operation,
+            home_size=home_size,
+            targeting=targeting,
+            robustness=robustness,
+            split=config.split,
+            attempt=attempt,
+            home=copy.deepcopy(home) if real_home_row else home,
+            inject_missing=inject_missing,
+            target_usage=real_home_target_usage,
+            family=None if real_home_row and family in REAL_HOME_REFUSAL_FAMILIES else family,
+            bare_name_rate=config.bare_name_rate,
+            request_intent={"area": absence_area} if absence_area else (
+                variant.get("request_intent") if variant else None
+            ),
+        )
+        if not real_home_row or scenario["home"]["entities"] == frozen_entities:
+            break
     if real_home_row:
-        # Scenario builders pad or rewrite a home they are given; a real-home
-        # row must show production's home unchanged, so reject any rewrite.
         if scenario["home"]["entities"] != frozen_entities:
             return None, "family_mismatch"
         if family in REAL_HOME_REFUSAL_FAMILIES and scenario["robustness"] == "ambiguity":
             scenario["expected"] = gold_from_scenario(scenario, rng)
         if family == "junk":
             scenario["expected"] = expected_no_action("not_understood")
+        if family == "unsupported":
+            context_only = real_home_context.get("context_entities") or []
+            if not context_only:
+                return None, "family_mismatch"
+            device_tokens = {
+                token for entity in real_home_context["entities"] for token in entity["name"].lower().split()
+            } - {area.lower() for area in home_areas(real_home_context)[0]} - {"room", "the"}
+            lookalikes = [
+                entity for entity in context_only if device_tokens & set(entity["name"].lower().split())
+            ]
+            pool = lookalikes if lookalikes and rng.random() < 0.7 else context_only
+            real_context_refusal = rng.choice(pool)["name"]
+            scenario["expected"] = expected_no_action(
+                "device_unsupported", unsupported_names=[real_context_refusal]
+            )
         scenario["semantic_id"] = semantic_id(scenario)
         if absence_area:
             scenario["semantic_id"] += f"_{pair_hash(absence_area, real_home_context)[:8]}"
@@ -361,10 +381,10 @@ def generate_row(
     elif (
         family == "unsupported"
         and spec["home"].get("context_entities")
-        and rng.random() < CONTEXT_HARD_NEGATIVE_RATE
+        and (real_context_refusal is not None or rng.random() < CONTEXT_HARD_NEGATIVE_RATE)
     ):
         context_hard_negative = True
-        name = rng.choice(spec["home"]["context_entities"])["name"]
+        name = real_context_refusal or rng.choice(spec["home"]["context_entities"])["name"]
         state = rng.choice(("on", "off"))
         template = rng.choice((
             "turn {state} {name}",
@@ -435,10 +455,17 @@ def generate_row(
     ):
         # Canonical phrasing is deterministic, so a retry rebuilds the same
         # eval sentence (e.g. "turn on the living room tv"); rephrase instead.
+        # Rephrase the action itself; finalize_training_utterance adds the one
+        # conversational wrapper later, so wrapping here would nest two.
         action = request_seed_from_spec(spec)
-        for template in rng.sample(_CONVERSATIONAL, len(_CONVERSATIONAL)):
-            candidate = template.format(action=action)
-            if not check_quality_eval_overlap(candidate):
+        variants = [
+            re.sub(r"^turn (on|off) (.+)$", r"switch \1 \2", action),
+            re.sub(r"^turn (on|off) (.+)$", r"turn \2 \1", action),
+            re.sub(r"^turn (on|off) (.+)$", r"switch \2 \1", action),
+            f"please {action}",
+        ]
+        for candidate in rng.sample(variants, len(variants)):
+            if candidate != action and not check_quality_eval_overlap(candidate):
                 spec["utterance"] = candidate
                 break
     if check_quality_eval_overlap(spec["utterance"]):
@@ -483,12 +510,16 @@ def generate_row(
     if reason:
         return None, reason
 
+    if real_home_row:
+        # ponytail: production runs on this one home, so its commands may take
+        # 4x the phrasings of a synthetic one; raise if TV-style rows still cap out.
+        spec["_near_limit"] = config.near_duplicate_limit * 4
     reject = dup_tracker.would_reject(spec)
     if reject:
         return None, reject
 
     spec["candidate_id"] = (
-        f"{spec['semantic_id']}_{pair_hash(spec['utterance'], spec['home'])[:8]}"
+        f"{spec['semantic_id']}_{input_hash(spec)[:8]}"
         f"_{dup_tracker.occurrences(spec)}"
     )
 

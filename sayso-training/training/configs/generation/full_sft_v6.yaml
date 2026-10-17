@@ -44,7 +44,7 @@ generation:
 
 real_home:
   path: training/fixtures/real_home.json
-  rate: 0.10
+  rate: 0.25
   entity_cap: 0
 
 grounding:
