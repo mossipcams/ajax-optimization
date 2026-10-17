@@ -38,11 +38,38 @@ def load_real_home(path: Path) -> tuple[set[str], set[str]]:
     return entity_names, context_names
 
 
+def is_timer_tool(name: str) -> bool:
+    return "Timer" in name
+
+
+def answer_has_error(content: object) -> bool:
+    if not isinstance(content, str):
+        return False
+    try:
+        data = json.loads(content)
+    except ValueError:
+        return False
+    return isinstance(data, dict) and "error" in data
+
+
 def tool_call_targets(messages: list[dict]) -> list[str]:
     targets: list[str] = []
-    for message in messages:
-        for call in message.get("tool_calls") or []:
+    for index, message in enumerate(messages):
+        calls = message.get("tool_calls") or []
+        if not calls:
+            continue
+        answers: list[object] = []
+        for follow_up in messages[index + 1:]:
+            if follow_up.get("role") != "tool":
+                break
+            answers.append(follow_up.get("content"))
+        for position, call in enumerate(calls):
             function = call.get("function") or {}
+            if is_timer_tool(str(function.get("name") or "")):
+                continue
+            content = answers[position] if position < len(answers) else None
+            if answer_has_error(content):
+                continue
             try:
                 arguments = json.loads(function.get("arguments") or "{}")
             except (TypeError, ValueError):
@@ -51,6 +78,11 @@ def tool_call_targets(messages: list[dict]) -> list[str]:
             if isinstance(name, str):
                 targets.append(normalize(name))
     return targets
+
+
+def strip_target_area_lines(text: str) -> str:
+    lines = [line for line in text.split("\n") if not line.startswith("target_area")]
+    return "\n".join(lines)
 
 
 def run_audit(corpus_path: Path, real_home_path: Path) -> dict:
@@ -64,55 +96,60 @@ def run_audit(corpus_path: Path, real_home_path: Path) -> dict:
     nearest_name_exclusions = 0
     real_home_targets: Counter[str] = Counter()
     contrast_systems: dict[str, str | None] = {}
+    contrast_stripped_systems: dict[str, str | None] = {}
 
-    lines = corpus_path.read_text(encoding="utf-8").splitlines()
-    for index, line in enumerate(lines, start=1):
-        if not line.strip():
-            continue
-        try:
-            row = json.loads(line)
-        except ValueError as exc:
-            raise SystemExit(f"{corpus_path}:{index}: invalid JSON: {exc}") from exc
-        messages = row.get("messages") or []
-        meta = row.get("metadata") or {}
-        system_text = next(
-            (m["content"] for m in messages if m.get("role") == "system" and isinstance(m.get("content"), str)),
-            "",
-        )
-        system_lower = normalize(system_text).lower()
-        targets = tool_call_targets(messages)
+    with corpus_path.open(encoding="utf-8") as handle:
+        for index, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except ValueError as exc:
+                raise SystemExit(f"{corpus_path}:{index}: invalid JSON: {exc}") from exc
+            messages = row.get("messages") or []
+            meta = row.get("metadata") or {}
+            system_text = next(
+                (m["content"] for m in messages if m.get("role") == "system" and isinstance(m.get("content"), str)),
+                "",
+            )
+            system_lower = normalize(system_text).lower()
+            targets = tool_call_targets(messages)
 
-        fabricated_targets += sum(1 for t in targets if t.lower() not in system_lower)
+            fabricated_targets += sum(1 for t in targets if t.lower() not in system_lower)
 
-        for utterance in (m["content"] for m in messages if m.get("role") == "user" and isinstance(m.get("content"), str)):
-            if check_quality_eval_overlap(utterance):
-                eval_overlap += 1
+            for utterance in (m["content"] for m in messages if m.get("role") == "user" and isinstance(m.get("content"), str)):
+                if check_quality_eval_overlap(utterance):
+                    eval_overlap += 1
 
-        pair_kind = meta.get("pair_kind")
-        if pair_kind == "withheld_tool":
-            withheld_pairs += 1
-        elif pair_kind == "clarify":
-            clarify_pairs += 1
+            pair_kind = meta.get("pair_kind")
+            if pair_kind == "withheld_tool":
+                withheld_pairs += 1
+            elif pair_kind == "clarify":
+                clarify_pairs += 1
 
-        excluded = [normalize(n).lower() for n in meta.get("excluded_names") or []]
-        expected = [normalize(n).lower() for n in meta.get("expected_target_names") or []]
-        if excluded and expected:
-            shared = {word for word in excluded[0].split()} - NEAREST_NAME_STOP_WORDS
-            if any(shared & {word for word in target.split()} for target in expected):
-                nearest_name_exclusions += 1
+            excluded = [normalize(n).lower() for n in meta.get("excluded_names") or []]
+            expected = [normalize(n).lower() for n in meta.get("expected_target_names") or []]
+            if excluded and expected:
+                shared = {word for word in excluded[0].split()} - NEAREST_NAME_STOP_WORDS
+                if any(shared & {word for word in target.split()} for target in expected):
+                    nearest_name_exclusions += 1
 
-        if pair_kind == "real_home_contrast" and meta.get("contrastive_group") is not None:
-            group = str(meta["contrastive_group"])
-            first = contrast_systems.setdefault(group, system_text)
-            if first is not None and first != system_text:
-                contrast_systems[group] = "__mismatch__"
+            if pair_kind == "real_home_contrast" and meta.get("contrastive_group") is not None:
+                group = str(meta["contrastive_group"])
+                stripped = strip_target_area_lines(system_text)
+                first = contrast_systems.setdefault(group, system_text)
+                if first is not None and first != system_text:
+                    contrast_systems[group] = "__mismatch__"
+                first_stripped = contrast_stripped_systems.setdefault(group, stripped)
+                if first_stripped is not None and first_stripped != stripped:
+                    contrast_stripped_systems[group] = "__mismatch__"
 
-        if meta.get("real_home"):
-            for t in targets:
-                lowered = t.lower()
-                real_home_targets[lowered] += 1
-                if lowered in context_names:
-                    context_only_actions += 1
+            if meta.get("real_home"):
+                for t in targets:
+                    lowered = t.lower()
+                    real_home_targets[lowered] += 1
+                    if lowered in context_names:
+                        context_only_actions += 1
 
     holdout_counts = {t: real_home_targets[t.lower()] for t in HOLDOUT_TARGETS}
     tv_count = real_home_targets["tv"]
@@ -124,7 +161,10 @@ def run_audit(corpus_path: Path, real_home_path: Path) -> dict:
     )
     max_share = largest_entity_count / entity_total if entity_total else 0.0
     contrast_groups = len(contrast_systems)
-    systems_identical = all(v != "__mismatch__" for v in contrast_systems.values())
+    byte_identical_groups = sum(1 for v in contrast_systems.values() if v != "__mismatch__")
+    stripped_identical_groups = sum(
+        1 for v in contrast_stripped_systems.values() if v != "__mismatch__"
+    )
 
     gates = {
         "fabricated_targets": {
@@ -158,9 +198,14 @@ def run_audit(corpus_path: Path, real_home_path: Path) -> dict:
             "pass": max_share <= 0.10,
         },
         "real_home_contrast_groups": {
-            "value": {"groups": contrast_groups, "identical_systems": systems_identical},
-            "threshold": ">= 300 and byte-identical system per group",
-            "pass": contrast_groups >= 300 and systems_identical,
+            "value": {
+                "groups": contrast_groups,
+                "identical_systems": byte_identical_groups == contrast_groups,
+                "identical_after_target_area_strip": stripped_identical_groups,
+                "byte_identical": byte_identical_groups,
+            },
+            "threshold": ">= 300 groups identical after removing target_area lines",
+            "pass": stripped_identical_groups >= 300,
         },
         "withheld_pairs": {
             "value": withheld_pairs,

@@ -229,7 +229,113 @@ def test_generator_config_loads_pairs(tmp_path):
         repo_root=repo_root,
     )
     assert config.pair_rates == {
-        "withheld_tool": 0.6,
-        "clarify": 0.4,
+        "withheld_tool": 1.0,
+        "clarify": 1.0,
         "real_home_contrast": 0.2,
     }
+
+
+def make_timer_row():
+    return {
+        "messages": [
+            {"role": "system", "content": SYSTEM},
+            {"role": "user", "content": "start the coffee timer"},
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {"function": {"name": "intent__HassStartTimer", "arguments": json.dumps({"name": "coffee"})}}
+                ],
+            },
+            {"role": "tool", "content": json.dumps({"timer_id": 7, "remaining": 480})},
+        ],
+        "tools": [],
+        "metadata": {},
+    }
+
+
+def make_correction_row():
+    return {
+        "messages": [
+            {"role": "system", "content": SYSTEM},
+            {"role": "user", "content": "turn on the coffee light"},
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {"function": {"name": "light.turn_on", "arguments": json.dumps({"name": "Invented Device"})}}
+                ],
+            },
+            {
+                "role": "tool",
+                "content": json.dumps({"error": {"code": "schema_mismatch", "message": "no such entity"}}),
+            },
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {"function": {"name": "light.turn_on", "arguments": json.dumps({"name": "Invented Device 2"})}}
+                ],
+            },
+            {"role": "tool", "content": "ok"},
+        ],
+        "tools": [],
+        "metadata": {},
+    }
+
+
+def test_timer_call_not_counted_fabricated(tmp_path):
+    rows = base_corpus()
+    rows.append(make_timer_row())
+    report = run(tmp_path, rows)
+    assert report["gates"]["fabricated_targets"] == {"value": 0, "threshold": 0, "pass": True}
+
+
+def test_errored_correction_call_excluded_but_corrected_counted(tmp_path):
+    rows = base_corpus()
+    rows.append(make_correction_row())
+    report = run(tmp_path, rows)
+    assert report["gates"]["fabricated_targets"] == {"value": 1, "threshold": 0, "pass": False}
+
+
+def test_tool_call_targets_excludes_timer_and_error_answers():
+    messages = make_correction_row()["messages"]
+    messages.append(
+        {
+            "role": "assistant",
+            "tool_calls": [
+                {"function": {"name": "intent__HassCancelTimer", "arguments": json.dumps({"name": "coffee"})}}
+            ],
+        }
+    )
+    messages.append({"role": "tool", "content": json.dumps({"timer_id": 7, "remaining": 0})})
+    assert audit_v7_corpus.tool_call_targets(messages) == ["Invented Device 2"]
+
+
+def test_contrast_group_target_area_lines_ignored(tmp_path):
+    rows = base_corpus()
+    for row in rows:
+        if row["metadata"].get("contrastive_group") == "cg-0":
+            row["messages"][0] = {
+                "role": "system",
+                "content": SYSTEM + "\ntarget_area: Kitchen\ntarget_area_source: explicit",
+            }
+            break
+    report = run(tmp_path, rows)
+    gate = report["gates"]["real_home_contrast_groups"]
+    assert gate["value"]["identical_after_target_area_strip"] == 300
+    assert gate["value"]["byte_identical"] == 299
+    assert gate["value"]["identical_systems"] is False
+    assert gate["pass"] is True
+
+
+def test_contrast_group_non_area_mismatch_still_fails(tmp_path):
+    rows = base_corpus()
+    for row in rows:
+        if row["metadata"].get("contrastive_group") == "cg-0":
+            row["messages"][0] = {
+                "role": "system",
+                "content": SYSTEM + "\ntarget_area: Kitchen\nunrelated extra line",
+            }
+            break
+    report = run(tmp_path, rows)
+    gate = report["gates"]["real_home_contrast_groups"]
+    assert gate["value"]["identical_after_target_area_strip"] == 299
+    assert gate["pass"] is False

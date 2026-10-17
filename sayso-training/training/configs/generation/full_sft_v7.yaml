@@ -68,8 +68,8 @@ coverage:
 
 
 pairs:
-  withheld_tool: 0.6
-  clarify: 0.4
+  withheld_tool: 1.0
+  clarify: 1.0
   real_home_contrast: 0.2
 
 recipe_exclusions:
