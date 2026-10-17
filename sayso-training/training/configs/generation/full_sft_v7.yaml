@@ -48,6 +48,11 @@ real_home:
   rate: 0.25
   entity_cap: 0
   holdouts: false
+  target_weights:
+    "Living room lights": 4.0
+    Porch_Light: 1.5
+    "Outdoor Lights": 1.5
+  max_target_share: 0.10
 
 grounding:
   rate: 0.08

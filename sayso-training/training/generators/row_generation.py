@@ -113,6 +113,27 @@ def _balanced_upper(casing_counts: dict[str, Counter[str]] | None, spec: dict[st
     return None
 
 
+def normalize_entity_name(name: str) -> str:
+    return " ".join(str(name).split())
+
+
+def scaled_target_usage(usage: Any | None, target_weights: dict[str, float] | None) -> Counter:
+    base = Counter(usage or ())
+    if not target_weights:
+        return base
+    weights = {normalize_entity_name(name): float(weight) for name, weight in target_weights.items()}
+    values = {}
+    for name, count in base.items():
+        key = normalize_entity_name(name)
+        values[name] = count / weights[key] if key in weights else count
+    return Counter(values)
+
+
+def exceeds_max_target_share(real_home_targets: Counter, targets: list[str], max_target_share: float) -> bool:
+    bound = max(25, max_target_share * (sum(real_home_targets.values()) + len(targets)))
+    return any(real_home_targets[target] + 1 > bound for target in targets)
+
+
 def generate_row(
     slot: dict[str, Any],
     config: GeneratorConfig,
@@ -285,7 +306,7 @@ def generate_row(
         frozen_entities = copy.deepcopy(home["entities"])
         holdouts = holdout_entity_names(config.real_home_path) if config.real_home_holdouts else frozenset()
         # pick_target takes the least-used candidate, so holdouts lose every tie.
-        real_home_target_usage = Counter(real_home_usage or ())
+        real_home_target_usage = scaled_target_usage(real_home_usage, config.real_home_target_weights)
         real_home_target_usage.update(dict.fromkeys(holdouts, 10**9))
     # Scenario builders pad or rewrite a home they are given; a real-home row
     # must show production's home unchanged. Another seed picks another area,
@@ -524,8 +545,15 @@ def generate_row(
     )
 
     targets = spec.get("target_names") or []
-    if real_home_row and real_home_entity_cap and real_home_targets is not None:
-        if any(real_home_targets[name] >= real_home_entity_cap for name in targets):
+    if real_home_row and real_home_targets is not None:
+        over_share = (
+            config.real_home_max_target_share
+            and exceeds_max_target_share(real_home_targets, targets, config.real_home_max_target_share)
+        )
+        over_cap = real_home_entity_cap and any(
+            real_home_targets[name] >= real_home_entity_cap for name in targets
+        )
+        if over_cap or over_share:
             return None, "real_home_entity_cap"
 
     if family == "follow_up" and spec.get("_follow_up_gold_targets") is not None:

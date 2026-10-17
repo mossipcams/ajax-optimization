@@ -64,6 +64,8 @@ class GeneratorConfig:
     real_home_rate: float = 0.0
     real_home_entity_cap: int = 0
     real_home_holdouts: bool = True
+    real_home_target_weights: dict[str, float] = field(default_factory=dict)
+    real_home_max_target_share: float = 0.0
     synthetic_only: bool = False
 
     def __post_init__(self) -> None:
@@ -72,6 +74,13 @@ class GeneratorConfig:
             self.real_home_rate = 0.0
         if self.real_home_rate and not self.real_home_path:
             raise ValueError("real_home_rate needs real_home_path")
+        if not 0.0 <= self.real_home_max_target_share < 1.0:
+            raise ValueError(
+                f"real_home_max_target_share must be within [0, 1), got {self.real_home_max_target_share}"
+            )
+        for name, weight in self.real_home_target_weights.items():
+            if not weight > 0:
+                raise ValueError(f"real_home_target_weights[{name!r}] must be > 0, got {weight}")
         if self.allocations:
             total = sum(self.allocations.values())
             if abs(total - 1.0) > 0.02:
@@ -131,6 +140,7 @@ class GeneratorConfig:
         if real_home_path and not real_home_path.is_absolute():
             real_home_path = root / real_home_path
         holdouts = real.get("holdouts", True)
+        target_weights = real.get("target_weights") or {}
         allocations = raw.get("allocations", {})
         return cls(
             count=int(raw["count"]),
@@ -164,6 +174,8 @@ class GeneratorConfig:
             real_home_rate=float(real.get("rate", 0.0)),
             real_home_entity_cap=int(real.get("entity_cap", 0)),
             real_home_holdouts=bool(holdouts),
+            real_home_target_weights={str(k): float(v) for k, v in target_weights.items()},
+            real_home_max_target_share=float(real.get("max_target_share", 0.0)),
             synthetic_only=bool(gen.get("synthetic_only", True)),
         )
 
@@ -203,5 +215,7 @@ class GeneratorConfig:
             "real_home_rate": self.real_home_rate,
             "real_home_entity_cap": self.real_home_entity_cap,
             "real_home_holdouts": self.real_home_holdouts,
+            "real_home_target_weights": self.real_home_target_weights,
+            "real_home_max_target_share": self.real_home_max_target_share,
             "synthetic_only": self.synthetic_only,
         }
