@@ -231,7 +231,7 @@ def test_generator_config_loads_pairs(tmp_path):
     assert config.pair_rates == {
         "withheld_tool": 1.0,
         "clarify": 1.0,
-        "real_home_contrast": 0.2,
+"real_home_contrast": 0.4,
     }
 
 

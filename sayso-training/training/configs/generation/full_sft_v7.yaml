@@ -49,10 +49,10 @@ real_home:
   entity_cap: 0
   holdouts: false
   target_weights:
-    "Living room lights": 4.0
+    "Living room lights": 8.0
     Porch_Light: 1.5
     "Outdoor Lights": 1.5
-  max_target_share: 0.10
+  max_target_share: 0.09
 
 grounding:
   rate: 0.08
@@ -70,7 +70,7 @@ coverage:
 pairs:
   withheld_tool: 1.0
   clarify: 1.0
-  real_home_contrast: 0.2
+  real_home_contrast: 0.4
 
 recipe_exclusions:
   withheld_from_catalog: []
