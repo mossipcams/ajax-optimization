@@ -283,7 +283,7 @@ def generate_row(
     real_home_target_usage = None
     if real_home_row:
         frozen_entities = copy.deepcopy(home["entities"])
-        holdouts = holdout_entity_names(config.real_home_path)
+        holdouts = holdout_entity_names(config.real_home_path) if config.real_home_holdouts else frozenset()
         # pick_target takes the least-used candidate, so holdouts lose every tie.
         real_home_target_usage = Counter(real_home_usage or ())
         real_home_target_usage.update(dict.fromkeys(holdouts, 10**9))

@@ -63,6 +63,7 @@ class GeneratorConfig:
     real_home_path: Path | None = None
     real_home_rate: float = 0.0
     real_home_entity_cap: int = 0
+    real_home_holdouts: bool = True
     synthetic_only: bool = False
 
     def __post_init__(self) -> None:
@@ -129,6 +130,7 @@ class GeneratorConfig:
         real_home_path = Path(real_home) if real_home else None
         if real_home_path and not real_home_path.is_absolute():
             real_home_path = root / real_home_path
+        holdouts = real.get("holdouts", True)
         allocations = raw.get("allocations", {})
         return cls(
             count=int(raw["count"]),
@@ -161,6 +163,7 @@ class GeneratorConfig:
             real_home_path=real_home_path,
             real_home_rate=float(real.get("rate", 0.0)),
             real_home_entity_cap=int(real.get("entity_cap", 0)),
+            real_home_holdouts=bool(holdouts),
             synthetic_only=bool(gen.get("synthetic_only", True)),
         )
 
@@ -199,5 +202,6 @@ class GeneratorConfig:
             "real_home_path": str(self.real_home_path) if self.real_home_path else None,
             "real_home_rate": self.real_home_rate,
             "real_home_entity_cap": self.real_home_entity_cap,
+            "real_home_holdouts": self.real_home_holdouts,
             "synthetic_only": self.synthetic_only,
         }

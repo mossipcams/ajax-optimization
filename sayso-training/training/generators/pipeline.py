@@ -245,6 +245,12 @@ def run_generation(config: GeneratorConfig) -> dict[str, Any]:
     return result
 
 
+def real_home_entity_names(path: Path, hold_out: bool) -> frozenset[str]:
+    entities = load_real_home(path, split="train")["entities"]
+    if not hold_out:
+        entities = entities + load_real_home(path, split="holdout")["entities"]
+    return frozenset(entity["name"] for entity in entities)
+
 def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
     rng = random.Random(config.seed)
     grounding_rate = _effective_grounding_rate(config)
@@ -312,11 +318,10 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
     real_home_names: frozenset[str] = frozenset()
     real_home_entity_cap = config.real_home_entity_cap
     if config.real_home_path:
-        real_entities = load_real_home(config.real_home_path, split="train")["entities"]
-        real_home_names = frozenset(entity["name"] for entity in real_entities)
+        real_home_names = real_home_entity_names(config.real_home_path, config.real_home_holdouts)
         if not real_home_entity_cap:
             real_home_entity_cap = derive_entity_cap(
-                config.count, config.real_home_rate, len(real_entities)
+                config.count, config.real_home_rate, len(real_home_names)
             )
     stats = empty_stats()
     accepted: list[dict[str, Any]] = []
