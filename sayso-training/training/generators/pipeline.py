@@ -6,7 +6,7 @@ import random
 import shutil
 import tempfile
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from pathlib import Path
 from typing import Any
 
@@ -47,7 +47,7 @@ from generators.real_home import derive_entity_cap, load_real_home
 from generators.rendering import render_example
 from generators.row_generation import casing_kind, generate_row
 from generators.sampling import QuotaTracker
-from generators.validation import validate_serialized_row
+from generators.validation import check_quality_eval_overlap, validate_serialized_row
 from generators.stats import empty_stats, finalize_stats, record_accept, record_reject
 
 
@@ -82,6 +82,7 @@ def _pair_sibling_rows(
     dup_tracker: DuplicateTracker | None,
     remaining: int,
     accept: Callable[[dict[str, Any]], bool],
+    excluded: Collection[str] = frozenset(),
 ) -> None:
     spec = row.pop("_final_spec", None)
     if spec is None:
@@ -101,6 +102,8 @@ def _pair_sibling_rows(
         for sibling_spec in specs:
             if remaining <= 0:
                 return
+            if check_quality_eval_overlap(sibling_spec["utterance"]) or sibling_spec["utterance"].casefold() in excluded:
+                continue
             group_id = f"{group_prefix}_{spec.get('candidate_id')}"
             sibling_spec["contrastive_group"] = group_id
             try:
@@ -131,6 +134,7 @@ def _withheld_sibling_row(
     rng: random.Random,
     dup_tracker: DuplicateTracker | None,
     remaining: int = 0,
+    excluded: Collection[str] = frozenset(),
 ) -> dict[str, Any] | None:
     siblings: list[dict[str, Any]] = []
 
@@ -138,7 +142,7 @@ def _withheld_sibling_row(
         siblings.append(sibling_row)
         return True
 
-    _pair_sibling_rows(row, config, rng, dup_tracker, remaining, collect)
+    _pair_sibling_rows(row, config, rng, dup_tracker, remaining, collect, excluded)
     return siblings[0] if siblings else None
 
 
@@ -666,7 +670,13 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
         accepted.append(row)
         record_accept(stats, row)
         _pair_sibling_rows(
-            row, config, rng, dup_tracker, config.count - len(accepted), accept_pair_sibling
+            row,
+            config,
+            rng,
+            dup_tracker,
+            config.count - len(accepted),
+            accept_pair_sibling,
+            excluded=excluded,
         )
         first_user = next(m["content"] for m in row["messages"] if m["role"] == "user")
         casing_counts[casing_kind(bool(row_calls(row)))]["upper" if first_user[:1].isupper() else "lower"] += 1

@@ -162,3 +162,54 @@ def test_pipeline_pair_sibling_rows_groups_contrasts():
         if group:
             groups.setdefault(group, []).append(row)
     assert any(len(members) >= 2 for members in groups.values())
+
+
+def _run_contrast_pipeline(excluded: list[str] | None, monkeypatch=None) -> list[dict]:
+    if monkeypatch is not None:
+        import generators.pipeline as pipeline_mod
+
+        monkeypatch.setattr(
+            pipeline_mod,
+            "check_quality_eval_overlap",
+            lambda utterance: "sun" in utterance.casefold(),
+        )
+    home = load_fixture_home()
+    spec = make_tv_spec(home)
+    row = render_example(spec)
+    row["metadata"]["real_home"] = True
+    row["_final_spec"] = spec
+
+    config = GeneratorConfig(
+        count=20,
+        real_home_rate=0.5,
+        real_home_path=HERE.parent / "fixtures" / "real_home.json",
+        pair_rates={"real_home_contrast": 1.0},
+    )
+    accepted: list[dict] = []
+
+    def accept(sibling_row: dict) -> bool:
+        accepted.append(sibling_row)
+        return True
+
+    _pair_sibling_rows(
+        row, config, random.Random(5), None, 64, accept=accept, excluded=excluded or ()
+    )
+    return accepted
+
+
+def test_pipeline_pair_sibling_rows_rejects_eval_overlap(monkeypatch):
+    accepted = _run_contrast_pipeline(None, monkeypatch)
+    assert len(accepted) >= 1
+    assert all(not r["metadata"]["semantic_id"].endswith("_contrast_b") for r in accepted)
+    assert all(
+        "sun" not in r["messages"][-1]["content"].casefold() for r in accepted
+    )
+
+
+def test_pipeline_pair_sibling_rows_rejects_excluded_prompt():
+    accepted = _run_contrast_pipeline(["turn on the sun"])
+    assert len(accepted) >= 1
+    assert all(not r["metadata"]["semantic_id"].endswith("_contrast_b") for r in accepted)
+    assert all(
+        r["messages"][-1]["content"].casefold() != "turn on the sun" for r in accepted
+    )
