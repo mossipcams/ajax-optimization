@@ -67,6 +67,7 @@ class GeneratorConfig:
     real_home_target_weights: dict[str, float] = field(default_factory=dict)
     real_home_max_target_share: float = 0.0
     synthetic_only: bool = False
+    pair_rates: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.synthetic_only:
@@ -89,6 +90,9 @@ class GeneratorConfig:
             value = getattr(self, name)
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{name} must be within [0, 1], got {value}")
+        for name, rate in self.pair_rates.items():
+            if not 0.0 <= rate <= 1.0:
+                raise ValueError(f"pair_rates[{name!r}] must be within [0, 1], got {rate}")
         if self.grounding_rate + self.discrimination_rate > 1.0:
             raise ValueError(
                 "grounding_rate + discrimination_rate must be <= 1, "
@@ -177,6 +181,7 @@ class GeneratorConfig:
             real_home_target_weights={str(k): float(v) for k, v in target_weights.items()},
             real_home_max_target_share=float(real.get("max_target_share", 0.0)),
             synthetic_only=bool(gen.get("synthetic_only", True)),
+            pair_rates={str(k): float(v) for k, v in (raw.get("pairs") or {}).items()},
         )
 
     def recipe_hash(self) -> str:
@@ -218,4 +223,5 @@ class GeneratorConfig:
             "real_home_target_weights": self.real_home_target_weights,
             "real_home_max_target_share": self.real_home_max_target_share,
             "synthetic_only": self.synthetic_only,
+            "pair_rates": self.pair_rates,
         }

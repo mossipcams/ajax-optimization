@@ -23,6 +23,7 @@ from generators.grounding import (
 )
 from generators.paraphrase import load_paraphraser
 from generators.coverage import bare_tool_name, row_calls
+from generators.pairs import withheld_sibling
 from generators.planning import (
     CORE_TOOL_NAMES,
     REAL_HOME_EXCLUDED_FAMILIES,
@@ -42,8 +43,10 @@ from generators.rates import (
     grounding_available_share,
 )
 from generators.real_home import derive_entity_cap, load_real_home
+from generators.rendering import render_example
 from generators.row_generation import casing_kind, generate_row
 from generators.sampling import QuotaTracker
+from generators.validation import validate_serialized_row
 from generators.stats import empty_stats, finalize_stats, record_accept, record_reject
 
 
@@ -52,6 +55,71 @@ REAL_HOME_RETRY_LIMIT = 4
 _REAL_HOME_FALLBACK_REASONS = frozenset(
     {"family_mismatch", "duplicate_semantic_id", "exact_duplicate_utterance"}
 )
+
+
+def _withheld_sibling_row(
+    row: dict[str, Any],
+    config: GeneratorConfig,
+    rng: random.Random,
+    dup_tracker: DuplicateTracker | None,
+    remaining: int = 0,
+) -> dict[str, Any] | None:
+    spec = row.pop("_final_spec", None)
+    rate = config.pair_rates.get("withheld_tool", 0.0)
+    if spec is None or rate <= 0.0:
+        return None
+    if remaining <= 0:
+        return None
+    if rng.random() >= rate:
+        return None
+    sibling_spec = withheld_sibling(spec)
+    if sibling_spec is None:
+        return None
+    group_id = f"withheld_{spec.get('candidate_id')}"
+    sibling_spec["contrastive_group"] = group_id
+    row.setdefault("metadata", {})["contrastive_group"] = group_id
+    try:
+        sibling_row = render_example(sibling_spec)
+    except ValueError:
+        return None
+    sibling_meta = sibling_row["metadata"]
+    original_meta = row.get("metadata", {})
+    for key in ("real_home", "grounding_family", "discrimination"):
+        sibling_meta[key] = original_meta.get(key)
+    sibling_meta["family"] = "unavailable"
+    sibling_meta["pair_kind"] = "withheld_tool"
+    if validate_serialized_row(
+        sibling_row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
+    ) is not None:
+        return None
+    if dup_tracker is not None and dup_tracker.would_reject(sibling_spec) is not None:
+        return None
+    sibling_row["_final_spec"] = sibling_spec
+    return sibling_row
+
+
+def _accept_sibling_row(
+    sibling_row: dict[str, Any],
+    config: GeneratorConfig,
+    tracker: FamilyTracker | None,
+    quota: QuotaTracker | None,
+    dup_tracker: DuplicateTracker,
+    accepted_count: int,
+) -> bool:
+    if accepted_count >= config.count:
+        return False
+    family = sibling_row["metadata"]["family"]
+    if tracker is not None:
+        if tracker.family_deficit(family) <= 0:
+            return False
+        tracker.record(family)
+    else:
+        assert quota is not None
+        quota.record_accept(sibling_row)
+    spec = sibling_row.pop("_final_spec", None)
+    if spec is not None:
+        dup_tracker.record(spec)
+    return True
 
 
 def _discrimination_recipe_slot(
@@ -538,6 +606,17 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             quota.record_accept(row)
         accepted.append(row)
         record_accept(stats, row)
+        sibling_row = _withheld_sibling_row(
+            row, config, rng, dup_tracker, remaining=config.count - len(accepted)
+        )
+        if sibling_row is not None and _accept_sibling_row(
+            sibling_row, config, tracker, quota, dup_tracker, len(accepted)
+        ):
+            sem = sibling_row.get("metadata", {}).get("semantic_id")
+            if sem:
+                semantic_ids.add(sem)
+            accepted.append(sibling_row)
+            record_accept(stats, sibling_row)
         first_user = next(m["content"] for m in row["messages"] if m["role"] == "user")
         casing_counts[casing_kind(bool(row_calls(row)))]["upper" if first_user[:1].isupper() else "lower"] += 1
         if any(

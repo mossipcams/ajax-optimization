@@ -205,6 +205,7 @@ def generate_row(
         if reason:
             return None, reason
         dup_tracker.record(spec)
+        row["_final_spec"] = spec
         return row, None
 
     capability = slot["capability"]
@@ -592,4 +593,5 @@ def generate_row(
         real_home_targets.update(real)
         if real_home_usage is not None:
             real_home_usage.update(real)
+    row["_final_spec"] = spec
     return row, None
