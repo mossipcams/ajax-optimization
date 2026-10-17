@@ -6,6 +6,7 @@ import random
 import shutil
 import tempfile
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +24,7 @@ from generators.grounding import (
 )
 from generators.paraphrase import load_paraphraser
 from generators.coverage import bare_tool_name, row_calls
-from generators.pairs import withheld_sibling
+from generators.pairs import clarify_sibling, withheld_sibling
 from generators.planning import (
     CORE_TOOL_NAMES,
     REAL_HOME_EXCLUDED_FAMILIES,
@@ -57,6 +58,64 @@ _REAL_HOME_FALLBACK_REASONS = frozenset(
 )
 
 
+_PAIR_KINDS = (
+    (
+        "withheld_tool",
+        "withheld",
+        lambda spec, _rng: withheld_sibling(spec),
+        frozenset({"real_home", "grounding_family", "discrimination"}),
+    ),
+    ("clarify", "clarify", clarify_sibling, frozenset({"real_home"})),
+)
+
+
+def _pair_sibling_rows(
+    row: dict[str, Any],
+    config: GeneratorConfig,
+    rng: random.Random,
+    dup_tracker: DuplicateTracker | None,
+    remaining: int,
+    accept: Callable[[dict[str, Any]], bool],
+) -> None:
+    spec = row.pop("_final_spec", None)
+    if spec is None:
+        return
+    original_meta = row.setdefault("metadata", {})
+    for pair_kind, group_prefix, build, inherited in _PAIR_KINDS:
+        rate = config.pair_rates.get(pair_kind, 0.0)
+        if rate <= 0.0:
+            continue
+        if remaining <= 0:
+            return
+        if rng.random() >= rate:
+            continue
+        sibling_spec = build(spec, rng)
+        if sibling_spec is None:
+            continue
+        group_id = f"{group_prefix}_{spec.get('candidate_id')}"
+        sibling_spec["contrastive_group"] = group_id
+        try:
+            sibling_row = render_example(sibling_spec)
+        except ValueError:
+            continue
+        sibling_meta = sibling_row["metadata"]
+        for key in ("real_home", "grounding_family", "discrimination"):
+            sibling_meta[key] = original_meta.get(key) if key in inherited else None
+        sibling_meta["pair_kind"] = pair_kind
+        if validate_serialized_row(
+            sibling_row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
+        ) is not None:
+            continue
+        if dup_tracker is not None and dup_tracker.would_reject(sibling_spec) is not None:
+            continue
+        sibling_row["_final_spec"] = sibling_spec
+        if not accept(sibling_row):
+            continue
+        original_meta["contrastive_group"] = group_id
+        sibling_meta["contrastive_group"] = group_id
+        remaining -= 1
+
+
 def _withheld_sibling_row(
     row: dict[str, Any],
     config: GeneratorConfig,
@@ -64,38 +123,14 @@ def _withheld_sibling_row(
     dup_tracker: DuplicateTracker | None,
     remaining: int = 0,
 ) -> dict[str, Any] | None:
-    spec = row.pop("_final_spec", None)
-    rate = config.pair_rates.get("withheld_tool", 0.0)
-    if spec is None or rate <= 0.0:
-        return None
-    if remaining <= 0:
-        return None
-    if rng.random() >= rate:
-        return None
-    sibling_spec = withheld_sibling(spec)
-    if sibling_spec is None:
-        return None
-    group_id = f"withheld_{spec.get('candidate_id')}"
-    sibling_spec["contrastive_group"] = group_id
-    row.setdefault("metadata", {})["contrastive_group"] = group_id
-    try:
-        sibling_row = render_example(sibling_spec)
-    except ValueError:
-        return None
-    sibling_meta = sibling_row["metadata"]
-    original_meta = row.get("metadata", {})
-    for key in ("real_home", "grounding_family", "discrimination"):
-        sibling_meta[key] = original_meta.get(key)
-    sibling_meta["family"] = "unavailable"
-    sibling_meta["pair_kind"] = "withheld_tool"
-    if validate_serialized_row(
-        sibling_row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
-    ) is not None:
-        return None
-    if dup_tracker is not None and dup_tracker.would_reject(sibling_spec) is not None:
-        return None
-    sibling_row["_final_spec"] = sibling_spec
-    return sibling_row
+    siblings: list[dict[str, Any]] = []
+
+    def collect(sibling_row: dict[str, Any]) -> bool:
+        siblings.append(sibling_row)
+        return True
+
+    _pair_sibling_rows(row, config, rng, dup_tracker, remaining, collect)
+    return siblings[0] if siblings else None
 
 
 def _accept_sibling_row(
@@ -430,6 +465,16 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             and quota.accepted_total() + datetime_accepted >= config.count
         )
 
+    def accept_pair_sibling(sibling_row: dict[str, Any]) -> bool:
+        if not _accept_sibling_row(sibling_row, config, tracker, quota, dup_tracker, len(accepted)):
+            return False
+        sem = sibling_row.get("metadata", {}).get("semantic_id")
+        if sem:
+            semantic_ids.add(sem)
+        accepted.append(sibling_row)
+        record_accept(stats, sibling_row)
+        return True
+
     closed_slots: set[int] = set()
     casing_counts: dict[str, Counter[str]] = {"call": Counter(), "no_call": Counter()}
     slot_failures: Counter[int] = Counter()
@@ -606,17 +651,9 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             quota.record_accept(row)
         accepted.append(row)
         record_accept(stats, row)
-        sibling_row = _withheld_sibling_row(
-            row, config, rng, dup_tracker, remaining=config.count - len(accepted)
+        _pair_sibling_rows(
+            row, config, rng, dup_tracker, config.count - len(accepted), accept_pair_sibling
         )
-        if sibling_row is not None and _accept_sibling_row(
-            sibling_row, config, tracker, quota, dup_tracker, len(accepted)
-        ):
-            sem = sibling_row.get("metadata", {}).get("semantic_id")
-            if sem:
-                semantic_ids.add(sem)
-            accepted.append(sibling_row)
-            record_accept(stats, sibling_row)
         first_user = next(m["content"] for m in row["messages"] if m["role"] == "user")
         casing_counts[casing_kind(bool(row_calls(row)))]["upper" if first_user[:1].isupper() else "lower"] += 1
         if any(
