@@ -1,0 +1,154 @@
+diff -ruN a/src/livekit/wakeword/config.py b/src/livekit/wakeword/config.py
+--- a/src/livekit/wakeword/config.py	2026-10-18 04:48:41.570911945 +0000
++++ b/src/livekit/wakeword/config.py	2026-10-18 04:48:41.586912282 +0000
+@@ -254,6 +254,16 @@
+     piper_tts: PiperTtsConfig = Field(default_factory=PiperTtsConfig)
+     voxcpm_tts: VoxCpmTtsConfig = Field(default_factory=VoxCpmTtsConfig)
+     custom_negative_phrases: list[str] = Field(default_factory=list)
++    # Words CMUDict lacks, as ARPAbet (e.g. {"koda": "K OW1 D AH0"}). Without an entry,
++    # an unknown wake word is split into dictionary subwords ("koda" -> "ko da") and
++    # synthesised as two words; with one, it is synthesised and searched as itself.
++    pronunciations: dict[str, str] = Field(default_factory=dict)
++    # CMUDict adversarial search. Defaults are upstream openWakeWord behaviour (patterns
++    # match anywhere inside a word, up to len-2 phones wildcarded), which for a short word
++    # returns thousands of unrelated words. whole_word + max_replace 1 keeps only words that
++    # differ from the target in one phone slot.
++    adversarial_max_replace: int | None = None
++    adversarial_whole_word: bool = False
+ 
+     # TTS parameters (Piper VITS + SLERP speaker blending)
+     noise_scales: list[float] = Field(default_factory=lambda: [0.98])
+diff -ruN a/src/livekit/wakeword/data/generate.py b/src/livekit/wakeword/data/generate.py
+--- a/src/livekit/wakeword/data/generate.py	2026-10-18 04:48:41.592432247 +0000
++++ b/src/livekit/wakeword/data/generate.py	2026-10-18 04:48:41.593402647 +0000
+@@ -9,7 +9,7 @@
+ from pathlib import Path
+ 
+ from ..config import WakeWordConfig
+-from .piper.text import expand_unknown_words, get_cmudict
++from .piper.text import expand_unknown_words, get_cmudict, register_pronunciations
+ from .tts import get_tts_backend
+ from .tts.piper_backend import PiperVitsBackend
+ 
+@@ -87,7 +87,8 @@
+     """
+     import pronouncing
+ 
+-    raw = pronouncing.phones_for_word(word)
++    cmu = get_cmudict()
++    raw = pronouncing.phones_for_word(word) or ([" ".join(cmu[word])] if word in cmu else [])
+     if not raw:
+         return []
+     # Strip existing stress, then add optional stress for vowels
+@@ -101,6 +102,7 @@
+     include_partial_phrase: float = 1.0,
+     include_input_words: float = 0.2,
+     max_replace: int | None = None,
++    whole_word: bool = False,
+ ) -> list[str]:
+     """Generate phonetically similar phrases to the target using CMUDict regex search.
+ 
+@@ -152,6 +154,8 @@
+ 
+             adversarial_words: list[str] = []
+             for pattern in patterns:
++                if whole_word:
++                    pattern = f"^{pattern}$"
+                 try:
+                     matches = pronouncing.search(pattern)
+                 except re.error:
+@@ -160,10 +164,8 @@
+                 for match in matches:
+                     if match.lower() != word:
+                         match_phones = pronouncing.phones_for_word(match)
+-                        if (
+-                            match_phones
+-                            and match_phones[0] != (pronouncing.phones_for_word(word) or [""])[0]
+-                        ):
++                        own = pronouncing.phones_for_word(word) or [" ".join(cmu.get(word, []))]
++                        if match_phones and match_phones[0] != own[0]:
+                             adversarial_words.append(match)
+ 
+             # Build adversarial phrases by replacing the current word
+@@ -337,6 +339,7 @@
+     existing count.
+     """
+     model_dir = config.model_output_dir
++    register_pronunciations(config.pronunciations)
+     tts = get_tts_backend(config)
+     tts.validate_artifacts()
+     if isinstance(tts, PiperVitsBackend):
+@@ -347,6 +350,7 @@
+             "version": 1,
+             "target_phrases": config.target_phrases,
+             "custom_negative_phrases": config.custom_negative_phrases,
++            "pronunciations": config.pronunciations,
+             "piper_config": json.loads(
+                 config.piper_checkpoint_path.with_suffix(".json").read_text()
+             ),
+@@ -412,6 +416,8 @@
+         logger.info("Generating adversarial negative phrases...")
+         adv_phrases = generate_adversarial_phrases(
+             target_phrases=config.target_phrases,
++            max_replace=config.adversarial_max_replace,
++            whole_word=config.adversarial_whole_word,
+         )
+         if config.custom_negative_phrases:
+             adv_phrases.extend(config.custom_negative_phrases)
+diff -ruN a/src/livekit/wakeword/data/piper/text.py b/src/livekit/wakeword/data/piper/text.py
+--- a/src/livekit/wakeword/data/piper/text.py	2026-10-18 04:48:41.597013756 +0000
++++ b/src/livekit/wakeword/data/piper/text.py	2026-10-18 04:48:41.597823563 +0000
+@@ -10,12 +10,26 @@
+ 
+ 
+ @lru_cache(maxsize=1)
+-def get_cmudict() -> dict[str, list[str]]:
++def _base_cmudict() -> dict[str, list[str]]:
+     import cmudict
+ 
+     return {word: prons[0] for word, prons in cmudict.dict().items()}
+ 
+ 
++_EXTRA_PRONUNCIATIONS: dict[str, list[str]] = {}
++
++
++def register_pronunciations(pronunciations: dict[str, str]) -> None:
++    """Add config ``pronunciations`` (word -> ARPAbet) on top of CMUDict."""
++    _EXTRA_PRONUNCIATIONS.update({w.lower(): arpa.split() for w, arpa in pronunciations.items()})
++
++
++def get_cmudict() -> dict[str, list[str]]:
++    if not _EXTRA_PRONUNCIATIONS:
++        return _base_cmudict()
++    return {**_base_cmudict(), **_EXTRA_PRONUNCIATIONS}
++
++
+ def expand_unknown_words(
+     words: list[str],
+     cmu: dict[str, list[str]],
+@@ -40,10 +54,23 @@
+     return expanded
+ 
+ 
++def is_phoneme_phrase(phrase: str) -> bool:
++    """True for espeak phoneme input like ``[[k'oUd@]]`` (exact pronunciation)."""
++    p = phrase.strip()
++    return p.startswith("[[") and p.endswith("]]")
++
++
+ def normalize_phrases_for_piper(phrases: list[str]) -> list[str]:
+-    """Lowercase, split words, expand unknowns via CMUDict, rejoin."""
++    """Lowercase, split words, expand unknowns via CMUDict, rejoin.
++
++    ``[[...]]`` phrases are espeak phoneme mnemonics, which are case-sensitive
++    (``E`` is [ɛ], ``e`` is [e]), so they pass through verbatim.
++    """
+     cmu = get_cmudict()
+-    return [" ".join(expand_unknown_words(p.lower().split(), cmu)) for p in phrases]
++    return [
++        p.strip() if is_phoneme_phrase(p) else " ".join(expand_unknown_words(p.lower().split(), cmu))
++        for p in phrases
++    ]
+ 
+ 
+ def piper_phoneme_keys(phrases: list[str], config: dict[str, Any]) -> list[tuple[int, ...]]:
