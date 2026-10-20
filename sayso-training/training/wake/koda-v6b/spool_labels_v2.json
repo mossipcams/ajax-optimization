@@ -1,0 +1,8082 @@
+[
+{
+"id": "001e3a3f-425a-4b7c-9f54-65b2a20969ad",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0026cbda-3930-4ad7-9b05-62376a6abfc4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "002ae06e-8e92-4fda-98b3-0ade06a64de2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "003d3232-c52d-4205-8523-70e87f505e8d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "006e816f-8aae-4bf0-895b-7f49ebab5202",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "00a0c336-b83e-403a-9a46-ad4353b7ba8e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "00b7fb5f-0aeb-4906-a7ab-78b59a6b8ddf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "00ec9071-7a41-44aa-bdd6-43b154e0aba8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "011ad9b2-1add-4281-9fa5-c5068454f192",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "012abce9-0255-4008-be32-d0450ebcbc1e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "017d8d16-18d8-41e3-bfa1-cd1718c64f54",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "018db90d-9931-4c3f-955b-223e9a31476d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0190f0b7-9d3f-439c-9db3-315bb6957ef4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0195f9e2-bbcb-4571-8e4d-3889caf8d7a1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "01d9777a-dc40-4638-9e86-ce026aa74e49",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "020aced8-6665-4eda-840f-7b3d1fd323e9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "026b7d84-cd52-4eff-8e3c-3fe4c19f7e26",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "02a3e366-8078-4f38-bcdc-d74b11e7fcbe",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "02a92990-7f7e-41dc-80b1-f212ab5f9d90",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "02d8d972-6bed-4d84-94f4-5a874da39e41",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "02e1cf40-cca0-461d-b9bf-63a22f38a36c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "030383de-b787-4c27-bf16-4832edffaaa8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "03484528-9aeb-4ad6-a002-095eecac21b3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "03491dce-fd4f-4771-83dd-e3d46baba91d",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "034e736e-82fd-4220-88dc-c1eaa976138e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "03653538-fc60-4857-b1c7-dac1e67a6c01",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "03989936-f695-49eb-89a8-386bf56f3c2b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "039d953b-26e6-4e67-9490-41ebdc18e7ce",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "03a6beb3-e884-44bd-bb8c-1a134e765895",
+"y": 1,
+"source": "human"
+},
+{
+"id": "03be2fc5-bed0-485f-93ce-79b6419fbf9b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "03d088bf-d334-4c2a-a1c7-9fe2064b9e9f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "03ed3db0-d067-454f-861e-cad283d8c372",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "03f3fee1-aa50-4a16-bca7-e89fdbb57fef",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "041d9ef5-9a3a-459d-81ad-b582f3633f0a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "042c912c-3c2d-499c-afb8-c1693d7b48ec",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0460497d-e5e5-4d71-bd7b-d69cbcfcb437",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0461d6e7-d82e-4e0a-88d2-b807f17eca5b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0462127f-1dec-45be-943d-887da38055fc",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "046c167b-451c-4891-906c-2b34db6081ba",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "047ce464-5427-45ee-a156-51824090d15b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "04e354ef-a362-4d84-a651-0b74da8ae54b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "04fa32cb-3caa-4bd5-a2d1-da1f1032471a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0521339e-2b20-4a7b-9ae6-e0c719b7ee99",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0574ba43-d45e-484a-b1e2-3db199a96dac",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "05a68c25-b83f-408f-9620-9366321e263e",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "05c288b9-5b04-4bda-a4e4-7b881671f0b0",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "05e563fd-4b19-41ae-8253-bbe45fb60e59",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "05ed68fa-8c98-49d8-ae7f-f0e57c75bbaf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "06015d1a-d28a-438e-a7cc-201d88609f7d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "06136748-e55c-435f-90a1-9ad868d31ef1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "062b37f3-7f2a-4ce7-ab2d-6f7a00d167b5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "062d2e0c-200d-42b5-9737-a2f92b9b1335",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0634790a-3480-40ab-a2da-6abdc01205b4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "064a640b-d0b5-490c-9f17-5d0876009ae8",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "065291fc-c3bf-49a2-b08c-2b6e10fb3f38",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "066aa965-f496-4eda-ab71-fa721dbe6e11",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "066c7f5f-1635-4835-be11-4bcbb8984d3a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "06c1eeca-f9ea-48f3-966f-3b6fbfa5eed4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "06c56c9b-f78c-4796-99e1-2938a29d1804",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "06c9b846-8e5b-43bd-a529-b5fa3f2cc420",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "06ea070c-c674-4ebd-8ae2-f57bb4621de3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "06fb41f9-0d1f-4ab2-8996-b78164d073d7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "07019a55-1a8c-4dbb-ac86-4fb1be2e5fff",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "072e2118-7e8b-4c3a-a07e-aaa4067360a4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "073a6562-73f5-49ab-9172-1fdcfcc985f3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "074c551b-1f37-4553-9dc1-ad853ac9a659",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "075dfd55-858e-482b-b1b4-c03ec5755f1e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0790f13a-9e52-4c62-a4e3-9e10acfd139b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0798b6a6-a38a-402f-bb62-e2940f1b4b7a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "07c087c2-1986-4b61-8113-e9512a571f5e",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "07e20857-0635-4618-8db2-601853715d17",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0831df85-4144-42e3-8408-b1a83a14df71",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "08963516-51ea-4a4f-9537-33a1c9cb4406",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "08a5851b-9804-4ec1-9245-5880f24a4dc9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "08bae3eb-1ab4-4072-aa4a-7a19bfd76a15",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "08d86222-f93e-4b7d-a033-bdb51900139d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "094ea938-79a5-48a5-990b-c97d22f04b77",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "095e1061-eca2-4812-b4e4-9e7f8eb7d14c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0996c12c-96e9-41fb-90eb-d801086c61df",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "09a03691-5c6f-4fb8-88d7-fbf6b045a679",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "09cfc218-f537-4e73-bbd1-6fcd0709ff0c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "09ebdee1-09ab-4ae2-90f0-6ee46cbec389",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "09f11c74-e65b-403e-a043-0dc8ab57da15",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "09f28ef6-258c-491c-ac7d-6a295b8abe6e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0a3a7d03-fb00-49d6-bb67-53b9b40f6132",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0a3bf594-4562-4611-b7aa-466cfd14cf46",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0a3ed49e-2296-4e34-bb08-586fb94aca18",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0a7dcac7-85ee-4df4-888c-d3fe3e34641e",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "0a8d2243-42c0-4397-a925-663aa697d02b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0ab4a0aa-25f0-4f0e-93e3-89834dfe63af",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0acea0de-8ba7-431b-a71d-01de8c40ee17",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0ad826a3-5224-4cf0-ac18-44935094b5c3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0ae03b37-ebd6-4092-899d-1a618b4d8ce4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0b32a9a5-b67b-4424-8f78-f00ae890ccae",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0b742e13-06c0-4e0a-bf9f-1e172a52b555",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0b8203b2-c6dc-4aaf-9b48-723230c7cfd1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0b960537-0f12-44fa-8ecf-3767038512cd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0be39fb3-e465-4ec5-9bb0-25534b51a8c6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0bf98817-5c18-4129-8010-e59b97a21ce3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0c295de0-0ec4-4a2c-89da-6f14df06cd4e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0c73fc10-bc45-4783-a186-820106fd15ff",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0c8e5034-0dad-4f06-842d-72924d43a970",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0cb6be63-4f15-4697-aae0-67cec789e1a4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0cf5cf01-0479-4045-ae7a-b9a0b195b138",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0d28d3dd-190c-4e83-b082-fa5772a22c47",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0d2b1657-510b-4fe1-a771-cbd8722ba798",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0de3a22f-e3cb-4d31-be69-9c0b88762265",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "0e45efec-9bb4-4073-9435-5aec1e1720f7",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "0e623871-40b8-41ee-ae65-656d2a23eda0",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "0ecf9b63-ca6f-4c0d-8169-fafa384f63fe",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0ef29c9b-1bd1-42e3-b00d-307fb9466c5c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0f8417be-73b3-4eaa-9e1f-aae4a3fbbd72",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "0f8ebc36-cb06-4b23-994c-6632589abe88",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "0f9c359c-4b94-4bf2-a7c8-ccdc5e8badf9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "0feb2149-76c0-4966-b7c7-3bdd5ad59316",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "10036891-69dd-40c8-9490-2b98cb771624",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1016e421-954f-415a-9a73-1d0d16184699",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "10975df7-b7c3-4c16-8e8a-6a38d4bb6986",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "10b859af-bda8-4737-b666-ab6510948691",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "10efd578-3cc9-48ee-a233-5757852bc651",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1124aaaa-54e9-40c2-9630-ab872d51767b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "114acf01-8fd9-440b-8eda-5261a5e78e2e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "114dead9-aa5e-4178-ad33-b24c5ce4aac1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "11746dd9-0102-471c-b8b6-4c1b7bbff7c9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "11c2215e-02ff-49bb-81d1-e526a27b0289",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "120d1b6e-507e-46e7-8a65-e15d2539ed60",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "122afa59-e183-467d-afe7-1231c436272a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "122c7c9d-4faf-4f2e-be3a-19c721933f43",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1249aa59-2d28-43ae-990c-e61414f85721",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "12598c4e-f4de-4944-8fa6-14af176fbe23",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "12b0b124-39f8-438e-977b-2c220afdc58d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "12ef07eb-6601-4267-a57c-fd3e21aae2d8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "139478ec-ccfc-4a2a-ad06-217cfabab7cd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "139cac65-6d79-4817-aee0-85cb23c50966",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "13aa9ac2-5ab6-4ade-a9ef-671c61432982",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "13c8975c-ae1b-42f1-969f-ed3af9000e53",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "13db6063-2395-4878-9cb8-707fe0aff25b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "140b008b-2cef-4bf0-ac2e-ee26b2ade944",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "140ea653-c738-4e7f-a9e7-7eb7f706f493",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "142cac36-f26e-4814-bfd2-62b9288a2c9f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1471f890-27ca-4135-b6bd-83654652024e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1484fded-853a-4d68-986a-7d6dcc325a02",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1495b65a-946c-41e1-9cb1-15516f5967c0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "14a9afa2-df33-415c-8fd0-605dc8a5434d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "14fbebac-512b-409c-a461-3b8ded961520",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "152ba6a0-832c-4492-a5eb-2dafffff5e2e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "15701545-d2cf-4e84-bab2-fcf3a75b10ed",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "157eb6c6-32af-408e-90ca-9cb8b01606c5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "157ef109-7562-47ea-ba59-7d80175b7c4a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "15868039-ea61-4823-b14f-ce3ff54e21bd",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1596d6f0-4b00-4607-b53b-30b038a8aa0d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "15b09b06-aa5f-4f14-9550-7b6ef401bb73",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "15b5670a-246c-48db-8f64-233221621f9a",
+"y": 1,
+"source": "human"
+},
+{
+"id": "1601d928-9385-4ea9-ad51-60563449fb68",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "16155b21-9ed9-4607-a1f5-cdf44728b2a3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1660a4ae-1102-4f2b-b443-84185040c4ce",
+"y": 1,
+"source": "koda-in-window"
+},
+{
+"id": "16c0a586-247a-4c99-badf-a5fe33542591",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "16edfcc8-02a7-4330-b369-d7a8770bff9b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "16f177ec-25fe-49f8-bb95-6fd0b15b1f60",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1764e3b5-1920-4ee8-9112-ebec102716d2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "17c2e43f-1d11-4634-badb-6064e9b05799",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "17cfbb4d-8b0b-4ca7-ba30-4c482a58f31d",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "17f470f7-5525-4e14-ba3b-5c43cc963220",
+"y": 1,
+"source": "human"
+},
+{
+"id": "18143b1e-e159-4f23-b475-6fc173a2aeb7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "182393d7-d812-45ce-8550-988f3f460329",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "18376a7d-efef-4636-9f88-4ecff6a6e245",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "183fbc1e-7191-40b7-b85e-7e3db695534e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "186b15c9-d2cc-4df3-9d72-9aa1d56fc616",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1897cd98-9fda-4e1d-b71c-29ab30a5005a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "18bc7177-c405-4ae5-9802-b107c872e873",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1903ff28-6275-48b0-9bc9-521a5e53a404",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "191070e7-f8f8-4ecb-9784-fba1166c7cf5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1915c40c-36bd-4a36-ab4f-cd8797f28696",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "19669ab7-0b13-41fd-8c94-a25f843b49f1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "197150d5-0f23-4778-b3ac-7d460296bfa2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "197fb501-3235-4bc6-92d9-05bb1c0ead13",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1a8160dd-ef59-4c91-8900-7d4a993a5c2c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1ad70193-0451-4b55-845c-3f38af0c9bcd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1b147dd7-d7bb-4402-a149-2e71b9de0f6c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1b3440c3-7396-4217-8207-b6e7adfbb3fb",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1b45b27e-bf5d-4f99-8d7a-ab2eedf100f4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1b67022f-5db0-445f-b669-2c6b37808aaa",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "1b7d869d-0ed9-4081-b786-e976edbe4447",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1b8f6de6-4d73-48b8-987c-7f45ee1fd3a3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1b97bc8a-399d-427b-bfad-54b2594bad4c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1bb6ee74-3a32-4c0e-bbc8-3e100cf7b0c4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1bd6a4b6-e774-4b04-a961-2e72eac315aa",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1bf002ac-4488-459d-ab5e-c2b9bf78315b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1c016b06-2989-43fd-a722-198e9356ccfc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1c12a0e7-0852-4368-a8fd-064b7c74453c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1c3a0651-2a5c-4857-9b61-24b92f68e694",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1c8cc537-3fbb-47a9-a327-2611d8af1f11",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1cb7f604-7718-42ed-a3ea-5739bcc4dcd7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1cc6d01c-18a6-4631-bfea-a6e9530f5f22",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1d3b59b0-3fc8-4c89-a966-8d092461d48b",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "1d66d2cf-7856-4ca6-9c80-33139aed52bc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1d6a7dd8-8042-4bf0-afeb-b2787f3e55fc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1d93dc7b-7a06-4338-9f53-3fdfc6126bc6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1da5ff3a-d5e5-426f-bbf9-caf766dd0e06",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1da6bb57-51b3-4283-80d2-58a49571e2f2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1dbdefa6-4e1a-4e53-a010-51e1f2f6e176",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1dcaaa77-5983-4372-b9dc-b7ebaf77612b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1dd93f57-88a2-438b-b7a1-cc5a247bdc4d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1e06a0de-ea42-449f-be74-c439b81d27ad",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "1e800b22-c3a6-49d0-ab11-ffbd0ef40ff8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "1f5537e0-6f7e-4cd7-9df7-eb4d7da2b985",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1f746efd-7b36-479c-ba7b-e1899c6b42b8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1fab58c3-e534-40d3-a989-daabbe137484",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1fcabe3d-f621-4775-a4e0-0d5f89d1a0b9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "1fdd514b-360e-4db5-b533-23ed1f160fdd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "200003cf-fb23-41f1-8d49-eba4956853a5",
+"y": 1,
+"source": "human"
+},
+{
+"id": "2029dafa-516e-4bff-a9cf-f5ce4503157b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2040d545-2419-4cae-91c2-73747d4d858f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2040edb5-3c7f-4856-8e9c-6b3a45adc8ad",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2052e011-5740-4484-ae02-158b2dd904d7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2059271b-e10a-4c0f-bc0a-beed99c111b2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "205d48ea-e82c-4b29-aeb8-b397d8a8a55f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2069f5f4-65ea-45d6-b1ce-3761c84c3efe",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "208c1c73-d88b-412c-b58b-670afd4de011",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "209028e3-e08f-4e4e-af53-7ae0dd9aa3f3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "20d968ab-a0aa-4699-a5c8-ab84673d97f6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "211fc582-2aea-446f-94b7-395f80561c93",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "216b88cf-2dc9-4efa-973d-a570e9ad9a86",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "217528d0-a89c-4981-ae74-2f46d43bc5c9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "21d141d5-fdbb-4055-aece-85f6c64e93b7",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "2200b28c-7e17-438a-bfe3-860353bc25a2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "226b0c95-bb6c-4106-b016-ad0580a466ae",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "226ee2d6-f51e-4bbc-8c06-0cf421269554",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "22722c05-30b6-4d70-b732-69b1155c80ea",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2299d802-ee3b-42d9-a9e1-fb1a43e632d8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "22ca5beb-fe67-43e0-91a1-a179f1895397",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "22dd9e82-e482-41ca-baae-42166862782f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2323f8ce-6b85-49ee-b7df-584e248fff47",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2354021e-693f-4d7f-b813-930e7ba3546c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2368037b-fd14-4393-9f26-5c47ca29f714",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "23ee3bf2-9d84-49bc-a121-7278177b031c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2403692b-9af5-476c-ab06-e5e746bb7df2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "24136cab-e971-4453-b85b-48ed01baec12",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "241a55ef-9bf2-46ec-b03f-bcb2c2ba65fc",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2424d132-fa1c-4ab6-8b86-a670f2d4be8d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "24264fc7-8797-4c7a-b313-0b614023fb4f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "24653e95-d747-40c3-9764-9918287c7521",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2478ef8c-c8c5-4771-8515-f47d6df202af",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2484fce8-89b4-4330-90c0-0f95e1b9d043",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "248e6a89-0539-4c9c-abb6-2a296d2eb8e3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2492c2f4-ad58-4284-8709-3405441ee106",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "24adce3b-e53f-48c3-9381-e53025ff2846",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "24bcf6a5-afcf-4484-838f-d7da3a81fa22",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "24c64f09-88fa-49a1-a73d-255791eed00b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "24e56dca-f126-4481-91b7-f6cbba47d144",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "24f7b01a-053b-4774-95cf-aa5ed13b24f7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2511d3f1-21af-4a4c-9d30-51fedf46dec1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2545a6ae-74ea-4e4b-b7db-ba3eeb1e53c2",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "25570aa5-c4d9-4fca-a45d-c72ea12a27c7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "25b4554f-9857-4935-9b53-186d72f49a9b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2624c60d-7cff-4615-a0fa-730eb4f90a0c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "264b6aa4-2a0b-4b0b-9565-af130ac24217",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "26586300-fb64-427c-b8cf-dda77db47372",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "266cbcaf-b230-4215-86b1-c1aade2a9c70",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "26727416-35b1-4dcc-b78a-475e3cac70cd",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "26737163-bd8d-4d20-9a47-af8eef72017e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2675f5a1-f03e-41ae-bc54-47bdcd56aebb",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "26796194-c5c2-4bc0-a9d4-daa8e0efb208",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2691ca6e-4041-4334-b26f-e4f4e9163ebb",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "26c26960-1017-4a6d-8841-acb4abed925b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "26eb94fa-5801-4213-a008-e68b83084e74",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2711e6af-b042-43ab-be9f-a6072f73ecb0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2770af9c-0cb7-4a6f-affb-b7bea86f8419",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "27757c4f-82bf-4ab2-98bc-7712e86ac8a5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2792b57c-2aa1-4435-9f35-ec0c69671715",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "27a539fd-551b-4405-91e6-f5dcb887eb62",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "286aa5f0-f3c5-46b9-adc1-9d48cfa68e5c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "288b1d84-0e19-409c-85a4-2133b805a470",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "28cddd55-c5ad-4ef2-8195-6dfdb5058c55",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "28d1b21f-5075-4e5c-b42b-1d2d48752647",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "28d750e9-363b-48be-ace4-d1de95b419b3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "28efd124-0eea-4677-96c9-9e02b84e4cde",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2970e5f8-c381-4695-9dda-969aa8961d29",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "299d35f8-fd79-40a4-9e92-bf03a97489c3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "29a9313d-4aef-4d75-813b-560fe896f693",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "29faa2e2-f259-45fd-82d3-c5ca57bc813f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2a1af08c-4c3c-4c22-a2ee-4f6b00c1b384",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2a1ee9d2-0744-48a8-9150-d0d30c86d836",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2a391c12-22d5-4095-960f-414fadcf8015",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2a7064dc-29d1-47d2-ad88-c519a1d10094",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2ac1c496-8a21-4048-becb-e81d6299e3ec",
+"y": 1,
+"source": "koda-in-window"
+},
+{
+"id": "2ae1597f-33f4-44c9-8cc5-74ef1aca3a06",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2b75216d-d862-48f4-ab83-5869558cdbc3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2b91f125-9f83-4e33-b79f-7438f6f7946b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2bb70e24-7365-4ac5-9c83-b30cc471f50f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2be1388c-121a-48ae-885a-3219226f9232",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2be54ec5-2236-4413-ab20-571fa0909d20",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2bf27476-c23e-488b-b540-dfe266861046",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "2bf4c7cc-ac10-4b26-865e-9e174a9e6650",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2c2c3500-037e-4808-8006-f1569a92ca3e",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "2c3e011c-922a-4692-acaf-25434e9f0849",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2c4cecc5-cdb4-4d89-9e6d-da5efa094303",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2c663139-579e-4ec1-95f8-a7290dae6477",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2c6fb7f1-b54d-42ec-9ce7-e40468adfc65",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2c8fe18b-25d1-45cb-94b2-25774775f54e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2c9971a5-e5a5-4fcf-9964-5ff4ffdcd0a8",
+"y": 1,
+"source": "human"
+},
+{
+"id": "2cadc822-b705-489e-8f46-e53bbb669237",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2cbaf0dc-ab30-47a0-a79c-8dec21dfbfb6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2cc6e11b-3f72-4176-ab4e-378f0d0ad60c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2d062f8c-c7a8-40e3-a5a9-5ee1a36c9fd5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2d5ed58e-2268-4abb-92cc-beb91f4ca487",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2d9e721b-def8-46fd-8367-4c3929184846",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2dd24abe-471d-4593-b78c-bd6f599030f8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2dd75da6-a86b-4bc8-b95b-9fb02034f03c",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "2e081bbc-773e-44d5-a519-8c8cdd8d74e5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2e24badc-fbe5-45e7-a467-7c961021c557",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2e3fcdc5-ecbf-4346-b22f-8fbc989073b8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2e4a7b77-2d94-4d63-9c9b-06473a5f6f3a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2e667d10-65da-4b59-8a2f-c3239ef44b1a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2eaafc13-bde6-4ce3-a2fc-3240a449e5b4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2f365736-a61e-48b0-80f8-0a6617c4a0b8",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "2f71273d-87bd-47c0-a926-2de6ca6289e9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2fa1e9cf-3fa2-4691-a8cc-43649efec2c8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2fb395d9-2691-420e-9357-8531088cbc22",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2fbc1e12-5cdc-47e1-9c14-ae68c5b6aef9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2fc6f575-14c6-498c-85dc-d24e2c205887",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "2fcbe168-b034-4831-8e0e-ae36f74813d6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "2ffd29ba-fe4b-4495-ae75-d2869533155e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "30057f28-b8b8-4f1e-8b8b-2430b765d8ae",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "301e4c8c-91c1-4bba-9009-ac60863da520",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "30c1d4f8-c814-46eb-a172-02854b7e36c1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3107f7df-7fa1-4dea-99fc-415573430757",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "311f4340-ed7c-4a0f-bf1c-f24ec7cb084f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "314bbe55-f449-49fa-8c53-ca622356aa51",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3176e466-d26b-488f-8ef8-f738807bcba3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "320fb000-4dce-4104-9d24-2c7808bfb3df",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "32101b92-7f8c-4c74-97b1-c65612ce04ac",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3236515a-ee76-4220-b0e0-a818cfba6626",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3245ad47-4da8-430f-8fc5-6eac910113ae",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3247c044-284f-45ed-9057-259a9e1fa28f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "327a69f1-2adf-4bd1-9695-347a3e848018",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "32b0ea6d-bcba-4ab9-ab6a-14791c545836",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "32cf52ff-660d-4bda-829c-945c654dd727",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "32d9d2f0-294f-4997-a14d-19b2713bfa27",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "32e80e49-81b6-46d2-b41c-cbd0052c0846",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "332eec8a-531c-4c01-886e-3e21851c3c04",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "332fb525-dddf-4ef6-8003-522bd5f29183",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3357face-e226-4a9c-854d-2c5da123b6d7",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "3381659a-5837-4a16-b1d3-b8fe9a3daee9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "33d28587-ac12-4fed-a6ea-f9c8071f0f4f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "33e5740d-128b-495d-8ca0-f202c6c070d8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "33ff5752-49c5-42c8-bd32-48ebe5970398",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "345fde49-936d-4190-94d8-06345db9c18a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "347a035f-8abe-4a1c-8157-a708d03b70db",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "34952394-114e-4d58-876f-6efde9551041",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "34ba83af-ccca-4f6f-bbc3-dc1fbd55e435",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "34f813ae-f240-4c15-a68f-e01e0181c08c",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "3509edc2-11a7-4bfb-92bf-7089be283c6a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "35180747-fe83-4cdc-b71e-5f00663eeb8c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "355acbd5-8307-440f-8543-45463fd2c06b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "359fb885-b7d2-4994-a42c-61da6d411480",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "35a71b41-2016-4d80-a666-90efcecf1bc3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "35b6bdd8-4de0-4045-8ea4-bffab9be92ed",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "365007b5-ac01-48a7-a31a-b4b980b26159",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3662d4dd-ec2f-4d77-8ca9-849f6f7031f5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "368c8f75-08e0-4121-b777-1b22b037bd2d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "36956c62-9a7e-44c4-9819-a06059b09011",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "36971faa-f9d0-450c-81a4-59a842bea48f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "37965f3a-256c-4d04-828c-eea555dafc77",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "37d328f2-393b-4636-8a96-180e91dbcde6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "384d4cf2-7943-47db-b580-c9e74086e01a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "38519aaf-854d-4d17-bae8-2481ea71c617",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "38a761a7-2ffd-4b8c-92f7-656229012fc7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "38db4bad-0bbc-463f-a068-27eafa1abb96",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "39455313-56a1-4974-8699-ec52c163e094",
+"y": 1,
+"source": "human"
+},
+{
+"id": "39d7b409-900e-430b-ab81-705741e8e5ef",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3a109695-f252-4328-aa20-264d530da91c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3a355b4d-2053-4569-8d07-15b501911263",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3a3a7426-e2f3-4752-be6a-6caebaa4dc60",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3a3bf710-a2f2-4c61-95ab-91e487a51977",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3a87e7b8-affd-48e0-a444-1d9bfc5b88c8",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "3a9509f8-b781-4dea-a277-881c47254896",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3ae44602-3ad1-474f-92dd-7bd437610039",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3ae4f93e-98ed-4947-a1e0-ac0a9db282e1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3af5abaa-e054-4945-b9c1-7af730c8cb78",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3b512157-0493-4895-ba79-f53b36e47a2f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3b6ce622-7d04-4d54-900c-29a58350d6ac",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3b83100c-1fca-4a94-ae60-224d79e90a6f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3bb3072d-d93e-4354-b394-0d41dad346b6",
+"y": 1,
+"source": "koda-in-window"
+},
+{
+"id": "3bdf2a9c-cc17-4f8a-8cb7-9f14ce0f6a19",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3be5a41e-7933-4bb3-be7b-37b6165b0984",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3c601489-d64d-46c1-b9b7-f56cf98a4ad5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3cbf3d7d-1ee6-489a-8952-4ff306318118",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3cc37349-7bc4-4c03-9d78-f510048c4633",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3cfe51af-705f-43c8-acee-1343741d6184",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3d419053-f160-4147-81ee-fc05db1ecbc9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3d4cc4c9-912e-4409-a1b6-f3b1f16c43fd",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3d516077-2432-41ab-91a5-cf2a100246ed",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3d5e7584-daf9-40dc-9885-908015efc449",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3d61e5ed-e370-4c30-b9c5-9c1b6be948f2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3d816c8e-a1fb-4466-bed8-a4321a36d102",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3db063cb-8b3c-4553-98a5-b6d4eb3f97b9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3dd3a17f-2f76-466a-80de-c0f909a5e912",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3e5b5b82-57dc-4243-b834-92dddfc0dc15",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3e6793a4-1172-4f3f-9493-c6387ffce6af",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3e69d8ea-bd70-4a05-9969-4e272bb3f4c7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3e805911-a733-495f-85dc-182326a3a203",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3eaa36f2-2579-467b-83c5-0a9bf57e7969",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3ed0ecc0-7077-4ec6-ad0a-97fa8bf12eef",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3ee3d83d-9de7-46fd-b8c4-e3245c9243de",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3ee89864-ec2f-4ade-8779-3c495694b19d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3f22fe70-d925-4c50-9dbf-16587b0fd5c4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3f35c736-7253-4ec7-a0ab-1980b46e0374",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3f46f650-48c8-49e9-985a-c728dab26d70",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "3f60c4af-4985-4462-9c03-fa830c1eed3c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3f655ef3-b5f9-4ef2-8af6-0e1d058a6d43",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3f865c0a-f1cf-4276-8ba8-c0fbafb9e543",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3f91443a-4ad2-44da-9662-3583f0c23d71",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3fa697af-7f27-4a2a-90c1-7aee69dc3b44",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3fa86159-3437-4cbd-9b77-a9e8dfe127ea",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "3fe94c1b-8f1f-4ac0-9fa8-ce8646972c05",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "405a2b62-abef-4302-8b82-ad20936e09b4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "409a8ff5-c3e3-487e-857d-1901fc4a2936",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "40c9b461-c0ce-4605-a658-d0975f5538a1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "411b8599-4d4c-4efa-98cf-c55123871b56",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "413c713d-8a17-4362-8049-bf7c49ee7776",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "414ce9a7-1df5-4fe0-b6db-140fc7947eaa",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "416770ac-be65-4b61-b128-a5b4b3b4e363",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "416d05b6-147e-4b89-a1cd-b9c035388047",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "41ad0a78-18f3-4851-b424-95f31ebfc215",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "41e875ef-f435-4d98-8daf-708fa8bf34fd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4252e9eb-9082-4d25-969d-0d2b725ce8a2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4268ad12-0fa6-4d52-a1e1-671ff30c26e7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "426fd1fe-1e23-409a-9efd-85a18feb38f9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "42e67fea-5d50-443a-93ce-859ee21206c9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "438ec6c5-9d59-4b5a-9282-ba0513de5112",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "43b4451c-8080-407e-8e29-62b906cc7f10",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "43b5c3bb-fbc0-421d-a41d-3abf61f429af",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "43e21bb9-bb23-423c-a444-ae8082be4f31",
+"y": 1,
+"source": "human"
+},
+{
+"id": "442a2c63-488f-4075-b659-03484e5daede",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "442c297d-74a1-4766-9144-af252862ed5e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4444cbe2-3e98-45fe-b22a-0352628f0dd6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "44937838-90bb-4d73-bf5e-f21d21b7c511",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "44982eb5-5250-41fc-ae49-2f607cc8123e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "45245875-0966-41fa-87af-7b50613fdc70",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4560de27-9c81-4c62-abc9-d02493870937",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "458cc92c-d5f9-4bd6-ae0a-16870d76f436",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "45bb3f52-a69e-460b-af9f-63aa7b582275",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "45be789e-8fde-4479-9bd1-e84d5299e2b1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "45cb6028-58e2-4e94-9932-7bbf200fc4fc",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "45ddfc3b-8c73-42d0-b716-751d6026cadf",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "45ef9679-484e-443c-933a-326c68783123",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "463893bb-fd7f-417b-93c1-130efd686f46",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "464e7678-c24e-4054-bce0-5609ba6711fd",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "466e85f4-b782-4c93-9f54-a6105f8b95ea",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "46706134-19fa-4d73-859e-14fe01fbe313",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "468d78ed-f624-43ef-bf33-302079452b84",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "46cb2c71-bd9c-428e-bc60-94d4fac819af",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "46f7f3de-2b32-44a5-9e94-5d9eee3a38ba",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "471c91c9-54ec-4f7a-8e5e-2bb48acbdc68",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "472ad5d5-1400-4a82-be63-097466173302",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "472f7da8-b615-42eb-a287-0cf5f965ba05",
+"y": 1,
+"source": "human"
+},
+{
+"id": "474d56ab-6f9e-490e-bac6-b26e169b36b9",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "4786064a-2e38-45e3-9988-d3ccc2a2c559",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "480ac095-eff7-4fd6-bd32-24d17c8a646a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "480dcc31-4921-4c51-bc47-cb325cb2cf03",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "481beef6-9bd9-4f49-b729-1ee015f2037b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "48b8744a-1d5c-462f-bbf9-9050c8de51e0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "48b8c683-b0e1-4d4f-bf32-734c8ffbd5fe",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "48cd5c48-416d-43dc-a4c4-e20843da1d08",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "48dabf00-3ae7-4024-8410-73de8d8339d2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4907e60e-7738-4931-b838-9d976a3e19d5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "49156139-a67d-4f11-bfba-7cbeb97dce0d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "495e05b3-8d54-47b6-9cad-1edbce7a1170",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "49b7c896-0114-4b59-8dec-393b51896160",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "49dfeb59-9929-439b-8037-26d91315b1f5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "49ed7fcd-3df5-471a-bd1d-5ac7d577f14f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4a073334-1b6f-468d-bef7-edfb1e383b26",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4a309361-3ec3-4ba0-a5f1-12cce174d094",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4a3adbb3-8ea9-4014-9308-b6ae82f87560",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4a51d2f6-5aaf-4048-bb20-6192542e4336",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4a70a8b9-d109-4b3e-a4a3-6ae43e161942",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4a712171-d750-438f-9c82-5f13d492b793",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4a910c57-93fc-4662-95f3-0e1a99a14422",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4a99714c-40c7-46bd-91d4-c55ab33d1631",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4aaa1933-738f-4904-8e78-70b1fca5cef8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4aca08c2-3626-41e3-a248-e401c9ad0bfc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4acd7073-9630-4194-9917-440a9fab884f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4ad90578-c93c-4e79-8130-1c12e1453752",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4af20f7f-cb7b-4ffb-b306-df533ae523d0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4afdad77-c808-4bbd-98b5-8b36c8b785bb",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4b0b2eff-43d4-4df0-b289-e4c4f19fe7dd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4b53ffa7-e343-4e7f-b96f-d1eb9edda4a7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4b6e1307-085c-4302-becb-193109d0a602",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4bfcd866-b7e2-40cd-a244-295141e9c9ba",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4c2efc6b-3035-4e67-9e87-48f93cbe05d9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4c78ef8d-52e9-48ab-b040-600ffabd7fad",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4c88a24a-bc5d-4f2f-b2b9-46f44a8d5b61",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4ca9e2fb-605c-46f5-a483-8f85a044f20a",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "4cc298fe-006a-4b2d-87ce-fe705dc32ae4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4ce19a35-b3e0-40e6-a249-07491d68ee9b",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "4d27e778-2209-4676-914d-3e4b6eb24db7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4d868990-7f68-4358-b02a-7a9d7944dd4a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4dcd7f0b-57a8-4041-9424-b9d7d5360038",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "4e28acdc-ee3d-4004-a7d5-7c6526191c79",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4e3191e3-e4e6-4f50-b75e-6602b8414d20",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4e60fb39-9960-491d-a567-47b3055b36f4",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "4e65676e-6628-4718-a4ca-6968a1b7f660",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4ea0f271-e708-4c31-8d4d-65ed83cc0f3c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4eab54c3-5035-41ae-9c86-b2f1429e93bd",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4ecba1ac-1184-4e0c-8d67-2611a5a72315",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4ed8fd5e-c1d1-4879-a005-5d64fa911fe4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "4f0c2dba-b607-4c43-b1e8-ccf69110632a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4f441174-1b38-4c40-b4d4-f6b13fb915c9",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "4f4d801d-238f-46e8-b2cd-0045acb8a94e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4fb98c7d-ca01-4e23-bc1d-0111baacf5b0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4fcd2489-a6e8-4c2e-814d-dea11e4aca6f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "4fdae78e-6ed5-4b91-878a-7561ed6f0de3",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "50275072-9eea-4eca-b021-8da71c4f772d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5030ab60-8add-45ec-86c1-56dd60443da9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "50576fb9-0a23-4bcd-b7b7-1abd664c37bf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "505a0364-ebc9-42b5-85cf-2869eb63c59b",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "509be2af-78fe-4de4-9bd6-f9738fad634f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "50d3a9d3-3265-4f7b-bf8b-0c0a68cc6615",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "510b56b7-e27c-4454-bf8a-308d49155d89",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5158b5b3-7808-40f3-b94e-d0d235f54cb6",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "517ad15f-090c-4eee-9ca4-8a74cdc10040",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "51a772f6-1fdf-4e8e-9d60-3635394a9823",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "51a7b0e1-fd8c-4185-87f0-c2b5b6b2598d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "51a9aafc-6827-4d9d-a8ac-2b65407b3dda",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "51e9f8a8-9b98-4e4c-bf51-0d903f876d19",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "51fe4ee5-5645-4016-abd5-a4b1e0d3c2fb",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5209d639-0abb-4b58-a411-e956eefbd3ee",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "521af14a-a5aa-4397-bd3f-bad43e695806",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "5239d3bf-aa52-4b76-b124-ff5a00fd36b8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "527590fb-c395-4d66-b01e-7b3d5f715c1b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "52b40abe-c36c-4e0f-b7aa-b84ebbd6c238",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "52ee0700-b19f-4749-b60c-de9ee7305922",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "535ac74f-c96d-47a1-839b-30dab8467e1a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "53613632-ccfe-4345-a275-f9e0b841011e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5398d86d-364d-4662-ae4b-f4d484e7f72a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "539dcc4a-70db-49c2-82dd-50c9f95bba11",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "53b47921-cd28-44f2-a26c-9de7942b147c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "53d272de-2c45-4d12-bcce-aca7707ea3ba",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "53dd5759-5728-474f-b2f1-f95df6792806",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "541e7917-94bc-4b62-9c11-38a8eccce543",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5442d8fc-f8de-4567-8850-48ee246d43d4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "54a899d0-aee3-4d70-98a4-9233d479755d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "54b12863-0bbf-4472-b8e7-77339d34ce10",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "54bf4af7-849d-40da-a917-98ed847c203a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "54cbec49-2ba6-4c95-82c5-870c2b5c5245",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "552dfe98-03ad-4d82-8622-93589959c6a1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "553d2fa8-51ca-43a2-bcb3-da18f30951a8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5573286e-1a86-422d-95d2-209a6eef8c14",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "55a22b64-b847-4a1a-b688-36e236bfec6c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5603cb41-ba92-4dbf-89aa-59bd63ebab7d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "561edb53-36de-488e-8720-8b19f77e420b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "562121a7-ce67-42ab-bc78-83acc52ac137",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "564d373d-0235-42e7-b445-2e4a3813e95e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "564ed469-1a41-494f-b965-5e1f5bb7de98",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "56521e12-6bc5-4fe2-a9b5-775a80655bb1",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "5655bf76-8136-42cf-80f9-e726a5263cf3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5660b6c3-51c9-4426-b584-4eb839891e2a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "56decb78-ebc1-4a60-a93a-3eff1eb7f86e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5705179d-e5ef-4e46-a5b4-941fa11c33c0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "572dfead-347d-4ac9-a61b-c196ca48c02c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5731a546-0305-4355-9783-fe3feb623276",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "577171ac-99ed-4bb4-babf-617a6913e298",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5773cf09-27b3-4759-8121-1b2f542f1d57",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "57d6d5d0-4ecf-4282-924d-457e19924ccb",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5803431d-7cff-461b-b067-b31d4a771957",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5830cbff-cd31-41a4-a29a-66f018f2ce8f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "585f5212-e4a5-48d8-ac0a-a4e9783f03f9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "58aa1052-09db-486f-9b85-659e8ce4b2ad",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "58ac1ce8-ad22-4200-a449-16193862b82b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "58b134b2-9ea8-4321-9635-293bb0476c31",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "58bc2b1c-0d51-4d50-9f61-575e53f04edc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "58db714a-d21f-4e19-b269-bf556f710969",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "58fc2973-b9c3-461f-906a-431b1c91f65e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5908c455-b3da-4261-8ee2-622c22d6ddea",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "59a9a61c-38dd-4d22-9b3c-a8ef9899b8dd",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "59ddd91f-2370-4b08-8998-ce183deb1aed",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "59eb7176-8efa-4631-8554-06862254bd59",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "59efdbf0-82f7-427c-ba5c-08100ec21457",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "59f55f4e-888f-4b25-b38a-50943fd11847",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5a378263-48e3-44cc-b09a-dc937458ac57",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5a40d410-68c5-4406-99cf-68f55ad00d00",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "5a48be71-5c99-47b6-b1ee-7af2d2ff04d3",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "5a72e898-fb02-4d8a-9608-e0ba316e8664",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5a790ab1-22b3-4001-a8a7-a78a73e392a9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5a8de7e6-e4f8-4bfd-baba-853261c1efc3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5af6d7b6-8172-404d-ace6-aefbfefad16a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5b368ac3-fbfd-4e9d-8a8c-a2ad764961dc",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5b4d2037-f594-4dd1-9e32-722e58878c23",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5b7e91fa-230f-4809-9e00-20caebd4f737",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5b8c631d-285b-4129-b988-9acc485f4ba0",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5b960dd7-3be4-44d4-81d0-c888ebf9268b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5b992f10-22a6-4c57-a890-13a36ef1d7f3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5b9b4a7e-c7ee-446c-a6df-55f5b640e969",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5bbba96b-7690-4d7e-8a17-85ca8a819d8f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5be51571-d93f-4856-8c0f-c63163d2a3f8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5c347128-de52-41bd-b364-6e64ab8e3f53",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "5c57c22d-308d-45fa-a6ca-efb5d9db4dca",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5c633119-a5e6-41e9-be56-aec0c2bcd3ca",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5c7d771f-5605-4465-b3da-aa4764292ff0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5c873e22-7228-4a77-b2c5-783556ca5a47",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5cd6065e-c38b-41d7-9477-272233194b35",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5d36099e-9f94-47d8-95a8-3d2886a07ef4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5d506f91-4d09-4c26-9c05-547288385c8f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5d9346fd-92e8-470f-b35f-4b43c0fceb56",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5d9de54f-9853-4de5-b73d-033bcf9fa98a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5df9de4e-29bc-41a5-9fc2-73a6358a7304",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5e13621e-e23e-4566-8b8c-8509f44e6c8b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5e338b75-a965-4429-89c7-ebe9fe64cdbb",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5e8c2351-15b8-48f7-8c48-22d1d617cda1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5ee623d8-628e-4b45-ba00-b1a5a1dce8b8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5efee5a7-5fcf-4dff-907e-1d4e7412d5dd",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5f10005c-7884-4fb6-992a-8abce27c3c58",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5f19b1bd-acc3-4166-8500-f3257f4d6888",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "5f682ff0-8504-4b2a-85ac-12cf45648b6f",
+"y": 1,
+"source": "human"
+},
+{
+"id": "5f6fb799-c47d-4574-9fc1-9c2f0890633a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "5ff68649-fcf3-46bd-ac65-31e015637549",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "601f70c8-427b-45f1-9d66-7b984d1e06b5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6052e8be-de88-4e43-9cb4-dddd2b60256a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "60608a34-6a59-428e-94c8-7af37a0df17e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "60627609-ba97-4677-b2c1-4d2fdec8d0e1",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "6070aa88-2361-4a03-b289-826bb77348be",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "609b40b5-245c-4a40-b6b7-64b70b1cbda7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "609bb259-4578-4164-8db5-1171217d0f7a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "60a90f4f-052f-4f92-a322-b9973927c962",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6108c3d0-7ed6-415d-838c-56cc7382d17b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "612f0b51-74ec-4d19-9d8a-fda628820e1a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "615edf4c-6c1a-46fc-b4b7-42c5c395a2eb",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "615f6b11-1d89-44e9-bb11-0de9ab9e2992",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "61997649-350e-4c18-89cf-2a57d75ba1c1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "61b69a83-2c7e-47f7-bf7a-2f75525c5dc3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "61ddc8f8-add7-451d-9557-10f285f46fd2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "61e2a124-d0f9-4f47-88b3-9ca60d6b0eb9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6223017b-6711-4f66-bb58-1b0b55d7a6a4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "635c3732-2324-49b2-a7bf-b99e046f159a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "639ac52f-fc8f-46ef-a76e-71eafe7eee3d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "63b35cb5-0254-4ae6-a25c-6ed37479be6c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "64734100-a3c5-49be-872f-fb6f86c4d1ce",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6483365f-cdb5-4a44-bc9c-58d53f2048b6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "64843f04-309b-45ff-9355-7d0d2cdaba1a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "64c7369f-7908-4981-82cc-cfc23f430849",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "64d2a233-73f6-4152-b586-3f694237c041",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "64d5560e-eac2-4bdf-bf9c-2bc7f2a168e4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6576eac2-cdc4-46a0-9582-d23b404f4db5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "65887263-ad92-4d08-94cc-1b391f9dc7ac",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "65a91415-9888-4a38-ac0c-5929a49fc2f5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "65b9fd30-0120-4681-b5ab-dc699a794e8b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "65c473d8-75dc-4e02-9fb5-decb837bc2d3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "65c66e32-dbef-4af0-9dd4-4ff98fee6fad",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "65f8fdd2-9451-4fb4-b3a2-177704acf22e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "661e52d0-33c4-4654-a977-9b9c7b155161",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "66350054-c409-4a75-b2fc-ae2b95bd3b3e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "66839bb5-5ceb-49e6-9bac-1e9b92bbade6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "66c33a95-660a-4c50-9cac-e58991f054df",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "66cfb5cd-51aa-4075-91ca-6691b0a2db18",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "67400c53-e160-45ce-9724-1dcfb91f97c9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6779e16e-4b0b-49ed-a6a5-87f6bb2dbe56",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "67b38274-e6a1-4ceb-8521-324e95d86119",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "67de185b-a218-455a-9582-c5ead77ef960",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "682547ce-c07b-4278-ac9a-d571dccb4e93",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "68643e91-381f-4c14-ba35-e29d2b74e393",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "686f8a53-ff74-4a8d-9ffa-e0a8632d3942",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6872dd1b-361e-4346-8508-b00340b3c18e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "68d85bd0-6aa0-4291-a7a5-93e9facd5afd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "68e9b28e-b3b9-4f52-afda-2381187431e5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "68f87a23-9513-4305-b7bf-b0201d19966a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6945c94e-611c-46ba-8cf5-4aee443dc986",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "69638863-33f7-49a4-b25e-5d6801c12b17",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "69642959-3f9d-4d7e-adae-e2477706055f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "69b8d3cf-277e-4b38-84d5-4a1e08af726b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "69ba9252-0617-4785-9b44-afef85cf830f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "69d345e3-8e19-4a92-8364-7939ef6b6f4c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "69da63b9-4794-4c9b-851a-8db93fdd8b88",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "69df631f-f09b-44e5-953c-1c2b7de63414",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "69e0a9cf-4124-43bc-92d0-98f4d2b2137f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "69e64866-68f3-4b14-ac99-aad1d3d9761d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6a1b255e-4139-4e89-929f-78cbc3dc6fa0",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6a52ea8a-c762-4719-b6b1-4d0b5f6c197f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6a57d71e-cac3-40ca-9baa-2f4df766cc5c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6a95f347-ff99-4945-a863-23704d3c9d9d",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "6ae949fe-376f-4401-b5b8-d3a36831391c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6aec76c8-00ef-4074-9138-774ab507aab9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6b10ed46-3f1d-41e4-93c8-b45c3b3bf443",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6b4d9895-64e0-4f32-9311-ab2e7f8b4edb",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6b600146-3855-4985-8a20-41f4593d9630",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6b6cf123-770f-473e-bbef-fb05578eae22",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6b9c564a-76e4-4b62-8b0e-0e1042f3666a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6bdd50c2-a801-4b87-a70d-46405fdc43fc",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6be22938-b51b-4f8a-a43a-1d31c4181a03",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6c8c81eb-7e20-447c-8f67-b6bad0d40cff",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6c91bb5a-7ee1-4372-bffb-188c7dfac28c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6c9ea161-b35f-4630-9444-5356c6bd4c9b",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "6cb4ed3b-a3e7-4094-a60b-d27274fc50ff",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6d1407a9-ee8e-4170-8ccb-54f8dd30470e",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "6d153ee3-27dd-4953-9b2c-c52ed6642851",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6d43f8f0-ab11-401b-81b1-092e6ee63246",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6d4c9d67-055b-490c-aabc-3b2b8a7a0576",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6dbe81d8-4c52-4783-ac61-acf0386fe2b2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6e535362-5c88-41e2-a1ef-1739232e052d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6ea141ea-9d27-4757-82b6-f415347f6f25",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6ec3136c-fcc9-4ccc-99e2-864875da901f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6ed38078-a869-4fe5-9206-d01c86dd512c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6ef08a11-41e8-4dbe-b9e5-7b8608180435",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6f17ff42-924e-4007-b58d-8a1f6e745e14",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "6f328e9d-7e85-4906-80eb-717075915ca9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6f8576ba-2c6c-47b8-a8ab-838e8f825469",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6f95ec07-458c-459c-8274-61c7ec2732c5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6f9ccea8-205f-4157-8a04-a4db55db25bf",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6f9f3c8c-df14-4eab-b137-5c0b63954078",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6fa7b42e-24d3-48c5-86d7-7b3bc5cc4754",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6fb2ce81-9572-4d1f-9dc5-16372ed73e02",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6fb438fc-de59-43a7-88eb-6e8aa60f617b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6fb68064-0e55-4b12-aba1-083cd6bfa839",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "6fbef65a-e17f-43e0-83b3-c4eb659a6024",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "6fc27bc1-b930-4fee-9954-2cab787aa1f5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "6feb76f4-c461-4d86-a51c-08126e50d661",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "7010e66e-3c8f-4124-8b68-ef94275c3038",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "7029b80c-8d50-4e73-a36c-da3228898095",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "706882c4-91fe-41dd-b8d8-5b59e1bc3b24",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "70bd51d7-2044-44fd-9e73-5ea0329f6bd8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "70c952b7-8b12-4e2b-8116-a96fe4e1dd25",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "71350b75-1ba1-46fc-a657-583c61c93aec",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7149a2d3-2701-4a77-895b-6015e736b8f7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "719d3827-827a-41b3-ae90-cbe5781f39e1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "71be70dc-083b-4162-ae77-c158aa4ef1a8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "72095fcf-57d2-49cf-9e38-e73f14ff3f2e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "72472087-d40c-42fd-a9aa-6f79ea3698d6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "72535d1e-09fd-4940-925f-42f78980f82f",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "7269189c-1a00-4542-8490-c7489d38e698",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7269585b-c143-426b-b9a2-56931ecd21bf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7298a11a-257d-4177-bdac-9fc69035f1ff",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "72b21eae-b411-4a9a-a122-aba6cb147868",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "72d2e302-29b7-47ea-918b-6d1027455749",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "73118c44-4f51-49e0-9775-584a65eff9c2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "733bf6ed-db73-4fd3-bec4-07a415d2a5f5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "733fd734-6956-4191-bdb5-2f4329a449f5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "734b1fa4-8786-4691-b1e9-800e316a3dca",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "736bff64-1334-4d04-a85a-7c10583e056d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "7386d1ec-6cdf-4377-9377-d757f2da2c52",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "73ae828a-9e1f-4c3d-9b9a-5dd033d359ef",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "73d421f9-9987-4907-bf29-b7db83c2c174",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "73d87926-7488-4397-9cb1-84df1d8d62e0",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "73e80c90-aeca-4b7d-b5df-9dc988ac59d5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "744a1280-c6ce-4f04-8e96-5312f809fab0",
+"y": 1,
+"source": "human"
+},
+{
+"id": "74853a82-dc81-4db7-baef-6b726ed49c7f",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "74c5751f-7a7f-4fe3-979a-3a1d7e700f0b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "74c6f52f-530b-4a8c-96ca-6428e51fd626",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "74d2f87f-9623-4c24-94b9-9c75512acc30",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7516c93f-c8f0-4c3e-9f38-1ef408f0fe1f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "754ca3f3-db6f-47e3-9bf8-167e5009f8e8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "754dd765-8855-4ef8-be84-a11132c80e24",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "75877b2f-8a9e-4135-b882-c33397acd344",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "75c9a56e-31dc-4a2c-8b64-f3e0c9e72641",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "75d8d029-219f-48c9-87cc-51f1ba47f300",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "763ff635-fd14-4c97-bbdb-78e32b5c0154",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "76825e03-cf6d-443a-a945-f7ccb4eae9c2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "76ae60a7-74c3-4513-9484-ef2d58f72d61",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "76da96ae-bf92-4c06-a6d2-02f0c7aa286c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "772e0139-a57c-4947-b910-ad0e30d9b35e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "77490056-1bcf-4c43-adba-2d232cda85d1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "77843ee2-78ee-4864-9b64-6131605f59ff",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "77881a2e-2c00-4794-9efb-5e8de194e710",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "77cf1c4b-95a0-47d2-99c3-46a89ac0e6a3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "77ec6ee2-fc3c-45b4-a3f1-60586cd5ffbc",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "77ee63f3-3593-4830-a397-a6066fbf5f3f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "77fb61ec-eeba-4c7e-ac73-f6560c644f19",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "782515d6-d3c2-4c80-a51d-2ec0f69f127d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "78663540-a7c6-4fba-999b-032b1ec35da1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "78e24a49-676e-4a68-b89f-9b7b769abe30",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "78ff8d6c-f90c-4fd7-bbdf-02b7aca03098",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "791c6eae-cd5c-452a-9fa2-20e11060affd",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "792c2d08-6e28-4311-b715-45a7d10fba3b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "79311c97-0640-4335-a069-a57d8a208226",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "7935e9a5-c733-41f3-b1e4-d9d810711e51",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "79399133-f9d7-4c15-ae45-de33df34edf9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "796ca250-d68c-450d-991e-2c836567ccfa",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "79b04ff7-35bc-43e9-b108-919e300a792e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "79c4e9a8-33d7-43d2-8326-4511da2be8f0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "79ebd504-e943-4f0c-a7f6-694f7671c79f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7a2b735d-e343-4776-9e00-8ced3929f626",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "7a506f00-49db-46b8-9323-6376769026d5",
+"y": 1,
+"source": "koda-in-window"
+},
+{
+"id": "7a654628-7cd7-447c-abe2-aefdc1579fba",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7ad7a6e3-ffb4-4bd8-a1d0-d1f50321806e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7aee1f1f-0bf6-4dc4-b4d0-696efe650cd6",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "7b30923e-0c9f-4bec-a58a-775d2547e5cf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7b59f543-0fc2-4c37-807c-695f80800a1b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7b62e6af-50bc-4426-ad65-45c05fdf2460",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "7bcaa622-815b-4b97-9be6-514969e333fe",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7bd40213-9ade-4996-b346-58dc3d031253",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7bdca060-0120-4c08-9322-9d8de61f6be0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7be0e34f-1063-4156-8d5c-4cd542dab3f4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "7c0b7958-dc71-4aef-b2dd-0fc5d6f17da9",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "7c3a2aed-f52a-40ac-8b0f-55abb0fae526",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "7c6ba3d3-fa6b-466c-9058-e2c826b38c8d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "7c6f6694-1c04-46ef-bd9b-a0bfe8d8a977",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "7c9e8448-6e8c-4560-aabe-d4226b09fddb",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "7cf2078a-af4b-4526-8fc6-0209973cc063",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7d60e5f3-9e9b-4d86-bd4e-a9ea484baf13",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7dbbb2eb-0c3a-4cd9-8b26-e537abdab4ff",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7ddcd7e5-df86-465c-8a3c-4830e2141971",
+"y": 1,
+"source": "human"
+},
+{
+"id": "7df49fcc-0180-4470-8284-44fae1b70661",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "7ea61bf0-eeb8-4644-9d56-ea385bbabe78",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "7edd5e66-73a3-45bb-ad03-c3147e1f9dd2",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "7f2f0494-78bd-498a-b34b-39b6a230591a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7f30c0b6-35c0-411f-b45c-bda0b8c75712",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "7f68a97b-d00a-47b8-ae97-f19ebd412f72",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7f6a7d96-9715-4c01-9f65-c0655a92ec1b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7fba0536-f6cb-4a66-8ca3-e4f0d8797394",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "7fbc24ae-5084-4215-bda8-5f06bcc1a007",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "80362ede-d057-4213-964a-4fe5856145cc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "807b9505-73f0-4c23-8bd4-8923a3c5d5cc",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "80a96ba4-1ff6-4d88-b868-8d763245bb9a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "80d7186e-ebfd-4cda-b42f-08651789b63b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "80dd1bda-5390-498e-bede-deda50438cf7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "813b8b0e-2277-4a81-924f-c1b6f91b6a59",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "815526e0-6fb1-4530-9257-70b015ea4af7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "823d76d3-6884-4717-a4e2-5b97101323da",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "824ac6c2-6202-4756-94cd-a0cfc9e58af4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "826a891b-56fb-4f0e-8c0b-8a8d6e1d527b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "826bff0b-924b-4609-9393-f07217dedfae",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8278c134-ce16-4db9-9154-5dcf30744df2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "82a06b14-e960-42e7-b524-ba8b95ac2609",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "82a72e30-6e0e-47a5-8208-1f4a7fc10588",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "82e7f562-7b64-42fa-b626-91dc5e9efd6d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "82f6cdfe-3388-4ec1-9eee-d96acd53f969",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "830d8191-d083-4b23-bfe3-e4b25c775c7e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "83a7ace2-da73-4d21-8259-e2e5f2c0f89d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "83cd0205-7003-460d-b31b-fe1a42e8bcaa",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "83d33252-5175-4d49-be56-788198faf79b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "83dc82dd-8e28-4cfd-a942-be49d7fe0371",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "83e5f545-a31c-43a7-8c44-bfbf029f71d3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "84254d5a-7de2-40d6-94d3-cc6d2ef667fc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "842c9007-019b-44e1-a993-928f673c6db7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "842fe840-468f-4c51-a8a2-1106a7769bc2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "844a20e9-c101-46b8-987c-0c8c638cab50",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "84b3b563-7c61-4e94-8e30-bee2d808b0ae",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "84c75781-4634-4f81-8542-c681e13be3bc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "84c96281-81af-4166-9edc-dd9d1f776562",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "84f1349e-2158-425c-b7a7-47de28889582",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "850d2190-03c7-4104-9539-8c19adffa33e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "851ef65f-0f21-4cf2-8e3e-1865127740f9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "852e48e6-9605-4125-ae54-1f8bffcd02b2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "852e76f2-466c-4cc9-ba3c-11abff45058f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8549cfb3-95a1-4068-87a6-7863f8ea8cc7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "85665609-1e88-4167-b5b3-946791ac79d0",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "85e24af0-8d33-4a14-ae21-a7a0a21481c3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "85f36377-486a-41de-8442-a6d51fff28d0",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "860bb32c-c8fc-456c-8f28-a27bff221227",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "86345ac1-4ae9-490c-b1de-fba6e9d4a6f3",
+"y": 1,
+"source": "koda-in-window"
+},
+{
+"id": "863e082a-9246-4345-932b-ab5ef8dc6207",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "864d1ff3-a61a-4c07-97e1-f40f3773e586",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "86605419-1e0a-4f34-ae10-d94d1977421d",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "86be0d55-6d5e-4811-8098-b4691aada67a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "86fc472f-53bb-4a23-a94e-82c38b4f6cf1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "872aff64-7cc5-48ea-ad47-7332eda3bb5f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "873f301b-ccea-40fc-9e3d-b507bb6b240c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "875c9ed5-522a-4338-8c9e-90719dbaf5e2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "87879632-8049-4647-b83c-e167d834ddb3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "87b37b5b-9ee1-45db-801e-4cb46b1c0748",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "87b3b4a0-e8fe-425d-a26b-427f47d944a8",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "888ccfa8-ba82-4099-929e-081681ce420b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "88c3d8ea-49ec-449c-96c3-e168529e5035",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "88ea626f-2a0f-4ea7-8188-78a5293b37b2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "891833e3-34a4-42ad-82fe-9518fd125297",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8946712e-901e-46ea-a74a-6040a75d98ee",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "894b2192-5243-4519-ae40-0fb0e4602974",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "895c730b-e001-4dd4-8cbf-84665ee6a3e3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "89938556-688c-4c94-8ebf-d766d2d56456",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "89c0f80b-9617-4375-aa55-8ce5c1a08139",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "89c88c1f-ac5d-4d59-a321-e91b7d4ca828",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "89e71e6c-9b18-43e3-b157-40e9764a7bbd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "89e9bdb5-3e6d-43e3-87bd-2abddd8765ff",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "89f210d1-ce65-4942-82d0-89a45fc66deb",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8a1184a8-4ae4-4178-8eff-0a7d3709fcfb",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8a1e3869-3f28-4cc8-8461-fca33521c279",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8a9dfe9f-2988-426f-b727-e99d6756435d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8aee860f-e792-4bc4-8e32-f5c7c0afc0a2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8b413c5a-6b64-4934-b3eb-1f397348d155",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8c24d3a0-0f57-48d3-867c-b085ec74dfe3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8c4435c7-4a74-4534-9ba8-027cbd329582",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8cb286c5-aa65-417a-87c9-4c499043e8d7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8cb7923b-b9a8-4930-b8cc-1144b9bf5062",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8cc821d3-9356-4ec5-8d17-6958ad59466d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8cd34060-9d27-4840-b70e-41f1b514c588",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8ceda9b7-9c2e-4cfe-a2a3-d0b2eaa140c6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8cf50e3a-6a4f-4be3-a594-8a6df237eaa1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8d36edab-6992-456f-b5e0-a4455f394e7e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8d4c5737-d1c4-4721-b9e1-fe6eef2539c2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8d8b77c8-cabc-49c2-8ac7-94f44ffeaf62",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8d93a718-0a1f-4b52-b3d7-3941e70e7551",
+"y": 1,
+"source": "human"
+},
+{
+"id": "8dd469c9-48c7-4574-929b-9ee2fb9a4cdf",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8dd8320e-e616-4609-90de-41ef47c02e24",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8e18002c-691d-4d76-be48-9a33040cb881",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8e219618-c579-405f-97a8-f8b2dfe610e4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8e3b5146-9807-4f6e-930d-27fe30874158",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8e4cbc36-a8f9-4e20-af1c-85ba0a492ff8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8e71ec4b-f131-403a-ac50-227483bdb6bc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8e7a81df-5d94-4453-aec9-d368296cbbd0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8e7bff93-4463-45a0-a2d7-ffdbe7bfbc7c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8e99372c-4dff-4663-a821-42b4bcc19127",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8e9ccc1c-ef46-40f1-8380-7c095547c639",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8ea9d5b6-8eb2-402c-9e19-c92a7dac1fe0",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8f27a618-2ccf-4128-a478-7ccff26c80ec",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8f3dc67e-0857-4845-acbc-f93d0e8781c6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "8faee7e4-f5d6-408d-94a2-d809c9baa4f7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8fb116a9-a4da-4551-9b4a-e016f7f82335",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "8fed908b-0ea7-4e47-8b65-ca8a1a3de6d2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "90077857-4414-4ccb-a0f5-db3ba19060e2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9010a82d-ddff-4741-a754-40785cead45a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9022e549-06c1-4400-8474-7dbdf10622cc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9092e072-38d8-4895-8b47-478c4d39971d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "90d9999c-c01b-44ec-986e-52ec37e2edf7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "90e318e7-8bb4-4352-aa85-3cf12701c3fc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "90e3a99e-a606-42e8-b432-a7b5daa1e855",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "90f06903-5dd0-4b4a-9e66-08b3f53d67e6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "91102e3e-a372-46ec-8dcc-1f6bc72fb5c7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9113042a-4d14-4a0a-a733-496d4097ec5d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "913bb673-447b-4a2e-bc4f-2b107e7cb42a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "916787fb-2ae0-4978-b286-6f79135357bf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9182a7de-9ced-4417-91c6-5b306b898489",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "919225fc-286c-41c1-bf50-b4b6630b8400",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "91929c01-08e0-4b34-ac69-e7cd69fefe2a",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "919de88e-f565-47f9-b02b-855447b11383",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "91c1a1a1-1fb6-49db-989f-07fe554cd002",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "92613245-8c98-4848-8e1c-d098555f9b19",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "92648e81-0735-4e13-be44-839109e7d3bf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "92787817-c1d2-41a2-882c-5785ec4baa3e",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "92b4738c-9fb3-4bc9-a80b-ba0a25cfaee8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "92b76f5c-24b9-4f2a-9e5c-7b3d43262fc0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "92f401ba-3a6e-468e-ba49-33faf8901e77",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9311363f-cfdd-44c6-b73d-1978173d14b3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "931c1ef6-08e2-4016-b0d4-4dbed89edf9d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "93272f11-e75e-4192-84ab-e9755ece99de",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "933d4fe5-a7df-43a5-920d-c196006d25f4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "935f564b-b21b-4c99-89a7-e5ac3bf46ba8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "936e0def-c2a0-48e0-9538-2a15207dd5f8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "93bbc062-d9fe-4696-89da-e807053b7541",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "93c8e6fd-9c73-41fd-8dfb-2b9149b789c0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "93d8dc4c-c862-45e1-8458-c4b2bee3f310",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9403fd54-afdb-4faa-a48a-452604d62ee1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9423ec5c-99a1-414e-b5ac-8e578242cdc5",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "942cd634-633b-4c38-8d01-a510a2a7adb5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "942fce52-d22b-4abd-9c39-4171bb9db2c8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "943d68b6-6a0f-4e0b-aeeb-7cb5c24fedbd",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "945cc01c-b6ba-49fc-8892-7892c4d86b07",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "9462c6a3-02c1-46d2-b053-58f63ad85af5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "94a6dae4-cb45-41d3-8dd6-29960dc926e8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "94ab0b8b-f3e1-4ab7-9739-0945ed84df46",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "94c717e9-f784-421a-8e6f-1c2da1ba90d3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "94e4429d-b654-4d7a-8f60-cdfa4c25f646",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "94e56007-de0e-4c63-803d-c254a35eac39",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "95a30981-a8d2-4dc4-a3c0-47505d84aee6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "95ae923a-5806-42ff-9df6-be94a2bbc603",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "95aff8e0-8202-4cc8-8ab6-8523af034538",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "95d83f74-33b0-4cce-8e5f-77bfb73fc095",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "966a5600-e345-42c9-bd3c-7c0928208e3c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "96e085b0-4d7d-49e4-b980-3aaef5471e27",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "96e38e75-86d8-4366-8807-058c64a23861",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9701b66b-50b1-4c23-bc80-b036ea095a84",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "9712e8aa-c494-451e-993d-7548f676c2b4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "971e4112-af43-4d2d-8640-c578df73ed2e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "972bc52f-4f2e-4a14-91a8-8af779bbc4d4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "973da9d2-76e8-4548-ad4e-65915d7c81eb",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "977f1905-2123-4652-9d25-0fc6c09f639a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "97868261-85ae-40c0-8849-7d57aa4693cc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "979144fa-373d-45d2-8dfa-d16c1b0a162e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "97f1aee0-3230-47d6-83cd-6795a7382c56",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "97f4046e-30b0-45a2-b064-8ae0261e89b2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "98049dfb-701a-4d68-8689-a67c34156356",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "989a7d4f-76fd-4203-b94f-08e25bd2fc13",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "98a34d1a-ec86-4ade-9ee9-0100d5854bdb",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "98ae63c8-c351-4cd9-aba5-39dea8f5f1d6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "98f98675-6611-4248-a2a1-0c4385002046",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "99344f57-68a7-489b-bc96-a43f59e0d998",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "995fb294-9fec-4b17-b2ab-645f635d89e7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "99b55378-6695-4b55-beec-b68fc0d907ac",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "99bb7996-3f15-498f-af34-e5b67c00e302",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "99cddc4f-6b14-4cd2-8825-12cb1d9b5276",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9a08e7aa-631e-4181-a93a-0b3f776b70d5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9a3e84d9-7645-4932-ab29-e1f6d79819de",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "9a5bc70e-1a67-48a7-b6de-5b4b1e8e11f6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9a5e77bf-0598-4f14-af67-2740ae15f9ae",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9a67e04d-41eb-429e-a4a0-3bf4c25536a2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9a691221-9271-49d0-967c-5a4e276d6c3a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9ac51a21-11b7-4580-878a-6dc42fa2ea97",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9ac822ee-f46a-45b4-a871-0ffb11b03588",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9ad55aa3-9a92-4dcb-b545-133aa01d2dc6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9ad5b6a7-20cf-4cab-baca-0c3bb4d7cc1d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9be89fa9-d0d0-4a2e-82d5-1044b9b70fb2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9bea05fa-248b-466b-8687-c1db2e7547bb",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9c0e02d2-a585-4304-bffd-d91c2e206f90",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "9c651cda-ca60-46b0-ae68-f17f8f6c3719",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9c82616e-f30b-4b16-a91f-c46a63797772",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9c8ebc74-efff-481d-aba0-534a01ceb111",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "9cef0c8a-7ab5-4025-9260-55dea56bb814",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9d78bc0c-7a0a-4a75-85ce-d375dbfb8395",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9df73671-4e03-43c3-b940-0485ec39b399",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9e096ed7-e407-47bb-857c-4fb615c0640b",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "9e19b26d-2acb-4d7c-989b-44c64be80e11",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9e316e50-fcca-40bb-9c75-95350410e64f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9e4fbcfc-ff74-4570-88a7-b1258c4650ab",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "9e60ca9b-7ef0-4605-aabd-d6d9fb78aebf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "9f13fd98-50b4-47ed-b74a-8526ee062578",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a00a0231-25f9-4dfa-b29f-294372a89c9a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a05e2732-e803-430e-9e82-0a8f4469a50d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a08be5a3-a8d3-4fa1-9307-420e66cee663",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a09fb4a1-066c-4b89-afae-1f540d5e56d5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a0a4f4b0-f5c6-43e5-81bc-eda4e0b95d35",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a0ec274e-478d-4130-bd75-95dc8264439b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a0f1028d-8406-4251-9063-0181e9f84f8d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a179d7e3-f91a-4003-b0f4-760af169c18e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a1836531-b567-4d68-8c25-74f629ab8fc1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a198525d-855b-4b1f-9745-f7e35d56e9b0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a1a6f80b-ca0d-4840-818e-168b14dfeacf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a1ce28ab-f8af-4b86-bd3b-d7f39db12aff",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a1e963c4-4f4f-462a-8f85-8ab3329bdacf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a216cdef-7997-4ec6-b67c-dab341f0c882",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a21a2454-01be-4a47-9668-62720eaef74b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a233ac29-7f9f-4f7e-ba38-9f49da54cfee",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a257b204-b729-446e-97b2-fcdf5e2dda03",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a2882fc4-1ecb-4dc2-aacc-08ce31fbe053",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a2a05409-bbbe-48c1-88cd-1ff85daa6059",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a2b96a61-e4e9-4579-ba09-9207567fa8b8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a2c254a3-2299-4a22-8751-d49c0bde65e9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a31bc306-d9fd-4eca-b4b2-d77008eaeb55",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a372b31a-d423-4a88-b814-7b6220550cc0",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a3a11aa3-8355-4a7a-9f11-a3af775ea889",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "a3aa3573-aab4-4831-8a4b-903bab60ab95",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "a3bbd352-e83e-4aaf-bfa3-7bc865b398c4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a3c8286f-640c-4a5b-a150-d16fe9b68217",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a3cf2900-8a69-4e7e-9dec-4e666c06952f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a4064da6-a39a-4835-a6e1-98dc8c5c68d7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a4519527-7a1e-4947-ae91-83bbac2f182b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a4aaabb8-5349-48f8-a83f-e91b9c88d1ac",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a4ba55bc-6db3-43a2-9857-69d51f6a007a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a4dacfab-9dc6-4516-ab7a-627c657f4e42",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a5078977-73a3-4e01-acc4-bf396f0bf6ba",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a532ba0c-4448-4df4-ab97-471dd2d5e33c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a588f74c-57cc-4795-b593-b6f9cfc1baf7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a60f45a3-934a-47b1-a4c2-a917bdcfb611",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a6443a2f-d7bd-4082-9b22-418c3db83e40",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "a6bad2c9-f4af-43cb-b5d1-3635c08e3976",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a6f3a7a9-5874-47fc-912c-1d46458b708d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a6fb105a-7625-4504-8220-b42806a1eac7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a70532bc-2b69-4e0e-8252-17ef1a8ef07f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a719df59-30d0-4db7-a8f6-ec585ef61e0f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a73cac3a-4262-4dd8-ac9b-88474977b7ac",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a74daa17-844c-4382-ac20-57743746ae5c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a763e7bd-af1d-4e0c-adde-1e106429b183",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a767750d-bcd6-4dcb-b28a-7c2aaf183aa8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a788ec1a-3cf6-4873-85f6-0357297a092a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a79e995b-4b27-42ce-8f81-78723469c13d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a7de2d23-3415-4787-9ef4-2b5691827acf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a7ed26be-2312-49d4-96a1-a3da792ba758",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a834961f-a65b-41a9-9d3c-77a8ce409492",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a84f7eed-c939-4292-98d3-15342703b5d4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a855ed17-a6ab-4679-980c-4149adfe5d8d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a88ac9f2-a140-4e8d-838e-c2a67412738d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a8e3139c-046b-41e2-842a-380ed73afeed",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "a90fe4c4-be05-484a-8949-27cd3e2a09f2",
+"y": 1,
+"source": "human"
+},
+{
+"id": "a913ac99-237b-4ca7-b647-fb548f8622d7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a93cfd39-c3bb-4aae-a539-565ad20928c1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a93da5f9-485b-4a5d-a428-b709cbd6a373",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a9517fe5-a820-40e0-ace2-32cba3047601",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a97a3a3e-28cc-432a-b69f-b25a4a857db9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "a9968fdd-4522-4123-856c-9806306f3ab4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a99e6632-dbe9-48de-9dfd-97b4d510eaf7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a9ac0603-8bb1-44c7-b2dc-e6ef0fec373a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a9b7e1a0-4880-49ac-88b9-a14388dab4e4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "a9c0165a-650d-4152-ac4a-eef1d217284d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "aa470f91-ee88-407b-8af4-64309a309d9e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "aa6d4cd3-5504-4823-a244-7ebfe9dc9bf8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "aa70a76c-d43e-4306-993f-a1d150c011ad",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "aa87a763-1552-4b13-8b56-6cc6e54fbee8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "aabb57be-d018-4b94-a746-7bf7c81b5028",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "aaed20bf-305f-44c9-9ea3-411ca6b308a3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ab1091d0-e11d-4ae8-a0dd-83234ddacd2d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ab3c3ef2-616c-4647-9b8d-86a593e918b3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ab51d1e3-f11f-4888-b127-fe7db21083db",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ab5fff4a-06fb-481c-adb0-a36f35f3d48a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "abc95f85-af38-47cd-8f1d-0c5147f147a3",
+"y": 1,
+"source": "human"
+},
+{
+"id": "abeab341-076d-49c0-8c9e-977de0cda023",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "abf57581-d895-496a-8d5c-fc2e4f86f574",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ac05b4d7-b60e-4b3b-87b1-e1bd10e5be7c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ac3c16cd-0571-4553-b932-06b4f838ae31",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "accc5b3e-7523-4a64-8795-d38029ea3bd4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "aced314b-f676-4f88-ad50-97ce55ecf16b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "acf1b7a9-b70f-41d5-91d9-9fae7318934f",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "ad015b27-5312-455a-9598-e70d0402ddb5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ad016446-1827-4bd6-85fd-2ccfcaefa38b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ad230d50-19f3-490e-b20e-cf9effaef140",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "ad246928-6bba-489e-9c91-d74f42f5c95e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ade1e91a-7924-4e03-a5e5-b05dafc6b617",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ae813a19-8bc6-462d-a75f-dd59f2ec7ead",
+"y": 1,
+"source": "human"
+},
+{
+"id": "aea1d5c2-2a13-4de5-8854-a3d1ff37d014",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "aea3c58d-8261-4268-9831-c50bb0136234",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "aed065db-904b-4a0b-9d44-89039c119758",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "aee03ba5-9318-4aa2-bf23-d33a87169a0f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "af2145f7-19b2-4138-9182-59b220ccfc27",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "af254807-549f-4dda-8eeb-ade3d93eeb51",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "af2cc04f-cbfa-4fac-b02c-70bcd6fed4cc",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "af91e480-3c9d-4048-a8c0-cf6d4e56d095",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "af928b89-8e43-48a4-b110-d49ad423d629",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "afe7ca3c-0a21-450e-8309-116e0e57f52f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "affc8a6e-550b-4e9f-91f8-00989c03586e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b01bd01f-4996-4ffc-aba9-8bfdd504e9f4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b052f691-b0b2-4006-8042-422210696b01",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b081368b-263a-44e0-b5da-883873444775",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b081c003-f47a-432d-ace0-2a064d225417",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b0996f03-6f7a-4160-88d7-9d05965d4d21",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b0a4fbc3-833d-4af4-b425-63893054930a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b0c91dc2-6341-46ef-b8b9-747ee2a4f045",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b0f3fc1d-30e8-44d6-904b-82841f22b3de",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b0f993ff-cbf4-42d9-a2c8-fb2594fce12e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b11a6032-eba3-435d-9fb5-89eec2828ee0",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "b144226f-ba14-4bd0-a260-936d030ef4df",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b1485591-42d1-4876-9419-f19f27724204",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b14bf807-7181-48dd-810f-324347f0e682",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b170dde8-ce92-489d-bc37-fb8061a09256",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "b17704c1-e66a-4b90-bee8-fc74ce030805",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b179247a-718c-426a-9116-9591bd15babf",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "b1b3e538-9b9a-45ba-979a-c6cf4452c2eb",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b1d87bcf-7184-40dc-803f-2e1dfb83c83e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b2c3154f-bb3e-458e-9ff0-27ed7c84cca6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b2d65744-2ed3-472f-87d2-89ddc66f0a54",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b2dbaf4b-40d0-4f96-929d-6ad44bf2789f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b2edba41-40ca-478f-b3fa-7c659eb886fa",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b2ff9d08-d635-4624-b6c9-e639f9ec7d7f",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "b32b3640-ecbc-44b7-9d0c-23ec6601a3db",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b39fe7a2-e6f2-4904-a400-fc8505759ef9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b3bd300d-7675-4edc-8f34-0e6ea680f12a",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "b3cd1468-2681-4913-b27b-e2fa6b46b74c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b3f8aaeb-67f8-471a-9b9c-e3324a0d6ef4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b4387bfe-d89a-4fce-9e81-f477c7902431",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "b4885ab9-77f0-42b1-9ed0-d1bd8052b787",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b48ee892-82ec-4b2a-8f63-2c4c4c07a8e0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b4c0b623-a0db-49bb-b557-445dd406704f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b4d4e26e-3544-4d7a-a66d-b4682d57d2a9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b4e15874-877d-42a4-afef-241c20eb8716",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b4fd33ca-7b2e-4b18-b192-8d9339d61dde",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b519a704-6bf8-4fcd-a3fb-6e078a075c9d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b5607805-fbac-4984-8ee7-29148f38478a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b5bf26e1-9bf7-495a-a238-b10d1a7abf71",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b5d41a24-4394-47bb-9385-405d2031e75c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b5e98451-bb08-47d3-a95e-e8cf7f139748",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b60dffa5-5a2a-42a3-91b1-0e0ca6bf4564",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b6138960-26ad-40d8-9d08-99a45f7ed456",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b6a4842c-f3e3-4cd0-acc5-26be1bbc0449",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b6bf65e1-8325-4842-8a11-054c38c8831b",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "b6fc0079-6a22-4a50-ac35-e2404ef43939",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b718560f-1bd5-4f66-81e0-a58508a6c4b1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b729a6fd-b360-4f51-84aa-019e75677961",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b73ec64a-b8f1-4f6c-9025-61cb7876c602",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b74cb173-b1d3-46fa-9ffe-6c21a323a320",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b7a296a7-fb42-4d13-a85b-f18a5b62f0e5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b7cd8d18-21a5-4917-ad55-ddf851238d98",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b8051827-36b6-445a-8206-617c8d29d148",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "b82b9d78-de0f-4e19-93b6-9d677ffeef5b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b858d77b-bffe-4979-925c-cdfafba9e331",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b876e29b-5398-4135-b784-cc2acadb446a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "b8e14702-ad63-4aa8-b6bf-4f9256e0dc3a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b8ea57ee-6793-430a-a391-444b8bdeb42d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b929b3e7-52b8-4aca-9b80-9eacb611c2ae",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "b942e85a-5350-47ea-8e18-f7e7372fcbff",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b98dd06d-e570-4741-b6c6-bffec975ad3f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "b98ef0a0-24f7-48db-88e7-b9857fcae45f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ba06dbce-b721-4f63-a22c-1dd8d31c49ec",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ba3a59e1-9611-4e49-9fe1-0e611d25dcdd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ba703815-af0e-4358-9b86-ab272e6f75d6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ba725901-d5d7-4fbc-b542-7d2519eacbe1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "bac282e2-c22b-48ba-8bd7-668613061593",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "baddbdca-074f-42ed-aea6-3e629dac1191",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bb03ae7e-62a0-4aaf-af70-455cb1409a3c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "bb3077df-63e3-4956-9bd6-5322ebffa4d3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bb3965fb-4d42-4a6b-a460-1fbc4777a6b6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "bb5060f4-aaad-437f-80e8-015181b7007c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bb75bd60-e236-4eb3-9ab2-1c8b58d3a122",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bb85e80a-70e4-41ce-a3de-ca4709f29656",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bb8f86f6-9e5c-4393-bfec-8eafca0b68eb",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bbab8e9c-ff8a-4da7-8771-847bbd896ef2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "bbb32446-2c51-4b7a-919d-3b334aafec5d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bc1fe004-4563-47f9-8724-4b6439b8e966",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "bc3473ea-2d5c-46fa-aa62-8862d48b6879",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bc3483b7-fccb-47af-bd7f-476fe5c09ed6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bc5dc4f2-fbc1-46bf-a0b0-70330d81f738",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bcc1b894-1ef0-4e6a-ab5b-fc2a40fdf923",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bcccf1c6-4de8-47d3-aa48-4417b05c46cb",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bd06c56b-7b12-4793-9a6c-0783e89c6359",
+"y": 1,
+"source": "human"
+},
+{
+"id": "bd336390-d716-4ade-854a-0ecb87dfc597",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "bd566093-9cb1-494b-922f-2f922ab894d5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "bda73e96-a52e-4985-bf43-7764384f23a3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bdc1b21e-2b65-401b-baf2-86996aa23794",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bdeadc11-bd8c-4698-938b-dcaf1b284394",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bdfee381-7f11-42fd-b782-584cc72ac39f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "be6739a5-7ef9-4396-b5ce-32706058c4f4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bef3b709-3d92-4ecd-97d0-ff36770f1898",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "bf370334-7986-4f1d-9e1a-d59dcc925916",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bf4cf394-82c3-4060-aad8-779f31947b65",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bf7e753f-83d4-47ed-ad40-b788fb10b7ec",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "bf88f74c-b413-49ba-8a89-a5dc973017e5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "bfd4feb5-639f-4d8b-b032-491adfcd3fb0",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c07e091d-e15e-44d6-810d-1e90b23285c1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c0b05473-6848-4271-89b4-2e0d06454672",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c0bdbb1f-9665-431e-acd0-ab1b2292a506",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "c10cf51f-d129-4d4b-b9a1-834171a7c66b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c1495490-d772-489a-9d29-c0b74671e563",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "c152b10a-256a-4fa0-a42f-78c85d79d62d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c1601408-ab3e-41f2-abec-e51b97bdde01",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c1d973ce-ad9c-45fd-a440-7d1c57c8e4a5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c1daeca1-c490-4465-8e5c-bf09749e4e3c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c1f71709-a4ef-485b-850d-118669611e32",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c28815f5-8ce6-40c0-80c3-db561b856c2b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c2980e47-5d4b-413e-b89d-ee875fd7f048",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c2d22661-91df-41e0-aba4-8c17025974c6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c2e08881-76f3-472f-83aa-35c51031d8f2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c2e8f17c-9515-4557-aca0-7fe46a1e7112",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c2f44376-8d74-4ef0-b410-bfc12f4d6d0a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c36379b3-08b4-4d5a-980f-c38d10597349",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c382e581-d43e-4b51-9ff4-9738de329c61",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c3f0a069-dc78-4c47-ab2f-88f391ed9b6d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c404108e-c379-40e9-a85c-b6ccdb44c248",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "c40aa5d2-f466-4415-9e65-d38cd7d20d03",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "c4123305-d5e4-4d57-b052-454b58671251",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c42723d7-4619-46eb-b89c-d5c148c7b03d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c44860a2-5880-472a-bfd5-7e0b14849e2b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c4638bd0-bab0-452e-be6c-cbdd6376ea3f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c4be44ce-0842-4dd0-a62c-b0be73ea2250",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c4cbfd06-e809-4ec7-9552-03d5864620c7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c4e3f572-463e-4121-83c0-afd767ef97a3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c4e96a5c-f131-4f80-b941-11c8c1a116f1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c50f1faf-e4b6-4d1f-a042-be900528a70b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c562fb44-1084-4812-acc4-77f02fdd2726",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c56ab145-5cfc-42e2-9b97-415000ba90df",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c5ce43c9-816b-4796-8f00-d1a8f635ac31",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "c5d0e02c-5bf9-4e6b-9f48-2b44b1b6130e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c5e42592-5dbb-4108-bfb1-4cdf14c52a68",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c61d7d8a-3988-41ee-b50a-b01222a1da45",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c622b138-b2dd-48c5-8da1-f8f14d9ce0eb",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c6384809-2bdc-4254-8560-28c1d813a00c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c675bad3-ce3d-4be0-abe6-ae361d91519a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c696d3a1-e131-4896-86c1-d85ebe00c065",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c6e39e6a-d96e-4e5b-968e-64939c4b7d12",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "c6e82bf5-036c-4bdc-917c-e630ad34a29c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c7492799-f3c1-4583-842c-d344ddb064c9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c781e902-1bb8-4672-a6d0-b8e07743da9e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c785858f-55bf-4329-9999-0a9c6c8efb6f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c786f1f4-6f5e-48c7-8c31-7fdcfec44f21",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c7a0d86f-a927-4d33-b9bf-a5bf7703e436",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c7a28c86-f858-4630-8d01-01042620f627",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "c7e82a9d-3a51-4778-8d38-a12fc27f00ac",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "c7eaeed0-5217-46dc-b790-addb42f3b7b6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c833a0f6-a5ef-41e9-b144-2c29514a754c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c83de7ea-711e-4095-b254-e702479f0736",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c8524124-eff2-4d69-ab05-43a0c459d123",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c896b2ee-1178-4e4d-a5b3-5ef10c591eab",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c8b9ed81-bb9e-4353-b2e9-303a22db3ac3",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "c8be3aab-6c72-472c-966f-46e83bac5d20",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c8c3f430-ceca-41a5-8cce-af84df914fa5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c9322a54-c0f0-4f7e-b0eb-c936dd20d2f2",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "c969001f-e107-41c0-8808-f68995aa51c9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c9a92014-db03-4d39-ad52-22fa42459c08",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c9b7bdac-e33b-4fa3-9b63-d64383547c1d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c9d8bb03-b1b9-470f-a250-b3c73e4d5f7d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "c9e14240-fedb-4ba1-ad11-1f28b853e723",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "c9f163a0-ba9c-4dc0-832c-4f299a4caf8d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ca1f40ba-841e-4a3b-a2ff-9c42fb4fb683",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ca6ac1ef-0cb8-41c5-94d3-7e6247049450",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cab1b4f1-0d11-4791-a0c0-1cb56953e144",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cab35ed9-1265-4103-a0c7-55196dc2e82b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cadc589c-8f72-45da-9108-6a83f80b3ea6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "cb0dd60a-436f-412e-a782-ae61b0f218bb",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cb1855d8-08f3-45ad-9a25-aae688fc23b1",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "cb290d75-b6e9-4516-b54c-fb224ecd65c1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cb4718c5-ea00-4419-ac75-3d054a25fb4b",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "cb7bc60c-1284-413e-b6f3-55fbb40a0874",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cbb7c92e-3068-4c35-b128-7059714f3e86",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "cbdef128-8d42-4924-b609-4e58f1c026b4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cbf7f4e0-bbd7-401b-b2bf-6bb3029d9c2d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "cc03b6cc-7c32-4e96-8d28-6b6e4fe91c48",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cc30a928-8911-452c-bbe8-1c4d601fc7e1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "cc3f1cf2-3032-497b-ad1a-24686c5cd3cd",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cc48d76f-2bd0-4702-a22e-0da3756fe64c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "cc62c4c6-6254-433a-9724-80363e25002b",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "cc6ef533-dbe1-4e49-8338-661239b4a8bc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cc7de5ee-b5e7-49aa-81b6-73777c063334",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "cc8ce0cc-d43f-42cd-9dc2-586e2e27d497",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ccabba56-2d20-4bd6-a283-b63ec39eba7a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ccd42b8c-9f76-42be-a3ac-97d5a60b611a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "cd15bfbf-3b85-4c9d-9dde-3bb4481ba183",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "cd30384e-11d1-45b3-9067-1fe3f07d8653",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "cd5bfc61-8033-48e8-a6e7-46d0d4d8cfd9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cd77572a-d210-4e06-a0ff-72ca08b0ca89",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cd8ac727-b5ab-4550-b69e-90e4e766b6b1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "cd95a120-ec92-44ca-984c-e7b961368183",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "cde85b52-98d3-4bd7-a807-1d74db106961",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "cde8f258-4cbf-46cd-aca3-f498344fc11a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ce335f35-c290-4a7d-9afb-1876dd4195bc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cefdf399-cb23-4256-875f-9e9703cc1ce8",
+"y": 1,
+"source": "repeat-after-miss"
+},
+{
+"id": "cf2d896b-5402-48c6-bd50-387fa420f3c8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cf2f874c-e4cd-4085-bec7-bdcf1303a952",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "cf3c5be9-7147-432f-ae16-8ea2aea96566",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cf45cba5-6d42-4448-b174-9c099fdc0079",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cf6ad100-a04d-4600-952a-2eab8e21b8c0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cf9b5c03-6b83-4845-9e68-0402140f7c16",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cfa4adde-24d8-427a-a56f-2bc2a5877049",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "cff3e94d-bb36-43e3-9393-acb7f7f4709d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d0199893-71c1-4a0b-8fbd-f16077674cd5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d02dfb65-974e-4e09-8125-809294dd6e8a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d052abf2-acba-44ac-8715-777e216d4074",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d0707a6b-3e5d-464a-9c9a-805d9aae2de2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d083ff08-829b-4dde-9a64-e65cc010881e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d08b0620-4deb-448a-ba6d-0e15cb581a9c",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "d090ba73-f901-4039-8355-da2a684047fe",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d0b5d1a8-ceb3-454e-83f5-3d258b2075d4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d0d50b3d-dab6-49f1-906b-32d4bc076ad6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d0fb2c8b-cfeb-4e5f-a674-7837f89744b3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d0fbf9af-2719-4f0a-ae12-61064d501c2c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d11faf1a-18aa-4d0e-a015-48922b7bb1ea",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d13c2999-8e57-4b71-986e-53365d6e6e7e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d147f5a3-085b-4b44-a491-56acf8d70869",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d1483aed-93d7-4e0c-b5e9-1cc47030f3c1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d195ff58-9f64-4482-8aeb-b6c353035ced",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d19f89ce-f118-4caf-91b6-880319dabe16",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d1b9af2c-522a-42a8-b402-0432fba73b60",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d1bc350b-d105-4498-8661-65f443e37fd3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d1c27a2e-ecc5-4a2d-9036-727e9b8f47cd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d1cea8c4-a7ed-4c7a-be07-4a898dc65ff5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d1db48ff-bae4-42f8-b8ae-3f37e8f70db5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d2050177-c9b0-4b3f-9cb7-28c7a4e33c56",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d20666a1-be31-4581-aca2-d0b169689831",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d206ee29-dafc-4e99-80ba-d0624e6d01b8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d20ffb48-eff5-4edd-afc9-56e3eed912ab",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d213ac76-5522-464d-92da-b71563206dd9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d2830622-6aeb-4534-b52b-ddc988fa89d3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d2975b1f-5549-4507-aad5-71a83c817013",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d30b65bb-dc66-4aa8-8b67-14672bc22fdc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d30d5457-1ed6-4ddf-a7c1-830ec08654ad",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d32ad40d-9def-458a-b3a1-1fac8ad9a734",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d3999f98-af1b-41f1-93c1-ba996944da48",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d3cbf451-88cc-4277-9e52-40b29ddc22d2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d42b3441-1d97-4886-87b9-f7180255146d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d443d0ab-d099-43a5-a727-99ca0dbe8505",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d465d417-9668-47ac-a7fe-b1621dbfd522",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d49a66f5-b7a0-47e7-b715-b9d075d7565c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d4afef50-aba7-4430-aad2-ae0ea0773c8e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d4c15d4a-a762-4f3a-a6a8-7c37511077cc",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "d4cd2fbe-2934-4952-b60d-bebb1c04de1d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d4e82dc9-deb6-4a6d-8f88-5e111da69d66",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d5885fe0-fbc4-43b2-8448-d5e18ac3e5eb",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d58f4c63-7246-4aa7-adcf-e8dae6af4136",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d5917ad9-cee0-4a9a-a2fe-33ef2b7737ba",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d59bdf7d-a5e0-4d55-9fad-56959097d0af",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d5a973f8-8533-4702-a44c-31a29a31994d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d5b1f3b4-24a8-4b9b-9dcc-ba48c748c02f",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "d5c88cc0-51bf-41a6-b4cb-8da648cfff11",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d5cb8cff-2716-41ab-9c4b-43fdf11f6819",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "d60092f5-7a8b-4965-9f3d-f2a1ed56da70",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d641ce48-c0bd-4983-9307-68a3896fa723",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d6b52c29-87cf-4b2b-b51c-e1a6d4668a12",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d6c6888e-2f82-483a-9fff-cdb622b1902c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d6ff95aa-d461-421e-9d1f-8370c0a46226",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d715f86a-8133-4a94-9ef2-7ef1907ed735",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d7495582-c59b-4adb-bfff-961533c83bea",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d7f10d12-6717-4404-a07c-597ba268ad1e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d807fd63-d845-4501-9161-f0a3c4c8a751",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d8380ea3-4dba-4f5a-bdf5-0f8f3bb1f0bf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d84926af-24a6-4416-87ed-f15547af8252",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d84b90fd-5017-410b-91f5-28eac115c52c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d854e40b-50ad-42a4-baf4-e3ba1e51b319",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d8677764-26c7-495a-ade3-10d12e61af52",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "d955a05f-25c0-4036-bc16-5218b5d61138",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "d96a4b1a-e8de-46a2-b774-e22a6b9cb48d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "da226976-f273-4443-a152-065c777ad0f4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "da2c0311-f96c-4be1-8f18-5680764af60c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "da2d8fc6-f6ce-4d68-bd4b-940bbc91c246",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "da4b56e3-a2eb-4f5d-a0da-724d1eceac75",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "da503688-f8f7-47bd-a07e-d8e47a44fc22",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "db0415dd-d3b0-4e1b-9ae6-30c627f8a428",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "db36a103-737f-4b4a-8609-fdcd7939b7c3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dba9554a-0bd2-46ff-b08f-ae3fdbcc9be1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dbb4e136-0938-4bac-97c5-46764a7dfc71",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "dbdf246a-67ff-41cc-98ce-49935c2f0829",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "dbf02c68-b276-441f-8ecf-e00d7129372e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "dc0edd95-a1eb-4f0d-b173-1045bcfbf37f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dc186262-6e49-485b-81b0-9989d18d6253",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "dc1bedc1-bfda-4dea-98e4-4b499102c0ed",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dc221893-abd7-4b23-bb66-3f0217f4eb02",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "dc2f6dc8-f3c1-4f5e-9401-121ddcb0f577",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "dc5b3789-a968-4a5f-b345-24b223a31a5c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "dc919eea-e197-4ab2-b3ac-64dabde6253e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dc9e9f4a-fa7b-4f33-a76b-8fc15aeb938a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "dcaa4d07-c825-4f37-9112-edb8a5b1d2bc",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dcf78e75-60db-42a8-a6b3-c1e17ab14d67",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dd10862b-9d04-4604-bb51-46f084c93a03",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "dd5d71b5-0d77-46a0-b3cf-93117c168de1",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dd635c44-6b5d-4917-89fd-9dc045494682",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dd710ee6-fa32-4e6e-be89-81eb285e95bd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ddabaa5a-d239-434f-9a8e-acbb7f250501",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ddb7f48a-c546-46fb-833f-6680102ec5ec",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "ddddc4ba-c114-4e29-928a-dd5955815229",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ddf4c630-4e39-4cba-af29-e19b5d5afe68",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "de4e82e0-e20c-4fee-9477-976ae84656a3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "de54f6e5-9b57-4b73-bfd4-c7c215c6998d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "de889bbd-2b37-429a-9feb-26ff9455b37a",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "de9446d2-0e27-4b12-98f7-fb5afdbaa8ab",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "de9b82f0-36c1-4086-b5e8-a33c7108c52c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "de9dd167-5ca9-40f4-b0a2-6d3b53f3774d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ded25ccd-4043-4dcb-bbd6-e66ccf5edad4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "deefcedd-87ee-438f-931f-a5570084371a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "def89907-f4a2-474a-8c28-f624b8a19480",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "df20b0e2-f18c-42ca-a04a-fd4a07ae5196",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "df2c97f7-d042-472d-94af-57ee69963fcd",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "df919bab-a434-4d01-939b-6430ab5f4d88",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "dfa6a1fa-2945-4e8f-b5a7-01ebc5b6d826",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dfaa2b6d-fdb9-4f90-bb11-abb2e316f414",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dfdabbe9-37e8-4f01-98e6-259f9abe2899",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "dfe95b5d-00ac-4a2a-b9bb-8337e3a43112",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "e029420d-d02e-4e1b-b690-453d81353553",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e03e1eab-20a9-42fc-a0fa-0ad4fcee5fb9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e08ad410-21b6-4afa-ac90-e003c99059b3",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e0940596-eed4-4bde-9643-6f01222bbe30",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e0f0fb0c-d5bd-43c3-81dc-976a02d55dba",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e0f9def5-e1f9-45db-80b1-f6503f3ff689",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e10dbe79-98b8-433b-8958-85d63ebc36d4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e14a8e87-96bb-48dd-82e2-812e9bd25eb2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e17bfe4b-5c45-4b29-9f74-e1ba932cac77",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e1895988-8087-4103-a4fa-cf1c4de9536e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e18f4e39-7055-48c4-977b-b5a3fdb52f5b",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "e1a19f51-af05-4de0-9070-51d2c181e44a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e1ec4c48-6aa8-4843-b3fb-a7f4f51d899e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e1fac07c-6578-4ca8-a380-d1428422c885",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e208040d-0cd8-4006-8aae-e1637f7e5034",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e223857c-923f-40a3-9095-dbb798a2783e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e267989c-2e82-4d84-992a-55be8bdd1397",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e2f53cbd-e354-4523-9de0-ca73523d330c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e341e22e-d154-48cb-b240-c5d5ffc14022",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e34c42e4-8080-45a6-9962-a4a2db190de5",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e38666db-3c4d-48d0-a249-21b1098fcf0e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e3aaaabb-80dd-4075-8904-312f6fbdd6be",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e3b3b3d3-4c74-4ad2-a10d-b604a0465a0e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e3d64d66-f5d5-4ae8-b057-caa10fae144e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e3dbe79f-be23-4765-a8d4-e5784a76e773",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "e3ed23d8-eca1-4f12-b39a-a34da8fa8973",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e46a5228-4e23-4729-b050-9404b6b98c58",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e4998025-0249-4a58-b3d2-c5855293857e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e4ad11dc-8682-47d4-856d-cb8a494f7af3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e4d54fb7-c591-4117-a801-2380760d9399",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e50a40e4-98ea-4168-95ef-8d5565e5c380",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e520e835-72f5-4b2c-809c-ca9791edcf72",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e573dbba-39cf-48a2-8cb1-8512c0077fd7",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e58bca6e-1ac2-48fa-bdfe-aaa0d0d25263",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e5fbc551-321f-4bfa-bb03-6c0b6d9b7efc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e6194c69-658d-4d4c-9531-48b80a8f2667",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e61dc953-4414-4dd4-805d-424d04e6f953",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "e63460e7-4a5a-40aa-a8ba-8b705d54e492",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e6718228-7c93-453c-af17-ec35c53e5c40",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e67b17bf-c7e9-437d-bb01-04a17ae11ee8",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e6dff397-36f8-413d-9c75-599470f27f98",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e6fe2443-cd79-4c37-ab31-bc5d716dc0a4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e725cbf5-e176-4611-a9b0-9780f97cf972",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e7729f0a-e590-4fac-bf06-538e0f383516",
+"y": 1,
+"source": "koda-in-window"
+},
+{
+"id": "e785e1bb-40df-4958-a045-de174c5f8062",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e7bce7ab-8c10-4d4a-a143-1f61107520f3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e7e31de2-cdb7-430e-82d1-1ab234d09c73",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e7ee4625-3b13-4da2-8c04-a8f6aa6e14df",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "e7fd2d2c-bd50-4145-8eab-830ddc4a22a3",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "e7fd737d-4d9b-47d6-bf50-edbd1c7f2c76",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e80bbadf-86d7-44da-8770-14fb12912bdf",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e810958b-95dc-4eeb-ab1f-b1beffe68df9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e844c44d-b36e-471b-b6dc-e520a6ea4ae6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e88ab8cc-98fb-4bf7-87c8-f775f30856fe",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e8e83529-ecfa-4ed4-96b1-a14e9e845877",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e8f5a66c-5b2a-4fa1-a815-9eebff8805d6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e9199092-978d-4b51-8632-b2945b33d98d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e91b0fbf-de92-421e-92ee-e1e9a2bbfc6b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "e9864ac4-4710-449c-8fa3-0a5b6ef6891a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e9b42023-6d56-4ceb-af03-b729f475e93d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "e9e98d9a-e611-40b8-aae2-cd66ef98fdb0",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ea17f04b-5367-41ba-8556-100b40f1f57f",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "ea185faa-e5fd-411a-9128-629f2c2aef27",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ea1b70d8-1eb6-4b08-9556-7cdbe611cb4a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ea2c20c5-d985-4cea-b91b-e09e82a21274",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ea5dcc40-8abf-4269-96c5-318985c4ed64",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ea701a84-4d27-4f92-998d-1404974131bd",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "eac4ebb6-7f61-4111-a06c-f1ad536c6a79",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "eaca7209-f355-4b91-940c-7e04d8692214",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "eacfc207-85b9-4903-a63c-528c2b5df791",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "eb546d4b-5ef8-427a-8fed-b08cfd227d51",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "eb6abfad-29b5-4423-b0da-92027a205f2e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "eb78626d-dc06-4a0e-9286-c3f10210a68f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "eb85852e-b895-4330-a737-980eddfbc53c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ebc337f3-8bce-499b-9361-a39c0f5d16f0",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "ebe5b64e-8e62-4107-9ab2-c6692e0d7f1c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ebf968d9-6e6b-4f22-9d91-c26181fce346",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ec0a7ee2-5ec7-4e9d-852e-c8289230ed48",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ec1e15da-6bc6-4ddd-a5f4-7c42f21eeb19",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ec3ec32d-737d-49ed-ac4a-ff40fcda6973",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ec402048-b981-45d1-b98a-ac32e5da7e8e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ec40d5c4-f1e7-47be-9ef2-18a2416499d2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ec5edfd9-7f66-4e8f-9873-a53566c21b01",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "ec8ed3df-47f7-4264-8ac1-f07d69333013",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ec9e92ef-5ac2-43fe-947f-a23eb96744a9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ecaf0ab2-50d7-4198-9b31-7d70e9bf78c1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ecf7c2c3-faff-4ef8-b0ba-5d93f9efb3a1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ecffd325-443f-4b23-a02b-7b7d359cca3a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ed437ea1-c78f-4af7-b3b9-a665b20b2e55",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ed4963ad-b0d7-4aa3-b397-91573a0c2327",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ed723324-815c-4979-9f78-ba968a3dbfd4",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "ed772fc8-1044-41a4-af06-e12c110569a5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ed7775c7-a2a4-4dd0-9234-6ade8d4fb8f4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ed983635-0b3e-42a1-84ce-82f686e5baa7",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "ed9efaa5-2b21-4f08-a1c6-020b19abb5d3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "edb20c45-a348-49ed-9ad4-4bb31f39ccb2",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ee0a8aae-9151-4be0-b2ea-087d3f085961",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ee1489f8-eb82-4c49-894a-8f141e229b59",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ee1b6c3a-4203-41c9-b3f1-3838ec01ef84",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ee43d6ce-7b88-4245-9a70-d449ff357b3d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ee50e83f-e0bb-48d7-a9f5-20413ab3c83d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ee77dea8-4d1d-41a3-9553-8ef86660cb8c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "eec5767b-db49-4ca5-bcc4-d902697b6b74",
+"y": 1,
+"source": "koda-in-window"
+},
+{
+"id": "eed99254-4fa4-48db-af4f-039bc09df84e",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "eee20224-6bed-466e-9dca-e06a96c2d7f9",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "eef4ea49-1d2b-4ceb-8c08-97bf4e37b576",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "eefb6aab-323e-46ab-b6ab-497111799b6d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ef1fb590-4260-41ef-b266-6b29c44f5ec2",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ef36f5ab-9a13-49ab-b173-72a57ca0dd8e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ef478323-e7bc-458f-bd73-9b5f59aa7aac",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ef7c732c-895c-4f4d-bc7e-27d82e1e7343",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "efdb61a5-02b1-41ec-93f1-fcbccc0ed78e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f03f3b93-1f95-4cc7-a328-a2858aecc451",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "f0421b2d-4ab4-4351-bfd6-2f48861274a6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f0d68b2d-767a-4a1d-a97b-5b4539bf7953",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f113ab0f-27b2-48c3-b39d-26f3074413b3",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "f121a242-e5d7-4ac6-9cbf-0b9c9d20fc8c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f1543239-08a1-4a08-98aa-e47064280fd0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f15e2e03-9da5-4a97-b658-468031101059",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f18ad75d-25c6-44e1-a99b-a5116a96b448",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f1c565d5-aa95-4d39-a520-54d1320bcf3d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f1d94fc0-5e1b-429f-bb6c-12dfd27bcb35",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f23de940-f741-49b6-9cef-6be9eb6815c8",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "f257edd8-8331-44bc-9a47-fde889b8017f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f2625993-f6e6-4d38-8710-dcba5f8c2949",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f271165f-9bb1-4495-a8b4-e17ee9ffef11",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f2a4bd8b-d078-4abc-8060-2e088908f90a",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "f2d3f1a4-07e0-44ed-950e-914b113d0642",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f311f48b-36d0-4968-9b69-990a186fbed0",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f319081a-7fb8-4582-888d-5ffcf3eb6f26",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f33d001a-f432-4464-8668-086c2594663c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f33e9b10-14bc-4d1b-9b44-1503562ba187",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f36a3a64-717f-425c-ab5e-0e5d4b2fc5c4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f3700e03-1df6-44b0-abb3-9cd0dce7b2d6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f373d720-ca9d-478f-9932-af6e5849887b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f3973c0e-1776-4ec6-923b-ea2b82459616",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f3c2b36b-4ebc-4d32-84f5-55ae6b3fd1c3",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f3c7e9e7-06bd-44e9-8519-151bd4050f39",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f3cafd3d-4b71-48b3-91a7-b8bda881ed00",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f3e4bb70-f44a-4bcc-85f7-c92f6ab1fd88",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f44bbaab-1778-413b-be27-0907a32dbd8b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f461ef9b-66fd-481e-a86a-d33a8166b365",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f46dd92d-e581-4783-8bbe-75c9102bdf5f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f4b529c1-c10f-4999-be67-fe71d2456f62",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f4cc33d7-0180-4856-a0f6-99f9f3768873",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f549aaa7-da41-4c2e-a948-c131e135b08b",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f5c0ad2d-1971-42dd-8a6d-f6f53f90487d",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f5e32e2f-d7a7-45bd-a5c6-3daf79e5ba7a",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f61c41e7-9db0-4105-99ba-2f552c9110d5",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f6460dca-b85f-409f-bfcd-d50676e601cf",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "f657d37a-e777-4591-8e5d-e80ac28d7ac0",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f66def01-b32c-46b0-97de-d48295c65c23",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f679db35-faf3-4c1a-b531-f6fb3dc0051f",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f67dda86-d247-414c-8988-4405070c8090",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f6b6178c-2305-4175-806d-7a4bf631bbda",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f6cb915f-5b95-4d1b-8485-41ff5fe81786",
+"y": null,
+"source": "judged-unknown"
+},
+{
+"id": "f70703ea-0fcc-47ad-92a1-c81dc1dfe277",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f733fba6-8442-4b2c-9cc8-c25721f99780",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "f7dbb4fc-4f5a-4451-9a83-2d6e2a9ec1d6",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f818de71-2d4e-4e68-a3cf-01068c51e60e",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f83732f6-f590-43a5-9faa-9fb20ee1872f",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f88a0651-c965-41b9-b154-e9cfe1beaf71",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f8c01c39-5c38-4d9b-a6ea-e4ac22f1bd27",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f8cbc62a-f099-4695-a345-bc944caa7509",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f94ba20f-47e4-4630-b2ae-ba3e99aa5101",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f9565a13-cb06-48d0-8715-56b993447c1c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f96d9fc4-bbb9-4321-94e1-a0a0e06e3763",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f97e1afe-6050-40e7-be2d-f3cbc4f56173",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f98524d0-38bd-4afd-b9ca-b6b42b7b9c6c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f99daa84-3ebe-4fa1-bb55-4579e14308d6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "f9aab46c-7b28-4942-8b38-052588f8dbb9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f9cbb2e0-a395-45ba-8465-8e5d041ab745",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "f9d99e4d-183b-4970-922f-a09e247c2439",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fa276983-a591-484d-8a3c-f1d9c5e1bf5c",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fb0b37d0-c830-4fc0-89dd-8cb880c730ee",
+"y": 0,
+"source": "judged-false-wake"
+},
+{
+"id": "fb2e418d-3f65-4339-89d6-eef966c4e547",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fb7c33f1-fd15-48f1-8312-9a677a7d1cd9",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fb896caa-dcdc-415f-9117-ff3898404df7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fbebf94e-8896-49ae-b4e5-f75716e91fd1",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fc0e4a63-a1cf-48ee-9417-02865d05192c",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "fc618438-81cd-4cf6-80df-86b6658baf31",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "fc91ddff-8413-450e-b8b4-44a37667e52d",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fce1701a-8a2f-482c-b4b2-d49341ec73b7",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fcfaf6dc-f4ce-4125-acd5-bd8e8366c154",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "fcfe3c60-adac-4dd6-9445-05fadd2bd2f0",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fd050abe-438f-41cd-ad3e-5d5919c636d4",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fd14d50a-eae6-4387-bd8e-2921e4e881dc",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fd8aa88f-3c13-45d7-bd57-1a85b77650d4",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "fdeafaa8-d2a8-4a9c-bb31-4d881c81675e",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fdfc55c4-4cf4-4096-865c-e915ca2cb2df",
+"y": 1,
+"source": "judged-wake"
+},
+{
+"id": "fe6157b5-d70f-439b-95a7-d8c987164652",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "fe9124f2-2423-4446-a360-79ac0c49bce6",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "febaedd8-093a-4291-98de-cc321853c308",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "fecd8e6b-9cbc-4c1f-a985-8dd8bf0bf2be",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ff1dd34c-2e71-49c2-80f2-7cef00e0bfd8",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ff31f755-badf-4f40-b5db-9a65fd05a903",
+"y": 0,
+"source": "room-unfired"
+},
+{
+"id": "ff3dfffb-6ed4-492a-9b2a-53523034eb18",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "ff52d448-25fc-414f-8dd6-1cb1cc87c254",
+"y": 0,
+"source": "trusted-neg"
+},
+{
+"id": "fff0dc15-80ee-4a9b-aae1-a018b66ba0cb",
+"y": 0,
+"source": "room-unfired"
+}
+]
