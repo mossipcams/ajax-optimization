@@ -99,6 +99,8 @@ def validate_spec(spec: dict[str, Any]) -> str | None:
                     return "contradictory_device_support"
     if any(call.get("name") == "GetLiveContext" for call in calls) and expected.get("kind") != "status":
         return "state_query_requires_status_label"
+    if expected.get("kind") == "status" and not any(call.get("name") == "GetLiveContext" for call in calls):
+        return "status_requires_state_query"
     entities = {entity["name"]: entity for entity in spec.get("home", {}).get("entities", [])}
     if expected.get("response") == "area_unavailable":
         unavailable = expected.get("unavailable") or {}

@@ -302,9 +302,13 @@ def build_cancel_timer(*, name: str | None = None) -> dict[str, Any]:
 
 
 def build_adjust_timer(rng: random.Random, *, direction: str, name: str | None = None) -> dict[str, Any]:
-    args: dict[str, Any] = (
-        {"seconds": rng.choice((10, 15, 30, 45))} if rng.random() < 0.25 else {"minutes": rng.choice((1, 2, 5, 10, 15))}
-    )
+    roll = rng.random()
+    if roll < 0.25:
+        args: dict[str, Any] = {"seconds": rng.choice((10, 15, 30, 45))}
+    elif roll < 0.90:
+        args = {"minutes": rng.choice((1, 2, 5, 10, 15))}
+    else:
+        args = {"hours": rng.choice((1, 2))}
     if name:
         args["name"] = name
     tool = "HassIncreaseTimer" if direction == "increase" else "HassDecreaseTimer"
