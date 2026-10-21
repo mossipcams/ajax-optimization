@@ -157,6 +157,20 @@ Start a `full_sft_v8.yaml` from v6. Take shares from `ordinary` (0.22 → about
 `multi_action` keeps its share but now includes timer pairs. Run
 `./sayso validate` and the allocation feasibility check before generating.
 
+As built, `restore` and `conditional` take 0.01 each and satellite volume has no
+share of its own (satellite speakers appear in about 30% of homes).
+
+### Follow-up: attempt budget at 40k
+
+At the default `max_attempts_multiplier: 20`, two full v8 runs on the VM
+(2026-10-21) left `clarify` 20–34 rows short. About 727k of the 800k attempts
+ended as `duplicate_semantic_id` or `exact_duplicate_utterance`. At 4k rows,
+clarify's yield per attempt matched the pre-branch code (50.6% vs 50.8%), and
+the nonstandard eval overlap cost about 27 rows. So the loss comes from
+duplicate churn that only shows up at full size. v8 ships at 30x. Still to do:
+an instrumented 40k run that records rejections per family, to find which
+families burn the budget, then fix that and return to 20x.
+
 ## Contract notes
 
 - Never train on eval utterances. `excluded_train_utterances()` covers the
