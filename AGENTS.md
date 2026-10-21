@@ -40,8 +40,9 @@ fixed layout.
 
 Serving-only hard constraints unless the user says otherwise:
 
-- Keep 4 slots sharing one 128k unified KV pool (`--parallel -1`, `--kv-unified`,
-  `-c 131072`). Propose layout changes; never apply them.
+- Keep 2 slots with per-slot (non-unified) KV at ~61k context each
+  (`--parallel 2`, no `--kv-unified`, `n_ctx_slot = 61440`). Propose layout
+  changes; never apply them.
 - GPU-side changes only: no CPU or RAM offload (layers, KV, experts), and do not
   add or optimize host-side work. If a GPU bottleneck traces to CPU-bound host
   code, name it and stop.
@@ -119,6 +120,8 @@ Never spawn native harness subagents (Cursor Task, best-of-n, Claude/Codex/Pi
 task children) for any work. A delegate must run in-process. When the delegate
 fails, re-route through the router; do not take over. Do not duplicate model
 rankings or exact model IDs in this file.
+
+Exception: when the orchestrator harness is pi, do not delegate — run the full loop in-process — unless explicitly told to delegate for that request.
 
 Only an explicit user approval to bypass delegation for this request lets the
 frontier agent run the loop in-process (explore, implement, test, diagnose,
