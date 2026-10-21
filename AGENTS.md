@@ -40,8 +40,8 @@ fixed layout.
 
 Serving-only hard constraints unless the user says otherwise:
 
-- Keep 2 slots with per-slot (non-unified) KV at ~61k context each
-  (`--parallel 2`, no `--kv-unified`, `n_ctx_slot = 61440`). Propose layout
+- Keep 2 slots with per-slot (non-unified) KV at ~80k context each
+  (`--parallel 2`, no `--kv-unified`, `n_ctx_slot = 81920`). Propose layout
   changes; never apply them.
 - GPU-side changes only: no CPU or RAM offload (layers, KV, experts), and do not
   add or optimize host-side work. If a GPU bottleneck traces to CPU-bound host
