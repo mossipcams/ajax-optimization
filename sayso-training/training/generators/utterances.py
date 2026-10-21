@@ -7,6 +7,7 @@ import zlib
 from typing import Any
 
 from generators.ohf import render_call
+from generators.capability_registry import is_satellite
 
 _CONVERSATIONAL = (
     "Hey, could you {action}.",
@@ -139,19 +140,25 @@ def request_seed_from_spec(spec: dict[str, Any]) -> str:
         first = (expected.get("calls") or [{}])[0]
         return (_phrase_for_call(scope, first, f"{seed_key}:0", provenance)
                 + ", but leave " + " and ".join(spec["excluded_names"]) + " alone")
+    satellites = _satellite_names(spec)
     for index, call in enumerate(expected.get("calls") or []):
-        target = targets[index] if index < len(targets) else ""
         canonical = (call.get("arguments") or {}).get("name")
+        seed_key = spec.get("phrasing_seed") or spec.get("candidate_id", "")
+        if canonical in satellites and call["name"] == "HassSetVolumeRelative":
+            if provenance is not None:
+                provenance.append({"source": "sayso_fallback", "intent": call["name"]})
+            phrases.append(_self_volume_phrasing(call, f"{seed_key}:{index}"))
+            continue
+        target = targets[index] if index < len(targets) else ""
         if canonical in spec.get("spoken_targets", {}):
             target = spec["spoken_targets"][canonical]
         elif canonical in spec.get("target_names", []):
             target = canonical
-        seed_key = spec.get("phrasing_seed") or spec.get("candidate_id", "")
-        phrases.append(_phrase_for_call(target, _lock_phrasing(call, spec), f"{seed_key}:{index}", provenance))
+        phrases.append(_phrase_for_call(str(target), _lock_phrasing(call, spec), f"{seed_key}:{index}", provenance))
     seed = " and ".join(phrases)
     excluded = spec.get("excluded_names") or []
     if excluded:
-        seed += ", but leave " + " and ".join(excluded) + " alone"
+        seed += _satellite_contrast_clause(spec, excluded) or ", but leave " + " and ".join(excluded) + " alone"
     return seed
 
 
@@ -194,6 +201,21 @@ _VACUUM_START = (
     "send {0} out to clean", "tell {0} to clean",
 )
 
+_TV_SHOW_PHRASES: dict[str, tuple[str, ...]] = {
+    "HassMediaPause": ("stop the show on {target}", "stop the show playing on {target}"),
+    "HassMediaUnpause": ("continue the show on {target}", "unpause the show on {target}"),
+}
+
+_UNNAMED_TIMER_PHRASES: dict[str, tuple[str, ...]] = {
+    "HassStartTimer": ("start a timer for {delta}", "set a {delta} timer"),
+    "HassPauseTimer": ("hold the timer", "put my timer on pause"),
+    "HassUnpauseTimer": ("resume my timer", "continue the timer"),
+    "HassCancelTimer": ("cancel my timer", "kill my timer"),
+    "HassTimerStatus": ("how much time is left", "check on my timer"),
+    "HassIncreaseTimer": ("add {delta} to the timer", "give me {delta} more"),
+    "HassDecreaseTimer": ("take {delta} off the timer", "cut {delta} off my timer"),
+}
+
 _SPOKEN_PLURALS = {"switch": "outlets", "climate": "thermostats", "cover": "blinds",
                    "media_player": "TVs", "device_class": "devices"}
 
@@ -209,6 +231,62 @@ def _duration(arguments: dict[str, Any]) -> str:
     )
 
 
+_VOLUME_STEP_PHRASES: dict[str, tuple[str, ...]] = {
+    "up": ("turn {target} volume up {n} percent", "make {target} louder by {n}",
+           "raise {target} volume by {n} percent"),
+    "down": ("turn {target} volume down {n} percent", "lower {target} volume by {n}",
+             "{target}, turn it down {n}"),
+}
+
+_VOLUME_UP_PHRASES = ("turn up {0} volume", "make {0} a lot louder")
+
+_VOLUME_DOWN_PHRASES = ("turn down {0} volume", "not so loud, {0}")
+
+
+def _volume_phrasing(target: str, call: dict[str, Any], seed: str) -> str:
+    step = (call.get("arguments") or {}).get("volume_step")
+    rng = random.Random(zlib.crc32(f"volume:{seed}".encode()))
+    if isinstance(step, int):
+        return rng.choice(_VOLUME_STEP_PHRASES["up" if step > 0 else "down"]).format(target=target, n=abs(step))
+    if step == "up":
+        return rng.choice(_VOLUME_UP_PHRASES).format(target)
+    if step == "down":
+        return rng.choice(_VOLUME_DOWN_PHRASES).format(target)
+    return f"adjust {target} volume"
+
+
+# Satellites are only adjusted relative to their current level, so self-volume is up/down only.
+# Eval phrasings ("speak louder", "you're too loud") are deliberately left out.
+_SELF_VOLUME_UP = ("turn yourself up", "turn yourself up a bit", "speak up", "speak up a bit", "make yourself a little louder")
+_SELF_VOLUME_DOWN = ("turn yourself down", "turn yourself down a notch", "turn yourself down a bit", "you're a bit too loud", "quiet down a little")
+
+
+def _self_volume_phrasing(call: dict[str, Any], seed: str) -> str:
+    arguments = call.get("arguments") or {}
+    rng = random.Random(zlib.crc32(f"self-volume:{seed}".encode()))
+    step = arguments.get("volume_step")
+    if isinstance(step, int):
+        return f"turn yourself {'up' if step > 0 else 'down'} {abs(step)} percent"
+    return rng.choice(_SELF_VOLUME_UP if step != "down" else _SELF_VOLUME_DOWN)
+
+
+def _satellite_names(spec: dict[str, Any]) -> set[str]:
+    return {entity["name"] for entity in (spec.get("home") or {}).get("entities", []) if is_satellite(entity)}
+
+
+def _satellite_contrast_clause(spec: dict[str, Any], excluded: list[str]) -> str | None:
+    calls = (spec.get("expected") or {}).get("calls") or []
+    if len(calls) != 1 or len(excluded) != 1:
+        return None
+    target = (calls[0].get("arguments") or {}).get("name")
+    satellites = _satellite_names(spec)
+    if target in satellites and excluded[0] not in satellites:
+        return f", not the {excluded[0]}"
+    if excluded[0] in satellites and target and target not in satellites:
+        return ", not you"
+    return None
+
+
 def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenance=None) -> str:
     if call["name"] == "HassVacuumStart" and target:
         rng = random.Random(zlib.crc32(f"vacuum:{seed}".encode()))
@@ -216,6 +294,12 @@ def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenan
             if provenance is not None:
                 provenance.append({"source": "sayso_fallback", "intent": call["name"]})
             return rng.choice(_VACUUM_START).format(target)
+    if call["name"] in _TV_SHOW_PHRASES and target and "tv" in (call.get("arguments") or {}).get("device_class", []):
+        rng = random.Random(zlib.crc32(f"tv_show:{seed}".encode()))
+        if rng.random() < 0.3:
+            if provenance is not None:
+                provenance.append({"source": "sayso_fallback", "intent": call["name"]})
+            return rng.choice(_TV_SHOW_PHRASES[call["name"]]).format(target=target)
     rendered = render_call(call, target, seed, provenance=provenance)
     if rendered is not None:
         if rendered.lower().startswith("next track"):
@@ -226,6 +310,9 @@ def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenan
     if provenance is not None:
         provenance.append({"source": "sayso_fallback", "intent": call["name"]})
     name, arguments = call["name"], call.get("arguments") or {}
+    if name in _UNNAMED_TIMER_PHRASES and not (arguments.get("name") or arguments.get("area") or arguments.get("floor")):
+        rng = random.Random(zlib.crc32(f"timer:{seed}".encode()))
+        return rng.choice(_UNNAMED_TIMER_PHRASES[name]).format(delta=_duration(arguments))
     if not target and (arguments.get("area") or arguments.get("floor")):
         domain = arguments.get("domain") or arguments.get("device_class") or ["device"]
         noun = domain[0] if isinstance(domain, list) else domain
@@ -272,12 +359,7 @@ def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenan
     if name == "HassSetVolume":
         return f"set {target} volume to {arguments['volume_level']} percent"
     if name == "HassSetVolumeRelative":
-        step = arguments.get("volume_step")
-        if step == "up":
-            return f"turn up {target} volume"
-        if step == "down":
-            return f"turn down {target} volume"
-        return f"adjust {target} volume"
+        return _volume_phrasing(target, call, seed)
     if name == "HassMediaPlayerMute":
         return f"mute {target}"
     if name == "HassMediaPlayerUnmute":

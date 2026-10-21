@@ -3,11 +3,18 @@ from __future__ import annotations
 
 import random
 import re
+import zlib
 from functools import lru_cache
 from typing import Any
 
+from generators.capability_registry import (
+    CAPABILITIES,
+    SATELLITE_NAME_BRAND,
+    SATELLITE_NAME_SUFFIX,
+    CapabilitySpec,
+)
 
-from generators.capability_registry import CAPABILITIES, CapabilitySpec
+SATELLITE_RATE = 0.30
 
 _AREAS = (
     "Kitchen", "Living Room", "Dining Room", "Master Bedroom", "Guest Bedroom", "Kids Room",
@@ -201,6 +208,12 @@ def _device_class_for(cap: CapabilitySpec) -> str | None:
 
 
 _MEDIA_PROFILES: tuple[tuple[tuple[str, ...], str, tuple[str, ...]], ...] = (
+    (
+        ("satellite",),
+        "speaker",
+        # No absolute "volume": a satellite is only adjusted relative to its current level.
+        ("on", "off", "play", "pause", "volume_step", "mute"),
+    ),
     (
         ("echo", "smart speaker", "google nest", "homepod"),
         "speaker",
@@ -478,6 +491,26 @@ def generate_home(
 
     remove_canonical_alias_collisions(entities)
     area = sayso_entity_area or entities[index % len(entities)]["area"]
+    satellite_rng = random.Random(zlib.crc32(f"satellite:{index}:{size}".encode()))
+    if satellite_rng.random() < SATELLITE_RATE:
+        brand_name = f"{SATELLITE_NAME_BRAND} {SATELLITE_NAME_SUFFIX}"
+        area_name = f"{area} {SATELLITE_NAME_SUFFIX}"
+        candidates = [name for name in (brand_name, area_name) if _slug(name) not in taken]
+        sat_name = satellite_rng.choice(candidates) if candidates else None
+    else:
+        sat_name = None
+    if sat_name is not None:
+        taken.add(_slug(sat_name))
+        entities.append(
+            make_entity(
+                name=sat_name,
+                capability="media_players",
+                area=area,
+                floor=floors[area],
+                rng=satellite_rng,
+                aliases=[sat_name],
+            )
+        )
     return {
         "home_id": f"home_{index:06d}_{size}",
         "size": size,

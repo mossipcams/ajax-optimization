@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import zlib
 
 import random
 from typing import Any
@@ -162,10 +163,7 @@ def gold_from_scenario(scenario: dict[str, Any], rng: random.Random) -> dict[str
         area = scenario.get("area")
         call = build_call_for_operation(None, capability, operation, rng, area=area)
         if operation != "cancel_all":
-            call["arguments"]["name"] = rng.choice((
-                "tea", "rice", "pasta", "bread", "coffee", "workout",
-                "homework", "stretching", "watering", "roast", "cookies", "meditation",
-            ))
+            _name_timer(call, scenario, rng)
         return {"kind": "action", "calls": [call]}
 
     if scenario.get("robustness") == "ambiguity":
@@ -223,12 +221,27 @@ def gold_from_scenario(scenario: dict[str, Any], rng: random.Random) -> dict[str
             action = expected_action(entity, chosen_op, rng)
             calls.extend(action["calls"])
             script_targets.extend(action.get("script_targets", []))
+        if scenario.get("timer_companion"):
+            timer = build_call_for_operation(None, "timers", "start", rng)
+            _name_timer(timer, scenario, rng)
+            calls.append(timer)
         return {"kind": "action", "calls": calls, "script_targets": script_targets}
 
     entity = _pick_entity(scenario, rng)
     if entity is None:
         return expected_no_action("clarify")
     return expected_action(entity, operation, rng)
+
+
+def _name_timer(call: dict[str, Any], scenario: dict[str, Any], rng: random.Random) -> None:
+    name = rng.choice((
+        "tea", "rice", "pasta", "bread", "coffee", "workout",
+        "homework", "stretching", "watering", "roast", "cookies", "meditation",
+    ))
+    naming_rng = random.Random(zlib.crc32(
+        f"timer-naming:{scenario.get('scenario_index')}:{scenario.get('seed')}".encode()))
+    if naming_rng.random() >= 0.4:
+        call["arguments"]["name"] = name
 
 
 def _pick_entity(scenario: dict[str, Any], rng: random.Random) -> dict[str, Any] | None:

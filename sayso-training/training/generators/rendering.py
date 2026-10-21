@@ -9,7 +9,7 @@ import zlib
 from typing import Any
 
 from generators.capability_registry import operation_spec
-from generators.context import area_context_for, system_prompt
+from generators.context import _dump, area_context_for, system_prompt
 from generators.planning import CORE_TOOL_NAMES
 from generators.tools import namespaced_tool_name, production_catalog, script_tools
 
@@ -172,6 +172,91 @@ def _production_metadata(spec: dict[str, Any], offered: list[dict[str, Any]], ut
     }
 
 
+def ha_brightness_pct(brightness: int) -> int:
+    """HA's light `brightness_pct`: rounded percent, but at least 1 for any lit light."""
+    percent = round(brightness / 255 * 100)
+    return max(percent, 1) if brightness > 0 else percent
+
+
+def _live_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
+    """Shape entity attributes as HA's LLM live context renders them.
+
+    Integer attributes are stringified, `brightness_pct` is derived from `brightness`, and
+    `volume_level` stays a float.
+    """
+    shaped = dict(attributes)
+    if "brightness" in shaped:
+        brightness = int(shaped["brightness"])
+        shaped["brightness"] = str(brightness)
+        shaped["brightness_pct"] = str(ha_brightness_pct(brightness))
+    if "volume_level" in shaped:
+        shaped["volume_level"] = float(shaped["volume_level"])
+    return shaped
+
+
+def _home_entities_by_name(spec: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    by_name: dict[str, dict[str, Any]] = {}
+    for entity in spec["home"].get("entities", []):
+        by_name.setdefault(entity["name"], entity)
+        for alias in entity.get("aliases", []):
+            by_name.setdefault(alias, entity)
+    return by_name
+
+
+def _live_context_entries(spec: dict[str, Any], call: dict[str, Any]) -> list[dict[str, Any]]:
+    arguments = call.get("arguments") or {}
+    by_name = _home_entities_by_name(spec)
+    wanted = [arguments.get("name"), *(spec.get("target_names") or [])]
+    resolved: list[dict[str, Any]] = []
+    for name in wanted:
+        if not name:
+            continue
+        entity = by_name.get(name)
+        if entity and all(item is not entity for item in resolved):
+            resolved.append(entity)
+    entries: list[dict[str, Any]] = []
+    for entity in resolved:
+        info: dict[str, Any] = {"names": entity["name"], "domain": entity["domain"]}
+        info["state"] = str(entity.get("state") or spec["expected"].get("state", "unknown"))
+        area = entity.get("area")
+        if area and area != "Unassigned":
+            info["areas"] = area
+        attributes = entity.get("attributes")
+        if attributes:
+            info["attributes"] = _live_attributes(attributes)
+        entries.append(info)
+    if not entries:
+        fallback: dict[str, Any] = {"names": next((name for name in wanted if name), "device")}
+        domain = arguments.get("domain")
+        if isinstance(domain, str) and domain:
+            fallback["domain"] = domain
+        fallback["state"] = str(spec["expected"].get("state", "unknown"))
+        entries.append(fallback)
+    return entries
+
+
+def _intent_success(spec: dict[str, Any], call: dict[str, Any]) -> list[dict[str, Any]]:
+    """One entry per targeted home entity. Timers and other non-entity names produce none."""
+    arguments = call.get("arguments") or {}
+    target = arguments.get("name")
+    entity = _home_entities_by_name(spec).get(target) if target else None
+    if entity is None:
+        return []
+    spoken = (spec.get("spoken_targets") or {}).get(target, target)
+    return [{"name": spoken, "type": "entity", "id": entity["entity_id"]}]
+
+
+def _tool_result(spec: dict[str, Any], call: dict[str, Any]) -> dict[str, Any]:
+    if call["name"] == "GetLiveContext":
+        header = "Live Context: An overview of the areas and the devices in this smart home:"
+        return {"result": f"{header}\n{_dump(_live_context_entries(spec, call))}"}
+    return {
+        "speech": {},
+        "response_type": "action_done",
+        "data": {"success": _intent_success(spec, call), "failed": []},
+    }
+
+
 def _append_action_turn(
     messages: list[dict[str, Any]],
     spec: dict[str, Any],
@@ -204,14 +289,7 @@ def _append_action_turn(
         }
     )
     for call_id, call in zip(call_ids, calls):
-        result: dict[str, Any] = {"result": "Success"}
-        if call["name"] == "GetLiveContext":
-            names = spec.get("target_names") or []
-            result = {
-                "entities": [
-                    {"name": names[0] if names else "device", "state": spec["expected"].get("state", "unknown")}
-                ]
-            }
+        result = _tool_result(spec, call)
         messages.append(
             {
                 "role": "tool",
@@ -343,7 +421,7 @@ def _render_correction(spec: dict[str, Any]) -> dict[str, Any]:
     messages.append(
         {
             "role": "tool",
-            "content": json.dumps({"result": "Success"}, ensure_ascii=False),
+            "content": json.dumps(_tool_result(spec, correct_call), ensure_ascii=False),
             "train_on_turn": False,
             "tool_call_id": correct_id,
         }
@@ -352,12 +430,316 @@ def _render_correction(spec: dict[str, Any]) -> dict[str, Any]:
     return {"messages": messages, "tools": offered, "metadata": _production_metadata(spec, offered, utterance)}
 
 
+def _tool_call_message(call_id: str, call: dict[str, Any], *, train_on_turn: bool) -> dict[str, Any]:
+    return {
+        "role": "assistant",
+        "content": "",
+        "train_on_turn": train_on_turn,
+        "tool_calls": [
+            {
+                "id": call_id,
+                "type": "function",
+                "function": {
+                    "name": namespaced_tool_name(call["name"]),
+                    "arguments": json.dumps(call["arguments"], ensure_ascii=False, sort_keys=True),
+                },
+            }
+        ],
+    }
+
+
+def _turn_messages(
+    candidate_id: str,
+    number: int,
+    utterance: str,
+    call: dict[str, Any],
+    result: dict[str, Any],
+    *,
+    train_on_turn: bool,
+) -> list[dict[str, Any]]:
+    """One user request, its tool call, and the tool result; only the call may be trained."""
+    call_id = _call_id(candidate_id, number, call)
+    return [
+        {"role": "user", "content": utterance, "train_on_turn": False},
+        _tool_call_message(call_id, call, train_on_turn=train_on_turn),
+        {
+            "role": "tool",
+            "content": json.dumps(result, ensure_ascii=False),
+            "train_on_turn": False,
+            "tool_call_id": call_id,
+        },
+    ]
+
+
+def _timer_context_result(spec: dict[str, Any], call: dict[str, Any]) -> dict[str, Any]:
+    outcome = spec["timer_context"]["outcome"]
+    if outcome == "multiple":
+        return {"error": "MultipleTimersMatchedError", "error_text": "Multiple timers matched"}
+    if outcome == "not_found":
+        return {"error": "TimerNotFoundError", "error_text": "Timer not found"}
+    return _tool_result(spec, call)
+
+
+def _timer_context_reply(spec: dict[str, Any]) -> str:
+    context = spec["timer_context"]
+    if context["outcome"] == "multiple":
+        return _did_you_mean(list(context["clarify_names"]))
+    if context["outcome"] == "not_found":
+        return f"There's no {context['missing_name']} timer running."
+    return _final_text(spec)
+
+
+def _render_timer_context(spec: dict[str, Any]) -> dict[str, Any]:
+    from generators.validation import validate_spec
+
+    reason = validate_spec(spec)
+    if reason:
+        raise ValueError(reason)
+    utterance = spec.get("utterance")
+    if not isinstance(utterance, str) or not utterance.strip():
+        raise ValueError("missing_utterance")
+    history = list((spec.get("timer_context") or {}).get("history") or [])
+    if not 1 <= len(history) <= 2:
+        raise ValueError("timer_context_history_size")
+    calls = spec["expected"].get("calls") or []
+    if len(calls) != 1:
+        raise ValueError("timer_context_requires_one_call")
+    messages: list[dict[str, Any]] = [
+        {
+            "role": "system",
+            "content": system_prompt(spec["home"], utterance.strip()),
+            "train_on_turn": False,
+        },
+    ]
+    for number, turn in enumerate(history):
+        call = turn["call"]
+        turn_spec = {**spec, "operation": turn["operation"], "expected": {"kind": "action", "calls": [call]}}
+        messages.extend(_turn_messages(
+            spec["candidate_id"], number, turn["utterance"], call, _tool_result(turn_spec, call),
+            train_on_turn=False,
+        ))
+    call = calls[0]
+    messages.extend(_turn_messages(
+        spec["candidate_id"], len(history), utterance.strip(), call, _timer_context_result(spec, call),
+        train_on_turn=True,
+    ))
+    messages.append({"role": "assistant", "content": _timer_context_reply(spec), "train_on_turn": True})
+    offered = _offered_catalog(spec, messages)
+    metadata = _production_metadata(spec, offered, utterance)
+    named = [turn["call"] for turn in history] + [call]
+    metadata["expected_target_names"] = list(dict.fromkeys(
+        str(item["arguments"]["name"]) for item in named if item["arguments"].get("name")
+    ))
+    return {"messages": messages, "tools": offered, "metadata": metadata}
+
+
+def _render_relative_brightness(spec: dict[str, Any]) -> dict[str, Any]:
+    from generators.validation import validate_spec
+
+    reason = validate_spec(spec)
+    if reason:
+        raise ValueError(reason)
+    utterance = spec.get("utterance")
+    if not isinstance(utterance, str) or not utterance.strip():
+        raise ValueError("missing_utterance")
+    context = spec.get("relative_brightness") or {}
+    history = list(context.get("history") or [])
+    expected_turns = 1 if context.get("variant") == "set_from_context" else 0
+    if len(history) != expected_turns:
+        raise ValueError("relative_brightness_history_size")
+    calls = spec["expected"].get("calls") or []
+    if len(calls) != 1:
+        raise ValueError("relative_brightness_requires_one_call")
+    call = calls[0]
+    messages: list[dict[str, Any]] = [
+        {
+            "role": "system",
+            "content": system_prompt(spec["home"], utterance.strip()),
+            "train_on_turn": False,
+        },
+    ]
+    for number, turn in enumerate(history):
+        read = turn["call"]
+        messages.extend(_turn_messages(
+            spec["candidate_id"], number, turn["utterance"], read, _tool_result(spec, read), train_on_turn=False,
+        ))
+    messages.extend(_turn_messages(
+        spec["candidate_id"], len(history), utterance.strip(), call, _tool_result(spec, call), train_on_turn=True,
+    ))
+    if call["name"] == "GetLiveContext":
+        reply = _final_text(spec)
+    else:
+        arguments = call["arguments"]
+        reply = f"{arguments['name']} is now at {arguments['brightness']} percent."
+    messages.append({"role": "assistant", "content": reply, "train_on_turn": True})
+    offered = _offered_catalog(spec, messages)
+    metadata = _production_metadata(spec, offered, utterance)
+    metadata["expected_target_names"] = list(spec.get("target_names") or [])
+    return {"messages": messages, "tools": offered, "metadata": metadata}
+
+
+def _render_conversation_context(spec: dict[str, Any]) -> dict[str, Any]:
+    from generators.validation import validate_spec
+
+    reason = validate_spec(spec)
+    if reason:
+        raise ValueError(reason)
+    utterance = spec.get("utterance")
+    if not isinstance(utterance, str) or not utterance.strip():
+        raise ValueError("missing_utterance")
+    history = list((spec.get("conversation_context") or {}).get("history") or [])
+    if len(history) != 1:
+        raise ValueError("conversation_context_history_size")
+    calls = spec["expected"].get("calls") or []
+    if len(calls) != 1:
+        raise ValueError("conversation_context_requires_one_call")
+    call = calls[0]
+    messages: list[dict[str, Any]] = [
+        {
+            "role": "system",
+            "content": system_prompt(spec["home"], utterance.strip()),
+            "train_on_turn": False,
+        },
+    ]
+    turn = history[0]
+    turn_spec = {**spec, "operation": turn["operation"], "expected": {"kind": "action", "calls": [turn["call"]]}}
+    messages.extend(_turn_messages(
+        spec["candidate_id"], 0, turn["utterance"], turn["call"], _tool_result(turn_spec, turn["call"]),
+        train_on_turn=False,
+    ))
+    messages.extend(_turn_messages(
+        spec["candidate_id"], 1, utterance.strip(), call, _tool_result(spec, call), train_on_turn=True,
+    ))
+    state = "on" if spec["operation"] == "turn_on" else "off"
+    messages.append({
+        "role": "assistant",
+        "content": f"{call['arguments']['name']} is now {state}.",
+        "train_on_turn": True,
+    })
+    offered = _offered_catalog(spec, messages)
+    metadata = _production_metadata(spec, offered, utterance)
+    metadata["expected_target_names"] = [call["arguments"]["name"]]
+    return {"messages": messages, "tools": offered, "metadata": metadata}
+
+
+def _render_restore(spec: dict[str, Any]) -> dict[str, Any]:
+    from generators.validation import validate_spec
+
+    reason = validate_spec(spec)
+    if reason:
+        raise ValueError(reason)
+    utterance = spec.get("utterance")
+    if not isinstance(utterance, str) or not utterance.strip():
+        raise ValueError("missing_utterance")
+    history = list((spec.get("restore") or {}).get("history") or [])
+    if len(history) != 2:
+        raise ValueError("restore_history_size")
+    calls = spec["expected"].get("calls") or []
+    if len(calls) != 1:
+        raise ValueError("restore_requires_one_call")
+    call = calls[0]
+    messages: list[dict[str, Any]] = [
+        {
+            "role": "system",
+            "content": system_prompt(spec["home"], utterance.strip()),
+            "train_on_turn": False,
+        },
+    ]
+    for number, turn in enumerate(history):
+        messages.extend(_turn_messages(
+            spec["candidate_id"], number, turn["utterance"], turn["call"], _tool_result(spec, turn["call"]),
+            train_on_turn=False,
+        ))
+    messages.extend(_turn_messages(
+        spec["candidate_id"], len(history), utterance.strip(), call, _tool_result(spec, call), train_on_turn=True,
+    ))
+    arguments = call["arguments"]
+    level = arguments["brightness"] if "brightness" in arguments else arguments["volume_level"]
+    messages.append({"role": "assistant", "content": f"{arguments['name']} is now at {level} percent.", "train_on_turn": True})
+    offered = _offered_catalog(spec, messages)
+    metadata = _production_metadata(spec, offered, utterance)
+    named = [turn["call"] for turn in history] + [call]
+    metadata["expected_target_names"] = list(dict.fromkeys(
+        str(item["arguments"]["name"]) for item in named if item["arguments"].get("name")
+    ))
+    return {"messages": messages, "tools": offered, "metadata": metadata}
+
+
+def _render_conditional(spec: dict[str, Any]) -> dict[str, Any]:
+    from generators.validation import validate_spec
+
+    reason = validate_spec(spec)
+    if reason:
+        raise ValueError(reason)
+    utterance = spec.get("utterance")
+    if not isinstance(utterance, str) or not utterance.strip():
+        raise ValueError("missing_utterance")
+    context = spec.get("conditional") or {}
+    variant = context.get("variant")
+    history = list(context.get("history") or [])
+    if len(history) != (0 if variant == "read_first" else 1):
+        raise ValueError("conditional_history_size")
+    name = spec["target_names"][0]
+    calls = spec["expected"].get("calls") or []
+    messages: list[dict[str, Any]] = [
+        {
+            "role": "system",
+            "content": system_prompt(spec["home"], utterance.strip()),
+            "train_on_turn": False,
+        },
+    ]
+    for number, turn in enumerate(history):
+        messages.extend(_turn_messages(
+            spec["candidate_id"], number, turn["utterance"], turn["call"], _tool_result(spec, turn["call"]),
+            train_on_turn=False,
+        ))
+    number = len(history)
+    if variant == "read_first":
+        if len(calls) != 1:
+            raise ValueError("conditional_requires_one_call")
+        messages.extend(_turn_messages(
+            spec["candidate_id"], number, utterance.strip(), calls[0], _tool_result(spec, calls[0]), train_on_turn=True,
+        ))
+        messages.append({"role": "assistant", "content": _final_text(spec), "train_on_turn": True})
+    elif variant == "condition_holds":
+        if len(calls) != 1:
+            raise ValueError("conditional_requires_one_call")
+        call = calls[0]
+        messages.extend(_turn_messages(
+            spec["candidate_id"], number, utterance.strip(), call, _tool_result(spec, call), train_on_turn=True,
+        ))
+        after = "off" if call["name"] == "HassTurnOff" else "on"
+        messages.append({"role": "assistant", "content": f"{name} is now {after}.", "train_on_turn": True})
+    elif variant == "condition_fails":
+        if calls:
+            raise ValueError("conditional_no_action_has_calls")
+        # No tool call is made, so the user turn is the only message before the spoken answer.
+        messages.append({"role": "user", "content": utterance.strip(), "train_on_turn": False})
+        messages.append({"role": "assistant", "content": f"{name} is already {context['state']}.", "train_on_turn": True})
+    else:
+        raise ValueError("conditional_variant")
+    offered = _offered_catalog(spec, messages)
+    metadata = _production_metadata(spec, offered, utterance)
+    metadata["expected_target_names"] = [name]
+    return {"messages": messages, "tools": offered, "metadata": metadata}
+
+
 def render_example(spec: dict[str, Any]) -> dict[str, Any]:
     family = spec.get("family")
     if family == "follow_up":
         return _render_follow_up(spec)
     if family == "correction":
         return _render_correction(spec)
+    if family == "timer_context":
+        return _render_timer_context(spec)
+    if family == "relative_brightness":
+        return _render_relative_brightness(spec)
+    if family == "conversation_context":
+        return _render_conversation_context(spec)
+    if family == "restore":
+        return _render_restore(spec)
+    if family == "conditional":
+        return _render_conditional(spec)
     from generators.validation import validate_spec
 
     reason = validate_spec(spec)
@@ -401,14 +783,7 @@ def render_example(spec: dict[str, Any]) -> dict[str, Any]:
             }
         )
         for call_id, call in zip(call_ids, calls):
-            result: dict[str, Any] = {"result": "Success"}
-            if call["name"] == "GetLiveContext":
-                names = spec.get("target_names") or []
-                result = {
-                    "entities": [
-                        {"name": names[0] if names else "device", "state": spec["expected"].get("state", "unknown")}
-                    ]
-                }
+            result = _tool_result(spec, call)
             messages.append(
                 {
                     "role": "tool",

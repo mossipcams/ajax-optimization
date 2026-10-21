@@ -144,7 +144,7 @@ Each slice stays at four files or fewer and verifies on its own (router QWEN gat
 
 ## Allocation
 
-Start a `full_sft_v7.yaml` from v6. Take shares from `ordinary` (0.22 → about
+Start a `full_sft_v8.yaml` from v6. Take shares from `ordinary` (0.22 → about
 0.12):
 
 | Family | Share |
@@ -170,5 +170,5 @@ Start a `full_sft_v7.yaml` from v6. Take shares from `ordinary` (0.22 → about
   timer share, integer volume steps, multi-turn rendering).
 - `./sayso validate` on a small smoke corpus per phase.
 - Baseline: run `python -m evals.cli run --tag nonstandard` on the current
-  champion before any retrain. Compare after the v7 canary, per
+  champion before any retrain. Compare after the v8 canary, per
   `nonstandard_family_NN` tag. Promotion and smoke gates must not regress.

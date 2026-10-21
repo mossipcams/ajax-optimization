@@ -133,6 +133,8 @@ CAPABILITIES: dict[str, CapabilitySpec] = {
             _op("mute", "HassMediaPlayerMute", "mute"),
             _op("unmute", "HassMediaPlayerUnmute", "mute"),
             _op("search_and_play", "HassMediaSearchAndPlay", "search"),
+            _blocked("navigate", "no remote navigation tool in Assist schema"),
+            _blocked("launch_app", "no app launch tool in Assist schema"),
             _QUERY,
         )),
         _capability("timers", 1, "timer", None, (
@@ -196,6 +198,18 @@ DIFFICULTY_TAGS: tuple[str, ...] = (
     "unsupported",
     "stt_noise",
 )
+
+SATELLITE_NAME_SUFFIX = "Satellite"
+# Synthetic satellites are "<Area> Satellite" or "SaySo Satellite" (the real home uses "Sayso Satellite").
+SATELLITE_NAME_BRAND = "SaySo"
+
+
+def is_satellite_name(name: str) -> bool:
+    return name.casefold().endswith(f" {SATELLITE_NAME_SUFFIX}".casefold())
+
+
+def is_satellite(entity: dict[str, Any]) -> bool:
+    return entity.get("capability") == "media_players" and is_satellite_name(str(entity.get("name", "")))
 
 
 def operation_spec(capability: str, operation: str) -> OperationSpec | None:

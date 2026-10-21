@@ -357,6 +357,9 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             and quota.accepted_total() + datetime_accepted >= config.count
         )
 
+    unused_grounding_slots = (
+        {slot.index for slot in plan.slots if slot.grounding} if plan is not None else set()
+    )
     closed_slots: set[int] = set()
     casing_counts: dict[str, Counter[str]] = {"call": Counter(), "no_call": Counter()}
     slot_failures: Counter[int] = Counter()
@@ -368,6 +371,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             slot = _datetime_slot_dict(attempts)
         elif family_slot is not None:
             slot = _slot_to_dict(family_slot)
+            unused_grounding_slots.discard(slot["index"])
         else:
             slot = quota.next_slot()
         real_home_selected = None
@@ -393,8 +397,11 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             elif carrier:
                 variant = pick_carrier_variant(slot, rng, grounding_missing)
                 forced = variant is not None and variant["family"] in grounding_missing
+                surplus = rate_hit and grounding_deficit > len(unused_grounding_slots)
                 want_grounding = variant is not None and (
-                    slot.get("grounding") or (forced and rng.random() < 0.5)
+                    slot.get("grounding")
+                    or (forced and rng.random() < 0.5)
+                    or surplus
                 )
                 if want_grounding:
                     slot = {

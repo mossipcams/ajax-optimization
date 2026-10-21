@@ -74,7 +74,8 @@ def test_generated_requests_are_grammatical_english():
         assert not re.search(r"\b(temperature|brightness|color|speed|volume) "
                              r"(?:the |my |our )?[A-Z]", request), request
         assert not re.search(r"\b(create|start|set) (?:the|my) timer\b", request, re.I), request
-        assert not re.search(r"^make\b[^,]*? to (?:blue|red|green|warm white|cool white)\b",
+        # Stop at " and " so a second clause ("... and turn X to cool white") is not read as "make ... to".
+        assert not re.search(r"^make\b(?:(?! and )[^,])*? to (?:blue|red|green|warm white|cool white)\b",
                              request, re.I), request
         assert "to scene" not in request.casefold(), request
         core = re.sub(r"^(?:hey|okay|please|could you|can you|when you get a chance),?\s+",

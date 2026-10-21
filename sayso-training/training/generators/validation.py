@@ -10,7 +10,7 @@ from pathlib import Path
 
 from adapters.schema import tool_schema_map, validate_tool_arguments, v2_openai_tools
 from generators.tools import script_tool_name
-from generators.capability_registry import CAPABILITIES, SupportLevel, entity_supports
+from generators.capability_registry import CAPABILITIES, SupportLevel, entity_supports, is_satellite_name
 from generators.config import DEFAULT_TOKEN_BUDGET
 from generators.gold import _type_label
 from generators.stt_noise import _int_to_words, utterance_contains_target
@@ -69,6 +69,25 @@ def _entity_can_run(entity: dict[str, Any], tool: str) -> bool:
     return any(entity_supports(entity, capability, op.name) for op in candidates)
 
 
+def _is_satellite_name(name: str) -> bool:
+    return is_satellite_name(name)
+
+
+def is_satellite_contrast(call_names: list[str], excluded: list[str]) -> bool:
+    if len(call_names) != 1 or len(excluded) != 1:
+        return False
+    return _is_satellite_name(call_names[0]) != _is_satellite_name(excluded[0])
+
+
+def satellite_contrast_spoken(utterance: str, call_names: list[str], excluded: list[str]) -> bool:
+    if not is_satellite_contrast(call_names, excluded):
+        return False
+    lowered = utterance.casefold()
+    if _is_satellite_name(excluded[0]):
+        return lowered.endswith(", not you")
+    return lowered.endswith(f", not the {excluded[0].casefold()}")
+
+
 def validate_spec(spec: dict[str, Any]) -> str | None:
     expected = spec.get("expected") or {}
     calls = expected.get("calls") or []
@@ -112,7 +131,9 @@ def validate_spec(spec: dict[str, Any]) -> str | None:
             for e in entities.values()
         ):
             return "contradictory_absence"
-    if spec.get("category") in {"multi_action", "exclusion"} and len(calls) < 2:
+    call_names = [str((call.get("arguments") or {}).get("name") or "") for call in calls]
+    contrast = is_satellite_contrast(call_names, spec.get("excluded_names") or [])
+    if spec.get("category") in {"multi_action", "exclusion"} and len(calls) < 2 and not contrast:
         return "missing_multiple_actions"
     if spec.get("category") == "exclusion" and not spec.get("excluded_names"):
         return "missing_excluded_target"
@@ -206,6 +227,8 @@ def validate_utterance(spec: dict[str, Any]) -> str | None:
                     continue
                 if key in {"hours", "minutes", "seconds"} and value == 0:
                     continue
+                if key == "volume_step":
+                    value = abs(value)
                 spellings = [str(value)]
                 if float(value).is_integer():
                     spellings.append(str(int(value)))
@@ -233,6 +256,8 @@ def validate_utterance(spec: dict[str, Any]) -> str | None:
             }
         ):
             for name in spec.get("target_names") or []:
+                if _is_satellite_name(name):
+                    continue
                 spoken = spec.get("spoken_targets", {}).get(name, name).casefold()
                 if (
                     spoken not in lowered
@@ -244,9 +269,11 @@ def validate_utterance(spec: dict[str, Any]) -> str | None:
                         if spec.get("discrimination"):
                             continue
                         return "missing_expected_target"
-        for name in spec.get("excluded_names") or []:
-            if "leave" not in lowered or name.casefold() not in lowered:
-                return "missing_exclusion"
+        excluded = spec.get("excluded_names") or []
+        if not satellite_contrast_spoken(utterance, [
+            str((call.get("arguments") or {}).get("name") or "") for call in calls
+        ], excluded) and any("leave" not in lowered or name.casefold() not in lowered for name in excluded):
+            return "missing_exclusion"
     if expected.get("kind") == "status" and not _STATUS_QUERY.search(lowered):
         return "status_not_query"
     return None
