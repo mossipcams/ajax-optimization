@@ -568,7 +568,13 @@ def grounding_available_share(config: Any) -> float:
 
 CONTRAST_AXES = ("presence", "domain", "count", "area", "feature", "distractor")
 CONTRAST_GROUP_SIZE = 4
-_COMMAND_RETRIES = 16
+_COMMAND_RETRIES = 32
+_GROUP_ATTEMPTS = 8
+
+
+class ContrastCommandError(ValueError):
+    """No phrasing of this base's command clears the eval-overlap checks."""
+
 
 CONTRAST_OPERATIONS: dict[str, tuple[str, ...]] = {
     "lights": ("turn_on", "turn_off"),
@@ -797,7 +803,7 @@ def contrast_command(
     import zlib
 
     from generators.utterances import finalize_training_utterance, request_seed_from_spec
-    from generators.validation import check_quality_eval_overlap
+    from generators.validation import check_fuzzy_eval_overlap, check_quality_eval_overlap
 
     spec = {
         "expected": expected,
@@ -809,9 +815,10 @@ def contrast_command(
         key = f"{group_id}:{retry}"
         seed = request_seed_from_spec({**spec, "phrasing_seed": key})
         command = finalize_training_utterance(seed, random.Random(zlib.crc32(key.encode())))
-        if not check_quality_eval_overlap(command):
+        # Same predicate the pipeline applies to synthetic rows; a rejected phrasing must not be retried as-is.
+        if not (check_quality_eval_overlap(command) or check_fuzzy_eval_overlap(command)):
             return command
-    raise ValueError(f"every contrast command for {group_id} overlaps an eval prompt")
+    raise ContrastCommandError(f"every contrast command for {group_id} overlaps an eval prompt")
 
 
 def build_contrast_group(
@@ -821,6 +828,24 @@ def build_contrast_group(
     size: int | None = None,
     axes: tuple[str, ...] | None = None,
     variants: int | None = None,
+) -> list[dict[str, Any]]:
+    # Short commands such as "turn off the ceiling fan" can overlap an eval prompt under every phrasing seed,
+    # so a fresh base (and household) is drawn instead; the first draw is unchanged.
+    for _ in range(_GROUP_ATTEMPTS - 1):
+        try:
+            return _build_contrast_group(index, rng, size=size, axes=axes, variants=variants)
+        except ContrastCommandError:
+            continue
+    return _build_contrast_group(index, rng, size=size, axes=axes, variants=variants)
+
+
+def _build_contrast_group(
+    index: int,
+    rng: random.Random,
+    *,
+    size: int | None,
+    axes: tuple[str, ...] | None,
+    variants: int | None,
 ) -> list[dict[str, Any]]:
     from generators.homes import generate_home
 

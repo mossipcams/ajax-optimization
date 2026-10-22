@@ -25,7 +25,8 @@ from generators.planning import (
 )
 from generators.row_generation import generate_row
 from generators.tools import namespaced_tool_name
-from generators.validation import check_quality_eval_overlap
+from generators import validation
+from generators.validation import check_fuzzy_eval_overlap, check_quality_eval_overlap
 from generators import grounding
 from generators.pipeline import _run_generation, run_generation
 from generators.rates import RATE_ACHIEVED_TOLERANCE
@@ -215,6 +216,31 @@ def test_rows_of_a_group_share_the_command_and_carry_gold_labels():
 
 def test_no_contrast_command_matches_an_eval_prompt():
     assert not any(check_quality_eval_overlap(_command(row)) for row in _sample())
+
+
+def test_no_contrast_command_is_fuzzy_eval_overlap_across_groups():
+    for index in range(120):
+        group = build_contrast_group(index, random.Random(index))
+        assert not check_fuzzy_eval_overlap(group[0]["utterance"]), index
+
+
+def test_a_fuzzy_overlapping_phrasing_is_replaced_by_a_clean_one(monkeypatch):
+    base = build_contrast_group(0, random.Random(0))[0]
+    real = validation.check_fuzzy_eval_overlap
+    rejected = []
+
+    def flag_first(utterance, **kwargs):
+        if not rejected:
+            rejected.append(utterance)
+            return True
+        return real(utterance, **kwargs)
+
+    monkeypatch.setattr(validation, "check_fuzzy_eval_overlap", flag_first)
+    command = grounding.contrast_command(
+        base["home"], base["target_name"], base["expected"], base["noun"], base["contrast_group"]
+    )
+    assert rejected and command != rejected[0]
+    assert not real(command)
 
 
 def test_area_variants_can_act_or_clarify():
