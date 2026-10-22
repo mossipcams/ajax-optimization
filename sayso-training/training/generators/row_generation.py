@@ -969,7 +969,8 @@ def _contrast_row(
         family="contrast",
         offered_tool_count=len(row["tools"]),
         real_home=False,
-        grounding_family=None,
+        # Every contrast variant is a counterfactual of the same command, so it counts toward grounding.
+        grounding_family=f"ground_generated_{item['contrast_axis']}",
         discrimination=False,
         contrast_group=item["contrast_group"],
         contrast_axis=item["contrast_axis"],

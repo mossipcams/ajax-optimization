@@ -342,6 +342,13 @@ def _row_rejection(row: dict[str, Any]) -> str | None:
     return None
 
 
+def _contrast_grounding_share(plan: AllocationPlan | None, count: int) -> float:
+    # Contrast rows are grounding counterfactuals, so the planned contrast slots add to the reachable rate.
+    if plan is None:
+        return 0.0
+    return plan.requested.get("contrast", 0) / max(count, 1)
+
+
 def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
     rng = random.Random(config.seed)
     grounding_rate = _effective_grounding_rate(config)
@@ -496,8 +503,10 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
         carrier = quota is None and slot_can_carry_grounding(slot)
         want_grounding = False
         recipe_variant = None
-        if grounding_rate > 0 and grounding_deficit > 0:
-            rate_hit = rng.random() < min(1.0, grounding_deficit / rows_remaining)
+        # Contrast rows can meet the rate before every catalogue family is covered, so the catalogue is
+        # still offered while families are missing; past the rate, only those missing families are taken.
+        if grounding_rate > 0 and (grounding_deficit > 0 or grounding_missing):
+            rate_hit = grounding_deficit > 0 and rng.random() < min(1.0, grounding_deficit / rows_remaining)
             if quota is not None:
                 want_grounding = bool(grounding_missing) or rate_hit
             elif carrier:
@@ -507,7 +516,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
                 surplus = rate_hit and grounding_deficit > len(unused_grounding_slots)
                 if variant is not None:
                     want_grounding = bool(slot.get("grounding") or rng.random() < 0.5 or surplus)
-                elif slot.get("grounding") or surplus:
+                elif grounding_deficit > 0 and (slot.get("grounding") or surplus):
                     variant = generated_carrier_variant(slot["family"], attempts, config.seed)
                     want_grounding = variant is not None
                 if want_grounding:
@@ -756,7 +765,8 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             "grounding",
             config,
             len(accepted),
-            available_share=grounding_available_share(config),
+            available_share=grounding_available_share(config)
+            + _contrast_grounding_share(plan, config.count),
         )
     enforce_rate_gate(
         report["discrimination"],

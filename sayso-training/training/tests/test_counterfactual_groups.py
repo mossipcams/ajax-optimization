@@ -448,3 +448,26 @@ def test_a_discarded_row_reserves_nothing_in_the_shared_tracker():
     fresh.record(spec)
     fresh.commit()
     assert shared.would_reject(spec) == "exact_duplicate_utterance"
+
+
+def test_contrast_rows_carry_a_generated_grounding_family():
+    rows = _sample()
+    assert rows
+    for row in rows:
+        meta = row["metadata"]
+        assert meta["grounding_family"] == f"ground_generated_{meta['contrast_axis']}"
+    assert any(row["metadata"]["grounding_family"] == "ground_generated_base" for row in rows)
+
+
+def test_contrast_rows_are_counted_in_the_grounding_stats():
+    config = GeneratorConfig(
+        count=120, seed=SEED, allocations={"contrast": 0.5, "ordinary": 0.5}, grounding_rate=0.1,
+    )
+    result = _run_generation(config)
+    rows, report = result["rows"], result["stats"]["grounding"]
+    contrast_rows = [row for row in rows if row["metadata"].get("family") == "contrast"]
+    assert contrast_rows
+    assert report["rows"] == sum(1 for row in rows if row["metadata"].get("grounding_family"))
+    counted = {row["metadata"]["grounding_family"] for row in contrast_rows}
+    assert counted <= set(report["by_family"])
+    assert report["rows"] >= len(contrast_rows)
