@@ -544,6 +544,7 @@ def _reserve_tool_floors(
     }
     for pool in donors.values():
         rng.shuffle(pool)
+    donor_slots = {family: len(pool) for family, pool in donors.items()}
     need_op, need_tool = int(op_floor * _FLOOR_HEADROOM), int(tool_floor * _FLOOR_HEADROOM)
 
     def move(family: str, target: tuple[str, str, int]) -> bool:
@@ -573,6 +574,26 @@ def _reserve_tool_floors(
         targets = [t for t in targets if family_of(t[1]) == family]
         while tool_have[tool] < need_tool and move(family, rng.choice(targets)):
             pass
+    # Donors are only ordinary/settings slots, so a floor the pool cannot reach is an allocation problem:
+    # fail here with the numbers rather than in the audit after the full generation run.
+    short_tools = {
+        tool: tool_have[tool]
+        for tool in by_tool
+        if tool_have[tool] < tool_floor
+    }
+    short_ops = {
+        key: op_have[key]
+        for key in {target[:2] for target in ops}
+        if op_have[key] < op_floor
+    }
+    if short_tools or short_ops:
+        raise ValueError(
+            f"min_positive_per_tool={tool_floor} / min_positive_per_operation={op_floor} cannot be "
+            f"reserved: ordinary/settings donors ran out. Short tools (carriers): {dict(sorted(short_tools.items()))}; "
+            f"short operations (carriers): {dict(sorted(short_ops.items(), key=str))}; "
+            f"donor slots available: {donor_slots}. Raise the ordinary allocation so the "
+            "donor pool covers the tool floors."
+        )
 
 
 def _mark_grounding_slots(

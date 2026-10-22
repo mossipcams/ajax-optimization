@@ -471,3 +471,27 @@ def test_contrast_rows_are_counted_in_the_grounding_stats():
     counted = {row["metadata"]["grounding_family"] for row in contrast_rows}
     assert counted <= set(report["by_family"])
     assert report["rows"] >= len(contrast_rows)
+
+
+def test_tool_floors_the_donor_pool_cannot_reach_fail_at_plan_time():
+    # Ordinary/settings slots are the only donors for tool floors; 40 of them cannot reach a 200 floor.
+    with pytest.raises(ValueError, match="cannot be reserved"):
+        build_plan(400, 3, {"ordinary": 0.1, "status": 0.9}, min_positive_per_tool=200)
+
+
+def test_tool_floors_are_reserved_when_the_donor_pool_is_large_enough():
+    from generators.capability_registry import CAPABILITIES, trainable_operations
+    from generators.coverage import expected_tool
+
+    plan = build_plan(
+        4000, 3, {"ordinary": 0.5, "settings": 0.1, "status": 0.4},
+        min_positive_per_tool=20, min_positive_per_operation=4,
+    )
+    carriers = {}
+    for slot in plan.slots:
+        if slot.family in {"ordinary", "settings"}:
+            tool = expected_tool(slot.capability, slot.operation)
+            carriers[tool] = carriers.get(tool, 0) + 1
+    tools = {expected_tool(name, op.name) for name, cap in CAPABILITIES.items() for op in trainable_operations(cap)}
+    for tool in tools - {None}:
+        assert carriers.get(tool, 0) >= 20, (tool, carriers.get(tool, 0))
