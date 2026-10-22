@@ -50,8 +50,13 @@ requirements:
     - intent__HassTurnOn
 limits:
   max_negative_ratio_by_capability:
+    media_players: 0.85
+  target_negative_ratio_by_capability:
     media_players: 0.8
   max_negative_ratio_by_tool:
+    media_player__HassMediaPause: 0.85
+    media_player__HassSetVolume: 0.85
+  target_negative_ratio_by_tool:
     media_player__HassMediaPause: 0.8
     media_player__HassSetVolume: 0.8
   max_duplicate_rate: 0.01
