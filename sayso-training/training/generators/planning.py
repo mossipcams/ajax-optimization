@@ -43,6 +43,7 @@ REAL_HOME_EXCLUDED_FAMILIES = frozenset({
     "conversation_context",
     "restore",
     "conditional",
+    "contrast",
 })
 
 REAL_HOME_REFUSAL_FAMILIES = frozenset({"absence", "junk"})
@@ -70,6 +71,7 @@ FAMILY_ROBUSTNESS: dict[str, str] = {
     "conversation_context": "ambiguity",
     "restore": "ordinary",
     "conditional": "ordinary",
+    "contrast": "ambiguity",
 }
 
 SETTINGS_OPERATIONS = frozenset({
@@ -191,6 +193,11 @@ def _pick_capability_operation(
     if family == "conditional":
         cap_name = rng.choice(["lights", "switches", "fans"])
         return cap_name, rng.choice(CONDITIONAL_VARIANTS), CAPABILITIES[cap_name].tier
+    if family == "contrast":
+        from generators.grounding import CONTRAST_OPERATIONS
+
+        cap_name = rng.choice(sorted(CONTRAST_OPERATIONS))
+        return cap_name, rng.choice(CONTRAST_OPERATIONS[cap_name]), CAPABILITIES[cap_name].tier
     if family == "status":
         candidates = [
             (cap_name, "query_state", CAPABILITIES[cap_name].tier)
@@ -493,7 +500,7 @@ def build_plan(
             )
         index += need
     rng.shuffle(slots)
-    for i, slot in enumerate(slots):
+    for i, slot in enumerate(sorted(slots, key=lambda item: item.family != "contrast")):
         slot.index = i
     if len(slots) != count:
         raise ValueError(f"planned {len(slots)} slots, expected {count}")

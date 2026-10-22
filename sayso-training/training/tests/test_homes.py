@@ -59,6 +59,21 @@ def test_generator_cannot_emit_an_eval_entity_name() -> None:
     assert not generated & eval_names, sorted(generated & eval_names)
 
 
+def test_generated_homes_avoid_every_eval_entity_name_and_alias() -> None:
+    from evals import cases
+
+    eval_names: set[str] = set()
+    for household in {case.household for case in cases.load_all_cases()}:
+        for entity in cases.load_home(household).get("entities") or []:
+            eval_names.add(entity["name"].casefold())
+            eval_names.update(alias.casefold() for alias in entity.get("aliases") or [])
+    rng = random.Random(2026)
+    for index, size in enumerate([8, 16, 32, 64] * 60):
+        home = generate_home(index, size, rng)
+        generated = _all_target_names(home) | {item["name"].casefold() for item in home["context_entities"]}
+        assert not generated & eval_names, f"home {index}/{size}: {sorted(generated & eval_names)}"
+
+
 def _all_target_names(home) -> set[str]:
     names: set[str] = set()
     for entity in home["entities"]:

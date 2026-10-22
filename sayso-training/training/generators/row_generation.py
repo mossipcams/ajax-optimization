@@ -9,10 +9,10 @@ import json
 import random
 from typing import Any
 
-from generators.capability_registry import CAPABILITIES, operation_spec
+from generators.capability_registry import CAPABILITIES, operation_spec, trainable_operations
 from generators.config import GeneratorConfig
 from generators.deduplication import DuplicateTracker, pair_hash
-from generators.grounding import pick_variant
+from generators.grounding import is_blocked_request, pick_variant
 from generators.homes import generate_home
 from generators.correction import entity_name_contains_area
 from generators.gold import expected_action, expected_no_action, gold_from_scenario, gold_matches_family, target_names_from_expected
@@ -44,6 +44,7 @@ from generators.validation import (
 )
 
 CONTEXT_HARD_NEGATIVE_RATE = 0.30
+REAL_HOME_REPHRASE_LIMIT = 8
 
 _DATETIME_UTTERANCES = (
     "what time is it",
@@ -890,6 +891,110 @@ def _conditional_row(
     )
 
 
+def contrast_slot_position(index: int) -> tuple[int, int]:
+    from generators.grounding import CONTRAST_GROUP_SIZE
+
+    return divmod(index, CONTRAST_GROUP_SIZE)
+
+
+def _offered_call_reason(calls: list[dict[str, Any]], offered: list[dict[str, Any]]) -> str | None:
+    from adapters.schema import tool_schema_map, validate_tool_arguments
+    from generators.tools import namespaced_tool_name
+
+    schemas = tool_schema_map(offered)
+    for call in calls:
+        name = namespaced_tool_name(call["name"])
+        if name not in schemas:
+            return "call_tool_not_offered"
+        reason = validate_tool_arguments(name, call["arguments"], schemas)
+        if reason:
+            return reason
+    return None
+
+
+def _contrast_row(
+    slot: dict[str, Any],
+    config: GeneratorConfig,
+    *,
+    excluded: set[str],
+    dup_tracker: DuplicateTracker,
+) -> tuple[dict[str, Any] | None, str | None]:
+    from generators.grounding import behaviour_class, build_spec, seeded_contrast_group
+    from generators.tools import production_catalog
+
+    group_index, position = contrast_slot_position(slot["index"])
+    try:
+        group = seeded_contrast_group(group_index, config.seed)
+    except ValueError as exc:
+        return None, f"contrast_group_unbuildable: {exc}"
+    if position >= len(group):
+        return None, "contrast_variant_missing"
+    item = group[position]
+    spec = build_spec(item, seed=config.seed, index=group_index)
+    if behaviour_class(spec["expected"]) != item["expected_class"]:
+        return None, "contrast_label_mismatch"
+    name = item["target_name"]
+    present = {entity["name"] for entity in spec["home"]["entities"]}
+    spec.update(
+        family="contrast",
+        utterance=item["utterance"],
+        spoken_targets={name: f"the {item['noun'].casefold()}"} if name in present else {},
+        removed_tools=item["withheld_tools"],
+        full_tool_catalog=True,
+        semantic_id=f"{item['contrast_group']}_{position}",
+    )
+    if spec["utterance"].casefold() in excluded:
+        return None, "excluded_prompt"
+    if check_quality_eval_overlap(spec["utterance"]):
+        return None, "quality_eval_overlap"
+    reason = validate_row(spec, token_budget=config.token_budget)
+    if reason:
+        return None, reason
+    reject = dup_tracker.would_reject(spec)
+    if reject:
+        return None, reject
+    spec["candidate_id"] = (
+        f"{spec['semantic_id']}_{pair_hash(spec['utterance'], spec['home'])[:8]}"
+        f"_{dup_tracker.occurrences(spec)}"
+    )
+    try:
+        row = render_example(spec)
+    except ValueError as exc:
+        return None, str(exc)
+    row["tools"] = production_catalog(spec["home"], removed_tools=item["withheld_tools"])
+    reason = _offered_call_reason(spec["expected"].get("calls") or [], row["tools"])
+    if reason:
+        return None, reason
+    row["metadata"].update(
+        family="contrast",
+        offered_tool_count=len(row["tools"]),
+        real_home=False,
+        grounding_family=None,
+        discrimination=False,
+        contrast_group=item["contrast_group"],
+        contrast_axis=item["contrast_axis"],
+        contrast_variant=item["contrast_variant"],
+    )
+    reason = validate_serialized_row(
+        row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
+    )
+    if reason:
+        return None, reason
+    dup_tracker.record(spec)
+    return row, None
+
+
+def _rephrase_past_eval_overlap(spec: dict[str, Any]) -> None:
+    # A real-home phrasing is keyed by its candidate id, so a rejected phrasing would repeat on every
+    # retry. Re-render under fresh phrasing seeds until the utterance is off the exact eval prompts.
+    base = spec.get("phrasing_seed") or spec.get("candidate_id", "")
+    for attempt in range(1, REAL_HOME_REPHRASE_LIMIT + 1):
+        if not check_quality_eval_overlap(spec["utterance"]):
+            return
+        spec["phrasing_seed"] = f"{base}:rephrase{attempt}"
+        spec["utterance"] = expand_utterance(spec)
+
+
 def generate_row(
     slot: dict[str, Any],
     config: GeneratorConfig,
@@ -966,6 +1071,8 @@ def generate_row(
     capability = slot["capability"]
     operation = slot["operation"]
     family = slot.get("family")
+    if family == "contrast":
+        return _contrast_row(slot, config, excluded=excluded, dup_tracker=dup_tracker)
     if family == "timer_context":
         return _timer_context_row(
             slot,
@@ -1105,6 +1212,14 @@ def generate_row(
         if variant is not None and variant.get("rng_index") is not None:
             scenario_index = variant["rng_index"]
 
+    if robustness == "exclusion" and operation == "query_state":
+        # An exclusion ("but leave X alone") is an action concept; a status question has no clause to
+        # carry it. Give the exclusion slot a trainable action op on the same capability instead.
+        actions = sorted(op.name for op in trainable_operations(CAPABILITIES[capability]))
+        if actions:
+            operation = rng.choice(actions)
+        else:
+            robustness = "ordinary"
     scenario = build_scenario(
         index=scenario_index,
         seed=config.seed ^ (attempt << 16) ^ (retry << 24),
@@ -1182,6 +1297,7 @@ def generate_row(
     elif (
         family == "unsupported"
         and spec["home"].get("context_entities")
+        and not is_blocked_request(family, slot.get("capability"), slot.get("operation"))
         and rng.random() < CONTEXT_HARD_NEGATIVE_RATE
     ):
         context_hard_negative = True
@@ -1248,6 +1364,8 @@ def generate_row(
     if grounding_required and not grounding_family:
         return None, "grounding_variant_miss"
 
+    if real_home_row and not family and check_quality_eval_overlap(spec["utterance"]):
+        _rephrase_past_eval_overlap(spec)
     if check_quality_eval_overlap(spec["utterance"]):
         return None, "quality_eval_overlap"
 

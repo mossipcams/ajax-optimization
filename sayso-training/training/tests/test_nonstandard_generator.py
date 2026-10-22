@@ -1550,10 +1550,11 @@ def test_v8_recipe_allocates_every_new_family_and_planning_accepts_them():
     new_families = {"timer_context", "conversation_context", "relative_brightness", "restore", "conditional"}
     assert new_families <= set(cfg.allocations)
     assert abs(sum(cfg.allocations.values()) - 1.0) < 1e-9
+    assert cfg.allocations["contrast"] == 0.105
     plan = build_plan(2000, cfg.seed, cfg.allocations)
-    for family in new_families:
+    for family in new_families | {"contrast"}:
         assert plan.requested[family] > 0, family
-    assert {slot.family for slot in plan.slots} >= new_families
+    assert {slot.family for slot in plan.slots} >= new_families | {"contrast"}
 
 
 def test_blocked_refusal_operations_scale_with_the_capability_quota():

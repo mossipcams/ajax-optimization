@@ -13,10 +13,11 @@ schema:
   path: schemas/sayso-tool-schema-v2.json
 
 allocations:
-  ordinary: 0.12
-  follow_up: 0.13
-  status: 0.10
-  settings: 0.08
+  ordinary: 0.091
+  follow_up: 0.098
+  status: 0.076
+  settings: 0.060
+  contrast: 0.105
   clarify: 0.08
   correction: 0.06
   junk: 0.06
@@ -43,7 +44,7 @@ generation:
   paraphrase_enabled: false
   token_budget: 8000
   near_duplicate_limit: 8
-  max_attempts_multiplier: 30
+  max_attempts_multiplier: 20
   synthetic_only: false
   bare_name_rate: 0.35
 

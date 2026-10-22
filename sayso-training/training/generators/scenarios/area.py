@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Any
 
 from generators.grounding import entity
+from generators.homes import _eval_entity_names
 from generators.rendering import render_example
+from generators.validation import check_fuzzy_eval_overlap
 
 DEFAULT_DISTRIBUTION = Path(__file__).resolve().parents[2] / "configs" / "area_distribution_v1.json"
 
@@ -60,6 +62,25 @@ def _light(name: str, area: str, entity_id: str) -> dict[str, Any]:
     return entity(name, "lights", area, entity_id=entity_id, state="on")
 
 
+_CEILING_NOUNS = ("Ceiling Light", "Downlight", "Overhead Light", "Ceiling Lamp")
+_CEILING_FORMS = ("turn on the {n}", "switch {n} on")
+
+
+def _ceiling_name(area: str) -> str:
+    # The first light noun whose "<area> <noun>" name is not an eval entity and whose command forms clear the
+    # fuzzy eval screen. Area specs are seeded by slot index, so a rejected name would be rebuilt identically on
+    # every retry. The choice is a pure function of the area, so every scenario that names the light agrees on it.
+    evals = _eval_entity_names()
+    for noun in _CEILING_NOUNS:
+        name = f"{area} {noun}"
+        if name.casefold() in evals:
+            continue
+        if any(check_fuzzy_eval_overlap(form.format(n=name)) for form in _CEILING_FORMS):
+            continue
+        return name
+    raise ValueError(f"no clean light name for area {area!r}")
+
+
 def _slug(text: str) -> str:
     return "_".join(text.casefold().split())
 
@@ -72,7 +93,7 @@ def _home(
     desk_area: str,
 ) -> dict[str, Any]:
     first = areas[0][0]
-    entities = [_light(f"{area} Ceiling Light", area, f"light.{_slug(area)}_ceiling") for area, _ in areas]
+    entities = [_light(_ceiling_name(area), area, f"light.{_slug(area)}_ceiling") for area, _ in areas]
     entities.append(_light(f"{first} Accent Light", first, f"light.{_slug(first)}_accent"))
     entities += [_light("Lamp", area, f"light.{_slug(area)}_lamp") for area in lamp_areas]
     entities.append(_light("Desk Lamp", desk_area, "light.desk_lamp"))
@@ -125,7 +146,7 @@ def _exact_in(rng, sat, other, extra) -> _Built:
 
 
 def _exact_out(rng, sat, other, extra) -> _Built:
-    name = f"{other[0]} Ceiling Light"
+    name = _ceiling_name(other[0])
     utterance = _pick(rng, "turn on the {n}", "switch {n} on").format(n=name)
     call = _call("HassTurnOn", **_lights(name=name))
     return utterance, sat[0], (sat[0], other[0]), extra[0], {"kind": "action", "calls": [call]}, {}, None
@@ -182,7 +203,7 @@ def _conflict(rng, sat, other, extra) -> _Built:
 
 
 def _multi(rng, sat, other, extra) -> _Built:
-    first, second = f"{sat[0]} Ceiling Light", f"{other[0]} Ceiling Light"
+    first, second = _ceiling_name(sat[0]), _ceiling_name(other[0])
     utterance = _pick(
         rng, "turn off the {a} and turn on the {b}", "switch the {a} off and the {b} on"
     ).format(a=first, b=second)
@@ -196,7 +217,7 @@ def _exclusion(rng, sat, other, extra) -> _Built:
         rng, "turn off the {a} lights but leave the {k} on", "leave the {k} on and switch off the other {a} lights"
     ).format(a=sat[0].lower(), k=kept)
     calls = [
-        _call("HassTurnOff", **_lights(name=f"{sat[0]} Ceiling Light")),
+        _call("HassTurnOff", **_lights(name=_ceiling_name(sat[0]))),
         _call("HassTurnOff", **_lights(name="Lamp", area=sat[0])),
     ]
     fields = {"category": "exclusion", "excluded_names": [kept]}

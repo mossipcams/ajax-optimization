@@ -4,6 +4,8 @@ from __future__ import annotations
 import random
 import re
 import zlib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import lru_cache
 from typing import Any
 
@@ -74,12 +76,57 @@ _DEVICE_AREAS = {
 }
 
 
-def device_areas(capability: str, areas: list[str]) -> list[str]:
-    allowed = _DEVICE_AREAS.get(capability)
+# Holdout-only vocabulary. Never used by default generation; holdout homes draw
+# exclusively from these, which keeps them disjoint from every training pool.
+_HOLDOUT_INDOOR_AREAS = (
+    "Conservatory", "Snug", "Boot Room", "Loft", "Wine Cellar",
+    "Gallery", "Ballroom", "Cinema Room", "Vestibule", "Potting Shed",
+)
+_HOLDOUT_OUTDOOR_AREAS = ("Orchard", "Terrace", "Allotment", "Greenhouse")
+_HOLDOUT_AREAS = (*_HOLDOUT_INDOOR_AREAS, *_HOLDOUT_OUTDOOR_AREAS)
+_HOLDOUT_DEVICE_AREAS = {
+    "media_players": ("Snug", "Gallery", "Ballroom", "Cinema Room", "Loft"),
+    "climate": ("Conservatory", "Loft", "Snug"),
+    "vacuums": ("Boot Room", "Conservatory", "Wine Cellar"),
+    "locks": ("Vestibule", "Boot Room"),
+    "lawn_mowers": ("Orchard", "Allotment", "Greenhouse", "Terrace"),
+    "todo_lists": ("Conservatory", "Boot Room"),
+}
+_HOLDOUT_ROLES = {
+    "lights": ("Sconce", "Strip Light", "Uplight", "Pendant Sconce"),
+    "fans": ("Fan Heater", "Pedestal Fan", "Bladeless Fan"),
+    "switches": ("Smart Plug", "Extension Socket", "Mains Relay"),
+    "covers": ("Roman Blind", "Shutter", "Venetian Blind"),
+    "locks": ("Keypad Lock", "Smart Deadbolt", "Gate Latch"),
+    "media_players": ("Projector", "Soundbar Pair", "Stereo Amplifier", "Bluetooth Speaker"),
+    "climate": ("Radiator Valve", "Underfloor Heating", "Heat Recovery Unit"),
+    "vacuums": ("Mop Robot", "Wet Vacuum"),
+    "scripts": ("Sunrise Routine", "Guest Departure", "Shutdown Sequence", "Cellar Check"),
+    "scenes": ("Cinema Mode", "Candlelight", "Brunch Setting", "Guest Arrival"),
+    "lawn_mowers": ("Ride-on Mower", "Robot Scythe", "Petrol Mower"),
+    "todo_lists": ("Garden Centre", "Pharmacy Run", "Dry Cleaning"),
+    "buttons": ("Panic Button", "Scene Dial"),
+}
+_HOLDOUT_BRANDS = {
+    "lights": ("Philips", "Yeelight"),
+    "fans": ("Meaco",),
+    "switches": ("Meross", "Wemo"),
+    "covers": ("Eve",),
+    "locks": ("Nuki",),
+    "media_players": ("Epson", "Bose", "Denon"),
+    "climate": ("Daikin", "Mitsubishi"),
+    "vacuums": ("Dreame", "Shark"),
+}
+_HOLDOUT_OWNERS = ("Tariq's", "Ngozi's", "Saoirse's", "Ravi's", "Elif's")
+
+
+def device_areas(capability: str, areas: list[str], *, holdout: bool = False) -> list[str]:
+    allowed = (_HOLDOUT_DEVICE_AREAS if holdout else _DEVICE_AREAS).get(capability)
     if allowed:
         return [area for area in areas if area in allowed]
+    outdoor = _HOLDOUT_OUTDOOR_AREAS if holdout else _OUTDOOR_AREAS
     if capability in {"covers", "fans"}:
-        return [area for area in areas if area not in _OUTDOOR_AREAS]
+        return [area for area in areas if area not in outdoor]
     return areas
 
 
@@ -277,8 +324,7 @@ def make_entity(
     }
 
 
-@lru_cache(maxsize=1)
-def _eval_entity_names() -> frozenset[str]:
+def _eval_cases_module() -> Any:
     import sys
     from pathlib import Path
 
@@ -286,13 +332,51 @@ def _eval_entity_names() -> frozenset[str]:
     if str(repo) not in sys.path:
         sys.path.append(str(repo))
     try:
-        from evals.cases import entity_names_for_tag
+        from evals import cases
     except Exception:
+        return None
+    return cases
+
+
+@lru_cache(maxsize=1)
+def _eval_entity_names() -> frozenset[str]:
+    # Every eval case's household, every tag, names and aliases: a synthetic name equal to any of
+    # these makes the command that names it fail the generation-time eval-overlap check.
+    cases = _eval_cases_module()
+    if cases is None:
         return frozenset()
-    names = entity_names_for_tag("gold", include_aliases=False) | entity_names_for_tag(
-        "shadow", include_aliases=False
-    )
+    names: set[str] = set()
+    for household in {case.household for case in cases.load_all_cases()}:
+        for entity in cases.load_home(household).get("entities") or []:
+            names.add(entity["name"])
+            names.update(entity.get("aliases") or [])
     return frozenset(name.casefold() for name in names)
+
+
+_HOLDOUT = False
+
+
+@contextmanager
+def holdout_pools() -> Iterator[None]:
+    global _HOLDOUT
+    previous, _HOLDOUT = _HOLDOUT, True
+    try:
+        yield
+    finally:
+        _HOLDOUT = previous
+
+
+def _holdout_mode(holdout: bool | None) -> bool:
+    return _HOLDOUT if holdout is None else holdout
+
+
+def holdout_slice() -> dict[str, frozenset[str]]:
+    return {
+        "areas": frozenset(_HOLDOUT_AREAS),
+        "nouns": frozenset(noun for nouns in _HOLDOUT_ROLES.values() for noun in nouns),
+        "owners": frozenset(_HOLDOUT_OWNERS),
+        "brands": frozenset(brand for brands in _HOLDOUT_BRANDS.values() for brand in brands),
+    }
 
 
 _CONTEXT_PERSON_NAMES = (
@@ -351,12 +435,21 @@ def _random_entity_name(
     index: int,
     rng: random.Random,
     taken: set[str] | None = None,
-    owners: tuple[str, ...] = _OWNERS,
+    owners: tuple[str, ...] | None = None,
     bare_name_rate: float = 0.0,
+    *,
+    holdout: bool | None = None,
 ) -> str:
+    holdout = _holdout_mode(holdout)
     taken = taken if taken is not None else set()
-    roles = _roles(capability, area)
-    brands = _BRANDS.get(capability, ())
+    if holdout:
+        owners = owners if owners is not None else _HOLDOUT_OWNERS
+        roles = _HOLDOUT_ROLES[capability]
+        brands = _HOLDOUT_BRANDS.get(capability, ())
+    else:
+        owners = owners if owners is not None else _OWNERS
+        roles = _roles(capability, area)
+        brands = _BRANDS.get(capability, ())
     for attempt in range(128):
         role = rng.choice(roles)
         shape = rng.random()
@@ -413,22 +506,28 @@ def generate_home(
     *,
     sayso_entity_area: str | None = None,
     bare_name_rate: float = 0.0,
+    holdout: bool | None = None,
 ) -> dict[str, Any]:
+    holdout = _holdout_mode(holdout)
     capabilities = _capability_slots(size, rng)
     entities: list[dict[str, Any]] = []
-    rooms = ["Kitchen", "Living Room", "Master Bedroom", "Bathroom", "Hallway", "Entryway", "Garage"]
-    extras = [area for area in _AREAS if area not in rooms]
-    rooms += rng.sample(extras, min(5, max(1, size // 8)))
+    if holdout:
+        rooms = list(_HOLDOUT_AREAS)
+    else:
+        rooms = ["Kitchen", "Living Room", "Master Bedroom", "Bathroom", "Hallway", "Entryway", "Garage"]
+        extras = [area for area in _AREAS if area not in rooms]
+        rooms += rng.sample(extras, min(5, max(1, size // 8)))
     floors = {area: ("Basement" if area == "Basement" else
                      "Upstairs" if "Bedroom" in area or area == "Attic" else "Main Floor") for area in rooms}
     taken: set[str] = set()
-    owners = tuple(rng.sample(_OWNERS, 2))
+    owners = tuple(rng.sample(_HOLDOUT_OWNERS if holdout else _OWNERS, 2))
     nickname_rng = random.Random(f"nicknames:{index}:{size}")
     used_nicknames: set[str] = set()
     for slot, capability in enumerate(capabilities):
-        area = rng.choice(device_areas(capability, rooms))
+        area = rng.choice(device_areas(capability, rooms, holdout=holdout))
         name = _random_entity_name(
-            capability, area, slot, index, rng, taken, owners, bare_name_rate=bare_name_rate
+            capability, area, slot, index, rng, taken, owners,
+            bare_name_rate=bare_name_rate, holdout=holdout,
         )
         taken.add(_slug(name))
         noun = _ENTITY_TEMPLATES[capability][0].lower()
@@ -457,7 +556,7 @@ def generate_home(
             base = rng.choice(lights)
             name = _random_entity_name(
                 "lights", base["area"], len(entities), index, rng, taken, owners,
-                bare_name_rate=bare_name_rate,
+                bare_name_rate=bare_name_rate, holdout=holdout,
             )
             taken.add(_slug(name))
             entities.append(
@@ -472,10 +571,12 @@ def generate_home(
             )
         tvs = [entity for entity in entities if entity["capability"] == "media_players"]
         if tvs:
-            elsewhere = rng.choice([a for a in device_areas("media_players", rooms) if a != tvs[0]["area"]])
+            elsewhere = rng.choice([
+                a for a in device_areas("media_players", rooms, holdout=holdout) if a != tvs[0]["area"]
+            ])
             name = _random_entity_name(
                 "media_players", elsewhere, len(entities), index, rng, taken, owners,
-                bare_name_rate=bare_name_rate,
+                bare_name_rate=bare_name_rate, holdout=holdout,
             )
             taken.add(_slug(name))
             entities.append(
@@ -489,13 +590,16 @@ def generate_home(
                 )
             )
 
-    remove_canonical_alias_collisions(entities)
+    remove_canonical_alias_collisions(entities, avoid_eval_names=True)
     area = sayso_entity_area or entities[index % len(entities)]["area"]
     satellite_rng = random.Random(zlib.crc32(f"satellite:{index}:{size}".encode()))
-    if satellite_rng.random() < SATELLITE_RATE:
+    outdoor = _HOLDOUT_OUTDOOR_AREAS if holdout else _OUTDOOR_AREAS
+    # Satellites are indoor speakers. The draw is taken either way so the RNG stream is unchanged.
+    if satellite_rng.random() < SATELLITE_RATE and area not in outdoor:
         brand_name = f"{SATELLITE_NAME_BRAND} {SATELLITE_NAME_SUFFIX}"
         area_name = f"{area} {SATELLITE_NAME_SUFFIX}"
-        candidates = [name for name in (brand_name, area_name) if _slug(name) not in taken]
+        candidates = [name for name in (brand_name, area_name)
+                      if _slug(name) not in taken and name.casefold() not in _eval_entity_names()]
         sat_name = satellite_rng.choice(candidates) if candidates else None
     else:
         sat_name = None
@@ -516,7 +620,7 @@ def generate_home(
         "size": size,
         "sayso_entity_area": area,
         "entities": entities,
-        "active_timers": _synthetic_timers(rng) if rng.random() < 0.3 else [],
+        "active_timers": _synthetic_timers(rng, holdout) if rng.random() < 0.3 else [],
         "areas": rooms, "area_floors": floors, "owners": owners,
         "exposure_source": "synthetic",
         "context_entities": _context_entities_for(entities, rooms, index, size, rng.getstate()),
@@ -524,21 +628,26 @@ def generate_home(
 
 
 
-def remove_canonical_alias_collisions(entities: list[dict[str, Any]]) -> None:
+def remove_canonical_alias_collisions(
+    entities: list[dict[str, Any]], *, avoid_eval_names: bool = False
+) -> None:
+    # Eval-name avoidance is for synthetic generation only. Real homes reach this function too, and
+    # their fixture names (e.g. 'TV') are eval names that must survive unchanged.
     canonical = {entity["name"].casefold() for entity in entities}
+    eval_names = _eval_entity_names() if avoid_eval_names else frozenset()
     for entity in entities:
         other_names = canonical - {entity["name"].casefold()}
         entity["aliases"] = [alias for alias in entity.get("aliases", [])
                              if alias.casefold() not in other_names
-                             and alias.casefold() not in _eval_entity_names()]
+                             and alias.casefold() not in eval_names]
 
-def _synthetic_timers(rng: random.Random) -> list[dict[str, Any]]:
+def _synthetic_timers(rng: random.Random, holdout: bool = False) -> list[dict[str, Any]]:
     names = ("Pizza Timer", "Laundry Timer", "Kids Bath Timer")
     return [
         {
             "name": rng.choice(names),
             "remaining_seconds": rng.randint(60, 1800),
-            "area": rng.choice(_AREAS),
+            "area": rng.choice(_HOLDOUT_AREAS if holdout else _AREAS),
         }
         for _ in range(rng.randint(1, 2))
     ]
