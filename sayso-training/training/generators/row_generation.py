@@ -15,7 +15,7 @@ from generators.deduplication import DuplicateTracker, pair_hash
 from generators.grounding import is_blocked_request, pick_variant
 from generators.homes import generate_home
 from generators.correction import entity_name_contains_area
-from generators.gold import expected_action, expected_no_action, gold_from_scenario, gold_matches_family, target_names_from_expected
+from generators.gold import expected_action, expected_no_action, expected_unexposed_domain, gold_from_scenario, gold_matches_family, target_names_from_expected
 from generators.labels import render_example, scenario_to_spec
 from generators.rendering import ha_brightness_pct
 from generators.real_home import load_real_home
@@ -44,6 +44,7 @@ from generators.validation import (
 )
 
 CONTEXT_HARD_NEGATIVE_RATE = 0.30
+UNEXPOSED_DOMAIN_RATE = 0.25
 REAL_HOME_REPHRASE_LIMIT = 8
 
 _DATETIME_UTTERANCES = (
@@ -1258,6 +1259,11 @@ def generate_row(
         scenario["phrasing_seed"] = variant["phrasing_seed"]
 
     spec = scenario_to_spec(scenario)
+    if family == "absence" and not real_home_row and rng.random() < UNEXPOSED_DOMAIN_RATE:
+        unexposed = expected_unexposed_domain(spec["home"], rng)
+        if unexposed is not None:
+            spec["expected"] = unexposed
+            spec["subcategory"] = "unexposed_domain"
     if family:
         spec["family"] = family
     spec["full_tool_catalog"] = True
@@ -1293,6 +1299,21 @@ def generate_row(
         spec["utterance"] = _junk_utterance(rng, slot["index"])
         spec["linguistics"] = [{"source": "sayso_fallback", "intent": "not_understood"}]
         spec["expected"] = {**expected, "response": "not_understood"}
+        spec.pop("request_hint", None)
+        spec.pop("clarify_question", None)
+    elif spec.get("subcategory") == "unexposed_domain":
+        context_hard_negative = True
+        target = spec["expected"]["unavailable"]["name"]
+        state = rng.choice(("on", "off"))
+        spec["utterance"] = rng.choice((
+            f"turn {state} {target}",
+            f"switch {target} {state}",
+            f"power {state} {target}",
+            f"set {target} to {state}",
+            f"could you turn {target} {state}?",
+            f"can you switch {target} {state} for me",
+        ))
+        spec["linguistics"] = [{"source": "sayso_fallback", "intent": "unexposed_domain"}]
         spec.pop("request_hint", None)
         spec.pop("clarify_question", None)
     elif (

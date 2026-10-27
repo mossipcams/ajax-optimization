@@ -55,6 +55,24 @@ def expected_no_action(response: str, **extra: Any) -> dict[str, Any]:
     return payload
 
 
+def expected_unexposed_domain(
+    home: dict[str, Any], rng: random.Random
+) -> dict[str, Any] | None:
+    targets = [
+        entity
+        for entity in home.get("context_entities") or []
+        if entity["domain"] in {"person", "sun"}
+    ]
+    if not targets:
+        return None
+    target = rng.choice(targets)
+    return expected_no_action(
+        "refuse",
+        subfamily="unexposed_domain",
+        unavailable={"domain": target["domain"], "name": target["name"]},
+    )
+
+
 def expected_device_unsupported(
     entities: list[dict[str, Any]],
     capability: str,
@@ -87,7 +105,7 @@ def gold_matches_family(expected: dict[str, Any], family: str) -> bool:
     if family == "junk":
         return kind == "no_action" and response in ("clarify", "not_understood")
     if family == "absence":
-        return kind == "no_action" and response in ("area_unavailable", "device_absent")
+        return kind == "no_action" and response in ("area_unavailable", "device_absent", "refuse")
     if family == "unavailable":
         return (
             kind == "no_action"

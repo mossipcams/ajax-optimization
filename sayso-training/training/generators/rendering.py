@@ -120,6 +120,9 @@ def _final_text(spec: dict[str, Any]) -> str:
     if expected.get("response") == "device_unsupported":
         names = expected.get("unsupported_names") or []
         return f"{names[0]} does not support that." if names else "That device does not support that."
+    if expected.get("subfamily") == "unexposed_domain":
+        name = expected["unavailable"]["name"]
+        return f"I can't control {name}. It is only available as context."
     if expected.get("response") == "device_absent":
         unavailable = expected.get("unavailable") or {}
         area = unavailable.get("area", "this area")
