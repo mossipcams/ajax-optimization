@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import copy
 import random
+from collections.abc import Mapping
 from typing import Any
 
 from generators.capability_registry import CAPABILITIES, SupportLevel
-from generators.coverage import bare_tool_name
+from generators.coverage import bare_tool_name, expected_tool
 from generators.gold import expected_no_action, target_names_from_expected
 from generators.utterances import finalize_training_utterance, request_seed_from_spec
 
@@ -37,6 +38,13 @@ def withheld_pair_targets() -> list[dict[str, str]]:
         and operation.tool_name
         and bare_tool_name(operation.tool_name) in WITHHELD_PAIR_TOOLS
     ]
+
+
+def retarget_keeps_tool_floor(
+    slot: dict[str, Any], accepted_by_tool: Mapping[str, int], tool_floor: int
+) -> bool:
+    tool = expected_tool(slot.get("capability", ""), slot.get("operation", ""))
+    return tool is None or tool_floor <= 1 or accepted_by_tool.get(tool, 0) >= tool_floor
 
 
 def withheld_sibling(spec: dict[str, Any], rng: random.Random) -> dict[str, Any] | None:

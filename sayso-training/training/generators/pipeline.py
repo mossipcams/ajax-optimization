@@ -23,9 +23,14 @@ from generators.grounding import (
     training_variants,
 )
 from generators.labels import render_example
-from generators.pairs import PAIR_SLOT_BIAS, withheld_pair_targets, withheld_sibling
+from generators.pairs import (
+    PAIR_SLOT_BIAS,
+    retarget_keeps_tool_floor,
+    withheld_pair_targets,
+    withheld_sibling,
+)
 from generators.paraphrase import load_paraphraser
-from generators.coverage import bare_tool_name, row_calls
+from generators.coverage import bare_tool_name, classify_row, expected_tool, row_calls
 from generators.planning import (
     CORE_TOOL_NAMES,
     REAL_HOME_EXCLUDED_FAMILIES,
@@ -504,6 +509,8 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
     closed_slots: set[int] = set()
     casing_counts: dict[str, Counter[str]] = {"call": Counter(), "no_call": Counter()}
     pair_targets = withheld_pair_targets() if config.pair_rates.get("withheld_tool") else []
+    tool_floor = config.scaled_floor(config.min_positive_per_tool)
+    accepted_by_tool: Counter[str] = Counter()
     slot_failures: Counter[int] = Counter()
     slot_reasons: defaultdict[int, Counter[str]] = defaultdict(Counter)
     dead_slots: dict[int, Counter[str]] = {}
@@ -595,6 +602,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             and not want_discrimination
             and slot.get("family") in (None, "ordinary")
             and not slot.get("grounding")
+            and retarget_keeps_tool_floor(slot, accepted_by_tool, tool_floor)
             and tracker.family_deficit("unavailable") > 0
             and rng.random() < PAIR_SLOT_BIAS
         ):
@@ -726,6 +734,9 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             quota.record_accept(row)
         accepted.append(row)
         record_accept(stats, row)
+        facets = classify_row(row)
+        if facets["positive"] and (tool := expected_tool(facets["capability"], facets["operation"])):
+            accepted_by_tool[tool] += 1
         first_user = next(m["content"] for m in row["messages"] if m["role"] == "user")
         casing_counts[casing_kind(bool(row_calls(row)))]["upper" if first_user[:1].isupper() else "lower"] += 1
         if any(
