@@ -216,12 +216,16 @@ def _exclusion(rng, sat, other, extra) -> _Built:
     utterance = _pick(
         rng, "turn off the {a} lights but leave the {k} on", "leave the {k} on and switch off the other {a} lights"
     ).format(a=sat[0].lower(), k=kept)
-    calls = [
-        _call("HassTurnOff", **_lights(name=_ceiling_name(sat[0]))),
-        _call("HassTurnOff", **_lights(name="Lamp", area=sat[0])),
-    ]
     fields = {"category": "exclusion", "excluded_names": [kept]}
-    return utterance, sat[0], (sat[0], other[0]), extra[0], {"kind": "action", "calls": calls}, fields, None
+    return utterance, sat[0], (sat[0],), extra[0], {"kind": "action", "calls": []}, fields, None
+
+
+def _exclusion_calls(home: dict[str, Any], area: str, kept: str) -> list[dict[str, Any]]:
+    entities = home["entities"]
+    names = [entity["name"] for entity in entities if entity["capability"] == "lights" and entity["area"] == area and entity["name"] != kept]
+    if not names or any(sum(entity["name"] == name for entity in entities) != 1 for name in names):
+        raise ValueError(f"no unambiguous lights to exclude in {area!r}")
+    return [_call("HassTurnOff", **_lights(name=name)) for name in names]
 
 
 SCENARIOS: dict[str, Callable[..., _Built]] = {
@@ -248,6 +252,8 @@ def build_area_spec(scenario: str, index: int, seed: int) -> dict[str, Any]:
         rng, sat, other, extra
     )
     home = _home(index, satellite, [sat, other, extra], lamp_areas, desk_area)
+    if fields.get("category") == "exclusion":
+        expected = {**expected, "calls": _exclusion_calls(home, satellite, fields["excluded_names"][0])}
     candidate_id = f"area_{scenario}_{seed}_{index:05d}"
     names = [call["arguments"]["name"] for call in expected["calls"] if "name" in call["arguments"]]
     return {

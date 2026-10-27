@@ -138,8 +138,7 @@ def request_seed_from_spec(spec: dict[str, Any]) -> str:
     if scope and spec.get("excluded_names"):
         seed_key = spec.get("phrasing_seed") or spec.get("candidate_id", "")
         first = (expected.get("calls") or [{}])[0]
-        return (_phrase_for_call(scope, first, f"{seed_key}:0", provenance)
-                + ", but leave " + " and ".join(spec["excluded_names"]) + " alone")
+        return _phrase_for_call(scope, first, f"{seed_key}:0", provenance) + _leave_clause(spec["excluded_names"], spec)
     satellites = _satellite_names(spec)
     for index, call in enumerate(expected.get("calls") or []):
         canonical = (call.get("arguments") or {}).get("name")
@@ -154,12 +153,33 @@ def request_seed_from_spec(spec: dict[str, Any]) -> str:
             target = spec["spoken_targets"][canonical]
         elif canonical in spec.get("target_names", []):
             target = canonical
+        routine = _routine_phrasing(spec, call, f"{seed_key}:{index}")
+        if routine is not None:
+            if provenance is not None:
+                provenance.append({"source": "sayso_fallback", "intent": call["name"]})
+            phrases.append(routine)
+            continue
         phrases.append(_phrase_for_call(str(target), _lock_phrasing(call, spec), f"{seed_key}:{index}", provenance))
     seed = " and ".join(phrases)
     excluded = spec.get("excluded_names") or []
     if excluded:
-        seed += _satellite_contrast_clause(spec, excluded) or ", but leave " + " and ".join(excluded) + " alone"
+        seed += _satellite_contrast_clause(spec, excluded) or _leave_clause(excluded, spec)
     return seed
+
+
+_LEAVE_CLAUSES: tuple[str, ...] = (
+    ", but leave {n} alone",
+    ", but leave {n} unchanged",
+    ", but leave {n} as it is",
+    ", but leave {n} how it is",
+    ", but not {n}, leave {p}",
+)
+
+
+def _leave_clause(excluded: list[str], spec: dict[str, Any]) -> str:
+    seed_key = spec.get("phrasing_seed") or spec.get("candidate_id", "")
+    rng = random.Random(zlib.crc32(f"leave:{seed_key}".encode()))
+    return rng.choice(_LEAVE_CLAUSES).format(n=" and ".join(excluded), p="it" if len(excluded) == 1 else "them")
 
 
 def _lock_phrasing(call: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:
@@ -200,6 +220,31 @@ _VACUUM_START = (
     "tell {0} to start cleaning", "start {0} cleaning", "start cleaning with {0}",
     "send {0} out to clean", "tell {0} to clean",
 )
+
+_VACUUM_RETURN_TO_BASE = (
+    "send {0} back to its dock", "tell {0} to dock", "send {0} back to its base", "tell {0} to go back and charge",
+)
+
+_VACUUM_CLEAN_AREA = (
+    "clean the {area} with {0}", "tell {0} to vacuum the {area}", "tell {0} to clean the {area}",
+)
+
+_ROUTINE_ACTIONS = ("run my {0} routine", "start the {0} routine", "run the routine called {0}", "go ahead and kick off {0}")
+
+_FRACTION_WORDS: dict[int, str] = {25: "a quarter", 33: "a third", 50: "half"}
+
+_LEVEL_PHRASES: dict[str, dict[str, tuple[str, ...]]] = {
+    "HassLightSet": {
+        "word": ("set {0} brightness to {1}", "dim {0} to {1}"),
+        "down": ("dim {0} down to {1} percent", "bring {0} down to {1} percent"),
+        "up": ("bring {0} up to {1} percent", "raise {0} up to {1} percent"),
+    },
+    "HassFanSetSpeed": {
+        "word": ("set {0} speed to {1}", "set {0} to {1} speed"),
+        "down": ("set {0} speed down to {1} percent", "turn {0} down to {1} percent speed"),
+        "up": ("set {0} speed up to {1} percent", "turn {0} up to {1} percent speed"),
+    },
+}
 
 _TV_SHOW_PHRASES: dict[str, tuple[str, ...]] = {
     "HassMediaPause": ("stop the show on {target}", "stop the show playing on {target}"),
@@ -287,6 +332,54 @@ def _satellite_contrast_clause(spec: dict[str, Any], excluded: list[str]) -> str
     return None
 
 
+def _vacuum_paraphrase(target: str, call: dict[str, Any], seed: str) -> str | None:
+    name, arguments = call["name"], call.get("arguments") or {}
+    if not target:
+        return None
+    rng = random.Random(zlib.crc32(f"vacuum-paraphrase:{seed}".encode()))
+    if name == "HassVacuumReturnToBase" and rng.random() < 0.6:
+        return rng.choice(_VACUUM_RETURN_TO_BASE).format(target)
+    if name == "HassVacuumCleanArea" and arguments.get("area") and rng.random() < 0.6:
+        return rng.choice(_VACUUM_CLEAN_AREA).format(target, area=arguments["area"])
+    return None
+
+
+def _level_phrasing(target: str, call: dict[str, Any], seed: str) -> str | None:
+    name, arguments = call["name"], call.get("arguments") or {}
+    if name not in _LEVEL_PHRASES or not target:
+        return None
+    key = "brightness" if name == "HassLightSet" else "percentage"
+    level = arguments.get(key)
+    if not isinstance(level, int) or set(arguments) - {"name", "area", "floor", "domain", "device_class", key}:
+        return None
+    rng = random.Random(zlib.crc32(f"level:{seed}".encode()))
+    if rng.random() >= 0.5:
+        return None
+    word = _FRACTION_WORDS.get(level)
+    if word:
+        return rng.choice(_LEVEL_PHRASES[name]["word"]).format(target, word)
+    return rng.choice(_LEVEL_PHRASES[name]["down" if level <= 50 else "up"]).format(target, level)
+
+
+def _routine_phrasing(spec: dict[str, Any], call: dict[str, Any], seed: str) -> str | None:
+    from generators.tools import script_tool_name
+
+    entities = (spec.get("home") or {}).get("entities", [])
+    matches = [entity for entity in entities if entity.get("domain") == "script" and script_tool_name(entity) == call["name"]]
+    if len(matches) != 1:
+        return None
+    name = matches[0]["name"]
+    folded = name.casefold()
+    if "routine" in folded or sum(entity["name"].casefold() == folded for entity in entities) != 1:
+        return None
+    if any(folded in {alias.casefold() for alias in entity.get("aliases") or []} for entity in entities if entity is not matches[0]):
+        return None
+    rng = random.Random(zlib.crc32(f"routine:{seed}".encode()))
+    if rng.random() >= 0.5:
+        return None
+    return rng.choice(_ROUTINE_ACTIONS).format(name)
+
+
 def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenance=None) -> str:
     if call["name"] == "HassVacuumStart" and target:
         rng = random.Random(zlib.crc32(f"vacuum:{seed}".encode()))
@@ -300,6 +393,11 @@ def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenan
             if provenance is not None:
                 provenance.append({"source": "sayso_fallback", "intent": call["name"]})
             return rng.choice(_TV_SHOW_PHRASES[call["name"]]).format(target=target)
+    phrasing = _vacuum_paraphrase(target, call, seed) or _level_phrasing(target, call, seed)
+    if phrasing is not None:
+        if provenance is not None:
+            provenance.append({"source": "sayso_fallback", "intent": call["name"]})
+        return phrasing
     rendered = render_call(call, target, seed, provenance=provenance)
     if rendered is not None:
         if rendered.lower().startswith("next track"):
