@@ -25,54 +25,286 @@ _AREAS = (
     "Mudroom", "Laundry Room", "Utility Room", "Pantry", "Closet", "Porch", "Patio", "Deck",
     "Balcony", "Garden", "Backyard", "Front Yard", "Driveway", "Sunroom", "Playroom",
     "Guest Suite", "Spare Room", "Home Gym", "Music Room", "Craft Room", "Storage Room",
+    "Reading Nook", "Games Room", "Boiler Room", "Server Room", "Dressing Room", "Cloakroom",
+    "Scullery", "Bonus Room", "Teen Room", "Front Bedroom", "Back Bedroom", "Staircase",
+    "Sewing Room", "Art Room", "Yoga Room", "Toy Room", "Linen Closet", "Granny Flat",
+    "Guest House", "Barn", "Pool House", "Carport",
+    "Gazebo", "Pool Deck", "Side Yard", "Rooftop", "Pergola", "Lanai", "Fire Pit", "Back Porch",
+    "Vegetable Patch",
 )
 _ROLES = {
-    "lights": ("Ceiling Light", "Wall Light", "Lamp", "Ceiling Lights", "Spotlights", "Pendant Light"),
-    "fans": ("Ceiling Fan", "Floor Fan", "Desk Fan", "Tower Fan"),
-    "switches": ("Plug", "Outlet", "Lamp Plug", "Charger Plug"),
-    "covers": ("Window Blinds", "Left Window Blinds", "Right Window Blinds", "Roller Blinds"),
-    "locks": ("Front Door Lock", "Back Door Lock", "Side Door Lock", "Entry Door Lock"),
-    "media_players": ("TV", "Television", "OLED TV", "Streaming TV",
-                      "Speaker", "Soundbar", "Smart Speaker", "Echo Dot"),
-    "climate": ("Thermostat", "Heating", "Heat Pump", "Air Conditioner"),
-    "vacuums": ("Robot Vacuum", "Vacuum", "Robot Cleaner"),
-    "scripts": ("Good Morning", "Good Night", "Leaving Home", "Welcome Home", "Movie Time",
-                "Bedtime", "All Lights Off", "Water the Plants", "Feed the Cat", "Evening Cleanup"),
-    "scenes": ("Movie Night", "Dinner Time", "Reading Time", "Relax", "Night Lights", "Bedtime Lights"),
-    "lawn_mowers": ("Robot Mower", "Lawn Mower", "Mower"),
-    "todo_lists": ("Groceries", "Shopping List", "Household Supplies", "Weekend Chores", "Hardware Store"),
-    "buttons": ("Wall Button", "Light Button", "Remote Button"),
+    "lights": (
+        "Ceiling Light", "Wall Light", "Lamp", "Ceiling Lights", "Spotlights", "Pendant Light",
+        "Downlights", "Recessed Lights", "Track Lights", "Flush Mount Light", "Globe Light",
+        "Bulb", "Arc Lamp", "Lantern", "Night Light", "Cove Lights", "Panel Light",
+    ),
+    "fans": (
+        "Ceiling Fan", "Floor Fan", "Desk Fan", "Tower Fan", "Box Fan", "Window Fan", "Wall Fan",
+        "Air Circulator", "Clip Fan", "Table Fan",
+    ),
+    "switches": (
+        "Plug", "Outlet", "Lamp Plug", "Charger Plug", "Heater Plug", "Aquarium Plug",
+        "Printer Plug", "Router Plug", "Monitor Plug", "Radio Plug", "Fountain Plug",
+        "Wall Outlet",
+    ),
+    "covers": (
+        "Window Blinds", "Left Window Blinds", "Right Window Blinds", "Roller Blinds",
+        "Blackout Blinds", "Skylight Blinds", "Glass Door Blinds", "Vertical Blinds",
+        "Bay Window Blinds", "Pleated Blinds", "Honeycomb Blinds", "Sheer Blinds",
+    ),
+    "locks": (
+        "Front Door Lock", "Back Door Lock", "Side Door Lock", "Entry Door Lock", "Pet Door Lock",
+        "French Door Lock", "Rear Door Lock", "Gate Lock", "Utility Door Lock",
+        "Sliding Door Lock", "Storm Door Lock",
+    ),
+    "media_players": (
+        "TV", "Television", "OLED TV", "Streaming TV", "Speaker", "Soundbar", "Smart Speaker",
+        "Echo Dot", "QLED TV", "Smart TV", "Apple TV", "Chromecast", "Fire TV", "Shield TV",
+        "Nest Mini", "HomePod Mini", "Sonos Speaker", "Bookshelf Speakers", "Subwoofer", "Radio",
+        "Echo Show", "Streaming Stick",
+    ),
+    "climate": (
+        "Thermostat", "Heating", "Heat Pump", "Air Conditioner", "Mini Split", "Boiler", "AC Unit",
+        "Furnace", "Window AC", "Wall Heater", "Ductless AC",
+    ),
+    "vacuums": (
+        "Robot Vacuum", "Vacuum", "Robot Cleaner", "Floor Cleaner", "Cleaning Robot",
+        "Vacuum Robot", "Robovac", "Hoover", "Floor Robot",
+    ),
+    "scripts": (
+        "Good Morning", "Good Night", "Leaving Home", "Welcome Home", "Movie Time", "Bedtime",
+        "All Lights Off", "Water the Plants", "Feed the Cat", "Evening Cleanup", "Lock the House",
+        "Morning Coffee", "School Run", "Bath Time", "Story Time", "Game Night", "Vacation Mode",
+        "Guest Mode", "Feed the Dog", "Walk the Dog", "Heat the House", "Wind Down", "Quiet Hours",
+        "Lights Out", "Piano Practice",
+    ),
+    "scenes": (
+        "Movie Night", "Dinner Time", "Reading Time", "Relax", "Night Lights", "Bedtime Lights",
+        "Game Night", "Cozy Lights", "Late Night", "Warm Glow", "Focus Lights", "Soft Lights",
+        "Wind Down", "Daylight", "Snack Time",
+    ),
+    "lawn_mowers": (
+        "Robot Mower", "Lawn Mower", "Mower", "Robotic Mower", "Grass Cutter", "Lawn Robot",
+        "Mowing Robot",
+    ),
+    "todo_lists": (
+        "Groceries", "Shopping List", "Household Supplies", "Weekend Chores", "Hardware Store",
+        "Packing List", "Gift Ideas", "Pet Supplies", "School Supplies", "Home Repairs",
+        "Meal Plan", "Errands", "Lawn Care", "Baby Supplies", "Car Maintenance",
+    ),
+    "buttons": (
+        "Wall Button", "Light Button", "Remote Button", "Bedside Button",
+        "Desk Button", "Mode Button", "Shortcut Button", "Push Button",
+    ),
 }
 _ROOM_LIGHTS = {
-    "Kitchen": ("Ceiling Lights", "Counter Lights", "Under Cabinet Lights", "Island Pendants", "Sink Light"),
-    "Dining Room": ("Chandelier", "Pendant Lights", "Wall Lights", "Table Lamp"),
-    "Bathroom": ("Mirror Light", "Vanity Lights", "Ceiling Light", "Shower Light"),
-    "Bedroom": ("Bedside Lamp", "Reading Lamp", "Ceiling Light", "Left Bedside Lamp", "Right Bedside Lamp"),
-    "Living Room": ("Floor Lamp", "Table Lamp", "TV Backlight", "Ceiling Lights", "Reading Lamp"),
-    "Office": ("Desk Lamp", "Monitor Backlight", "Ceiling Light", "Reading Lamp"),
-    "Outside": ("Wall Light", "Wall Lights", "Floodlight", "Path Lights", "String Lights"),
+    "Kitchen": (
+        "Ceiling Lights", "Counter Lights", "Under Cabinet Lights", "Island Pendants",
+        "Sink Light", "Downlights", "Pendant Lights", "Kickboard Lights", "Hood Light",
+        "Recessed Lights", "Plinth Lights", "Track Lights",
+    ),
+    "Dining Room": (
+        "Chandelier", "Pendant Lights", "Wall Lights", "Table Lamp", "Buffet Lamp",
+        "Sideboard Lamp", "Candle Bulbs", "Downlights", "Picture Light", "Ceiling Light",
+        "Linear Pendant",
+    ),
+    "Bathroom": (
+        "Mirror Light", "Vanity Lights", "Ceiling Light", "Shower Light", "Downlights",
+        "Bath Light", "Night Light", "Medicine Cabinet Light", "Tub Light", "Heat Lamp",
+    ),
+    "Bedroom": (
+        "Bedside Lamp", "Reading Lamp", "Ceiling Light", "Left Bedside Lamp", "Right Bedside Lamp",
+        "Headboard Light", "Dresser Lamp", "Closet Light", "Wardrobe Light", "Night Light",
+        "Pendant Light", "Fairy Lights", "Salt Lamp",
+    ),
+    "Living Room": (
+        "Floor Lamp", "Table Lamp", "TV Backlight", "Ceiling Lights", "Reading Lamp", "Arc Lamp",
+        "Picture Light", "Downlights", "Bookcase Lights", "Fireplace Lights", "Couch Lamp",
+        "Wall Lights", "Lantern",
+    ),
+    "Office": (
+        "Desk Lamp", "Monitor Backlight", "Ceiling Light", "Reading Lamp", "Bookcase Lights",
+        "Panel Light", "Downlights", "Key Light", "Ring Light", "Banker Lamp", "Wall Light",
+    ),
+    "Study": (
+        "Desk Lamp", "Reading Lamp", "Ceiling Light", "Bookcase Lights", "Banker Lamp",
+        "Wall Light", "Downlights", "Monitor Backlight",
+    ),
+    "Hallway": (
+        "Ceiling Light", "Downlights", "Night Light", "Stair Lights", "Wall Lights",
+        "Pendant Light", "Motion Light", "Step Lights",
+    ),
+    "Garage": (
+        "Ceiling Light", "Shop Lights", "Workbench Light", "Batten Light", "Floodlight",
+        "Panel Light", "Tube Lights",
+    ),
+    "Outside": (
+        "Wall Light", "Wall Lights", "Floodlight", "Path Lights", "String Lights", "Lanterns",
+        "Step Lights", "Bollard Lights", "Security Light", "Festoon Lights", "Spike Lights",
+        "Post Light",
+    ),
 }
 _BRANDS = {
-    "lights": ("Hue", "Ikea", "LIFX", "Nanoleaf", "Govee", "Lutron"),
-    "fans": ("Dyson", "Honeywell", "Vornado"),
-    "switches": ("Shelly", "Kasa", "Wyze", "Sonoff"),
-    "covers": ("Ikea", "Somfy"), "locks": ("Yale", "August", "Schlage", "Aqara"),
-    "media_players": ("Samsung", "LG", "Sony", "Roku", "Vizio", "Panasonic"),
-    "climate": ("Nest", "Ecobee", "Honeywell", "Tado"),
-    "vacuums": ("Roborock", "Roomba", "Deebot", "Eufy"),
+    "lights": (
+        "Hue", "Ikea", "LIFX", "Nanoleaf", "Govee", "Lutron", "WiZ", "Sengled", "Cync", "Innr",
+        "Ledvance", "Tapo", "Twinkly",
+    ),
+    "fans": (
+        "Dyson", "Honeywell", "Vornado", "Bond", "Haiku", "Modern Forms", "Xiaomi", "Dreo",
+        "SwitchBot", "Tuya",
+    ),
+    "switches": (
+        "Shelly", "Kasa", "Wyze", "Sonoff", "Tapo", "Zooz", "Inovelli", "Leviton", "Aqara",
+        "TP-Link", "Tuya",
+    ),
+    "covers": (
+        "Ikea", "Somfy", "SwitchBot", "Lutron", "Aqara", "Hunter Douglas", "PowerView",
+        "Smartwings", "Soma", "Zemismart",
+    ),
+    "locks": (
+        "Yale", "August", "Schlage", "Aqara", "Kwikset", "Ultraloq", "Lockly", "Level",
+        "SwitchBot", "Eufy",
+    ),
+    "media_players": (
+        "Samsung", "LG", "Sony", "Roku", "Vizio", "Panasonic", "TCL", "Hisense", "Sharp",
+        "Toshiba", "Insignia",
+    ),
+    "climate": (
+        "Nest", "Ecobee", "Honeywell", "Tado", "Sensibo", "Mysa", "Netatmo", "Hive", "Sensi",
+        "Venstar",
+    ),
+    "vacuums": (
+        "Roborock", "Roomba", "Deebot", "Eufy", "Ecovacs", "Neato", "Narwal", "Xiaomi",
+        "SwitchBot", "Tapo",
+    ),
+    "lawn_mowers": (
+        "Husqvarna", "Worx", "Segway", "Gardena", "Mammotion", "Bosch", "Kress", "Landxcape",
+        "Stihl", "Honda",
+    ),
+    "buttons": (
+        "Flic", "Aqara", "Hue", "Ikea", "Shelly", "SwitchBot", "Lutron", "Sonoff", "Tuya",
+        "Third Reality",
+    ),
 }
-_OWNERS = ("Joe's", "O'Malley's", "McKay's", "Kids'", "Children's", "Nana's", "Grandad's",
-           "Priya's", "Wei's", "Amara's", "Sofia's", "Yusuf's", "Ingrid's", "Mateo's",
-           "Rosa's", "Dmitri's", "Fatima's", "Kenji's", "Niamh's", "Tomas's", "Leila's",
-           "Bram's", "Oona's", "Hallie's")
-_OUTDOOR_AREAS = ("Garden", "Backyard", "Front Yard", "Driveway", "Walkway", "Porch", "Patio", "Deck", "Balcony", "Courtyard")
+_FIRST_NAMES = (
+    "Joe", "Priya", "Wei", "Amara", "Sofia", "Yusuf", "Ingrid", "Mateo", "Rosa", "Dmitri",
+    "Fatima", "Kenji", "Niamh", "Tomas", "Leila", "Bram", "Oona", "Hallie", "Noor", "Ellis",
+    "Hana", "Ivy", "Dev", "Leona", "Oscar", "Wren", "Kwame", "Ama", "Kofi", "Abena", "Chidi",
+    "Adaeze", "Emeka", "Folake", "Tunde", "Yetunde", "Sipho", "Thandi", "Zanele", "Lindiwe",
+    "Bongani", "Amani", "Jabari", "Zuri", "Wanjiru", "Kamau", "Nia", "Oluwaseun", "Ayodele",
+    "Kehinde", "Mandla", "Nomvula", "Dayo", "Arjun", "Ananya", "Rohan", "Kavya", "Vikram", "Meera",
+    "Aarav", "Ishaan", "Diya", "Sanjay", "Lakshmi", "Aditi", "Nikhil", "Pooja", "Rahul", "Sunita",
+    "Anil", "Harpreet", "Gurpreet", "Imran", "Ayesha", "Zainab", "Bilal", "Farhan", "Nadia",
+    "Saanvi", "Kiran", "Mei", "Jun", "Hiroshi", "Yuki", "Sakura", "Haruto", "Aiko", "Ren", "Jiwoo",
+    "Hyun", "Jisoo", "Minho", "Xiu", "Ming", "Lan", "Bao", "Linh", "Minh", "Thao", "Duc", "Hoa",
+    "Akira", "Kaito", "Haruka", "Daisuke", "Emi", "Takumi", "Jia", "Sora", "Riku", "Omar", "Layla",
+    "Hassan", "Rania", "Karim", "Yasmin", "Samir", "Dalia", "Mona", "Ziad", "Hiba", "Nabil",
+    "Salma", "Amir", "Soraya", "Dariush", "Shirin", "Reza", "Parisa", "Cyrus", "Mehmet", "Ayse",
+    "Emre", "Zeynep", "Deniz", "Burak", "Lars", "Astrid", "Freya", "Sven", "Bjorn", "Sigrid",
+    "Henrik", "Elin", "Mikkel", "Signe", "Aino", "Eero", "Pieter", "Anouk", "Joost", "Lotte",
+    "Matthias", "Greta", "Lukas", "Anja", "Klaus", "Heidi", "Pierre", "Camille", "Margaux",
+    "Lucien", "Elodie", "Giulia", "Luca", "Marco", "Chiara", "Alessandro", "Francesca", "Lorenzo",
+    "Carmen", "Javier", "Lucia", "Pablo", "Joao", "Beatriz", "Tiago", "Agnieszka", "Piotr",
+    "Kasia", "Marek", "Zofia", "Ondrej", "Petra", "Milan", "Ivana", "Nikola", "Dragan",
+    "Anastasia", "Sergei", "Olga", "Natasha", "Yuri", "Katya", "Bogdan", "Oksana", "Taras",
+    "Eleni", "Nikos", "Yiannis", "Cormac", "Siobhan", "Aoife", "Ciaran", "Declan", "Eilidh",
+    "Morag", "Hamish", "Rhys", "Cerys", "Dylan", "Bethan", "Gethin", "Diego", "Valentina",
+    "Camila", "Santiago", "Ximena", "Joaquin", "Paloma", "Rafael", "Guadalupe", "Alejandro",
+    "Renata", "Thiago", "Luana", "Caio", "Oliver", "Harriet", "Felix", "Imogen", "Theo", "Poppy",
+    "Arthur", "Florence", "Jasper", "Matilda", "Rupert", "Beatrix", "Hazel", "Miles", "Nora",
+    "Silas", "Clara", "Ezra", "Iris", "Jude", "Maeve", "Rory", "Tessa", "Wyatt", "Hattie", "Otis",
+    "Ada", "Bea", "Elsie", "Archie", "Aroha", "Tane", "Mere", "Wiremu", "Keanu", "Leilani",
+    "Malia", "Kai", "Alice", "Ben", "Chloe", "David", "Emma", "Farid", "Grace", "Hugo", "Ines",
+    "Jonas", "Adam", "Abigail", "Aidan", "Akosua", "Alan", "Alicia", "Amelia", "Andre", "Andrea",
+    "Angela", "Anika", "Anton", "Ariana", "Arnav", "Asha", "Aurora", "Ayumi", "Basil", "Benedikt",
+    "Bianca", "Brendan", "Bruno", "Callum", "Carla", "Caroline", "Cecilia", "Chiamaka",
+    "Christina", "Cian", "Claudia", "Colin", "Connor", "Daniela", "Daniel", "Darius", "Delia",
+    "Dennis", "Dina", "Dominic", "Edgar", "Edith", "Eduardo", "Elena", "Elias", "Eliza", "Ella",
+    "Emil", "Eric", "Esther", "Ethan", "Eva", "Fabian", "Fiona", "Francis", "Frida", "Gabriel",
+    "Gemma", "George", "Gloria", "Gustav", "Hamza", "Hannah", "Harold", "Helen", "Ibrahim",
+    "Irene", "Isaac", "Isabel", "Ivan", "Jack", "Jacob", "Jade", "James", "Jana", "Jasmine", "Jay",
+    "Jennifer", "Joel", "Jordan", "Jose", "Joseph", "Julia", "Julian", "June", "Karen", "Karl",
+    "Kate", "Kayode", "Keith", "Kevin", "Laura", "Leo", "Liam", "Lily", "Lina", "Logan", "Louise",
+    "Lucas", "Lydia", "Madeleine", "Magnus", "Maria", "Mark", "Martin", "Maya", "Megan", "Michael",
+    "Mila", "Mohammed", "Monica", "Nathan", "Neil", "Nicole", "Noah", "Olivia", "Owen", "Patrick",
+    "Paula", "Paul", "Peter", "Rachel", "Rebecca", "Ricardo", "Robert", "Ruth", "Ryan", "Sara",
+    "Sean", "Sebastian", "Simon", "Sophie", "Stefan", "Stella", "Stephen", "Susan", "Teresa",
+    "Thomas", "Tim", "Tobias", "Uma", "Ursula", "Valerie", "Vanessa", "Victor", "Vivian", "Walter",
+    "Wendy", "William", "Xavier", "Yara", "Yvonne", "Zachary", "Zara", "Zoe", "Abdul", "Abdullah",
+    "Abel", "Abraham", "Adeline", "Adrian", "Adrienne", "Agatha", "Ahmed", "Aisha", "Albert",
+    "Alberto", "Alessia", "Alfred", "Alina", "Alistair", "Althea", "Amelie", "Amos", "Amrita",
+    "Anais", "Anders", "Angel", "Ansel", "Anushka", "Antonio", "April", "Ari", "Ariel", "Arlo",
+    "Arman", "Armando", "Asher", "Asma", "Athena", "Augustin", "Austin", "Ava", "Axel", "Aylin",
+    "Aziza", "Barbara", "Beatrice", "Benedict", "Bernadette", "Bernard", "Beth", "Betty",
+    "Beverly", "Blake", "Blythe", "Bonnie", "Boris", "Brandon", "Brenda", "Brian", "Bridget",
+    "Brittany", "Brody", "Caleb", "Calvin", "Cassandra", "Catherine", "Cedric", "Celeste", "Celia",
+    "Charles", "Charlotte", "Chester", "Christian", "Christopher", "Clarence", "Clement",
+    "Clementine", "Cora", "Corinne", "Cosima", "Curtis", "Cynthia", "Daisy", "Dakota", "Damian",
+    "Daphne", "Deborah", "Desmond", "Diana", "Dolores", "Donovan", "Dorothy", "Douglas", "Duncan",
+    "Eamon", "Eden", "Edmund", "Edward", "Edwin", "Eileen", "Eleanor", "Elisa", "Elizabeth",
+    "Eloise", "Emanuel", "Emilia", "Emily", "Enid", "Enzo", "Ernest", "Esme", "Estelle", "Eugene",
+    "Evelyn", "Everett", "Faisal", "Faye", "Fern", "Finlay", "Finn", "Flora", "Frances",
+    "Frederick", "Gabriela", "Gareth", "Gavin", "Georgina", "Gerald", "Geraldine", "Gideon",
+    "Gilbert", "Giovanna", "Giselle", "Gordon", "Gregory", "Gwen", "Hadley", "Hakeem", "Hanan",
+    "Harlow", "Harry", "Harvey", "Hector", "Helena", "Hilda", "Hilary", "Holly", "Howard", "Idris",
+    "Ilona", "Imani", "India", "Indira", "Inez", "Inga", "Ismail", "Jacinta", "Jacqueline",
+    "Jamal", "Jared", "Jason", "Jean", "Jeffrey", "Jemima", "Jeremy", "Jessica", "Joanna",
+    "Jocelyn", "Jonah", "Jonathan", "Josephine", "Joshua", "Judith", "Justin", "Kaden", "Kahlil",
+    "Kaitlyn", "Kamila", "Karina", "Katerina", "Keira", "Kendall", "Kenneth", "Khaled", "Khadija",
+    "Kiara", "Kirsten", "Kristen", "Lachlan", "Lana", "Laurence", "Lawrence", "Layton", "Leah",
+    "Leandro", "Leonard", "Leonie", "Leslie", "Liana", "Lilian", "Lionel", "Lisa", "Lola",
+    "Lorelei", "Lorna", "Louis", "Lucinda", "Luis", "Mabel", "Macy", "Malcolm", "Manon", "Marcel",
+    "Marcia", "Marcus", "Margaret", "Marisol", "Marjorie", "Martha", "Mary", "Maureen", "Maxwell",
+    "Melina", "Melissa", "Meredith", "Micah", "Mildred", "Miranda", "Miriam", "Mitchell", "Moira",
+    "Monty", "Mustafa", "Myles", "Nadine", "Naomi", "Natalia", "Nell", "Nessa", "Nicholas", "Nina",
+    "Noel", "Nolan", "Octavia", "Odette", "Opal", "Orla", "Orlando", "Orson", "Paige", "Patricia",
+    "Penelope", "Percy", "Phoebe", "Pranav", "Quentin", "Rachid", "Ramona", "Raphael", "Ray",
+    "Raymond", "Regina", "Reuben", "Rex", "Rhiannon", "Rhoda", "Rina", "Rita", "Rocco", "Roland",
+    "Ronan", "Rosalie", "Rosalind", "Rose", "Rosemary", "Rowan", "Ruben", "Russell", "Sabrina",
+    "Sadie", "Safiya", "Sally", "Samson", "Sandra", "Savannah", "Selina", "Serena", "Shreya",
+    "Sidney", "Simone", "Solomon", "Sonia", "Spencer", "Stanley", "Stephanie", "Summer", "Sylvia",
+    "Tabitha", "Tamara", "Tanya", "Tatiana", "Teagan", "Terence", "Thea", "Theodore", "Theresa",
+    "Tristan", "Troy", "Uday", "Ugo", "Ulrich", "Usha", "Veda", "Vera", "Veronica", "Vincent",
+    "Violet", "Virginia", "Wallace", "Warren", "Wesley", "Wilfred", "Winston", "Yasir", "Yvette",
+    "Zahra", "Zain", "Zola",
+)
+_FAMILY_OWNERS = (
+    "Mum's", "Mom's", "Dad's", "Grandma's", "Grandpa's", "Grandad's", "Gran's", "Nana's", "Papa's",
+    "Auntie's", "Uncle's", "Baby's", "Kids'", "Children's", "Nonna's",
+)
+_OWNERS = (
+    "O'Malley's", "McKay's",
+    *_FAMILY_OWNERS,
+    *(f"{name}'" if name.endswith("s") else f"{name}'s" for name in _FIRST_NAMES),
+)
+_OUTDOOR_AREAS = (
+    "Garden", "Backyard", "Front Yard", "Driveway", "Walkway", "Porch", "Patio", "Deck", "Balcony",
+    "Courtyard", "Carport", "Gazebo", "Pool Deck", "Side Yard", "Rooftop", "Pergola", "Lanai",
+    "Fire Pit", "Back Porch", "Vegetable Patch",
+)
 _DEVICE_AREAS = {
-    "media_players": ("Living Room", "Family Room", "Den", "Lounge", "Master Bedroom", "Guest Bedroom", "Kids Room", "Media Room", "Home Theater", "Basement"),
-    "climate": ("Hallway", "Living Room", "Master Bedroom", "Guest Bedroom", "Office", "Basement"),
-    "vacuums": ("Living Room", "Hallway", "Utility Room", "Laundry Room", "Kitchen"),
-    "locks": ("Entryway", "Foyer", "Garage", "Porch", "Mudroom"),
-    "lawn_mowers": ("Garden", "Backyard", "Front Yard", "Shed", "Garage"),
-    "todo_lists": ("Kitchen", "Office", "Utility Room"),
+    "media_players": (
+        "Living Room", "Family Room", "Den", "Lounge", "Master Bedroom", "Guest Bedroom",
+        "Kids Room", "Media Room", "Home Theater", "Basement", "Games Room", "Bonus Room",
+        "Teen Room", "Guest House", "Pool House",
+    ),
+    "climate": (
+        "Hallway", "Living Room", "Master Bedroom", "Guest Bedroom", "Office", "Basement",
+        "Front Bedroom", "Back Bedroom", "Granny Flat", "Guest House",
+    ),
+    "vacuums": (
+        "Living Room", "Hallway", "Utility Room", "Laundry Room", "Kitchen", "Games Room",
+        "Playroom", "Bonus Room",
+    ),
+    "locks": (
+        "Entryway", "Foyer", "Garage", "Porch", "Mudroom", "Back Porch",
+    ),
+    "lawn_mowers": (
+        "Garden", "Backyard", "Front Yard", "Shed", "Garage", "Side Yard",
+    ),
+    "todo_lists": (
+        "Kitchen", "Office", "Utility Room", "Pantry", "Scullery",
+    ),
 }
 
 
@@ -130,25 +362,51 @@ def device_areas(capability: str, areas: list[str], *, holdout: bool = False) ->
     return areas
 
 
+_LOUNGE_SCENES = (
+    "Movie Night", "Reading Lights", "Relax", "Evening Lights", "Game Night", "Cozy Lights",
+    "TV Time", "Bright Lights", "Dimmed Lights", "Night Lights", "Late Night", "Warm Glow",
+)
+_DINING_SCENES = (
+    "Dinner Lights", "Bright Lights", "Evening Lights", "Night Lights", "Dinner Time",
+    "Lunch Lights", "Snack Time", "Baking", "After Dinner", "Late Night", "Warm Glow",
+    "Dimmed Lights",
+)
+_ROOM_SCENES = (
+    "Dimmed Lights", "Bright Lights", "Evening Lights", "Night Lights", "Warm Glow", "Cozy Lights",
+    "Late Night", "Focus Lights", "Soft Lights", "Wind Down", "All Off", "Daylight",
+)
+_EXTRACTOR_FANS = (
+    "Extractor Fan", "Ventilation Fan", "Exhaust Fan", "Range Hood Fan", "Vent Fan", "Inline Fan",
+    "Bath Fan", "Hood Fan", "Ceiling Vent",
+)
+_KITCHEN_SWITCHES = (
+    "Coffee Maker Plug", "Kettle Plug", "Counter Outlet", "Toaster Plug", "Air Fryer Plug",
+    "Blender Plug", "Microwave Plug", "Dishwasher Plug", "Fridge Plug", "Stand Mixer Plug",
+    "Bread Maker Plug", "Juicer Plug",
+)
+
+
 def _roles(capability: str, area: str) -> tuple[str, ...]:
     if capability == "scenes":
-        if area in {"Living Room", "Family Room", "Den", "Lounge", "Media Room", "Home Theater"}:
-            return ("Movie Night", "Reading Lights", "Relax", "Evening Lights")
+        if area in {"Living Room", "Family Room", "Den", "Lounge", "Media Room", "Home Theater",
+                    "Games Room", "Bonus Room"}:
+            return _LOUNGE_SCENES
         if area in {"Kitchen", "Dining Room", "Dining Area"}:
-            return ("Dinner Lights", "Bright Lights", "Evening Lights", "Night Lights")
-        return ("Dimmed Lights", "Bright Lights", "Evening Lights", "Night Lights")
+            return _DINING_SCENES
+        return _ROOM_SCENES
     if capability == "lights":
         if area in _OUTDOOR_AREAS:
             return _ROOM_LIGHTS["Outside"]
-        if "Bedroom" in area or area in {"Kids Room", "Nursery"}:
+        if "Bedroom" in area or area in {"Kids Room", "Nursery", "Teen Room"}:
             return _ROOM_LIGHTS["Bedroom"]
         if area in {"Bathroom", "Ensuite", "Powder Room", "Washroom"}:
             return _ROOM_LIGHTS["Bathroom"]
         return _ROOM_LIGHTS.get(area, _ROLES[capability])
-    if capability == "fans" and area in {"Kitchen", "Bathroom", "Ensuite", "Laundry Room"}:
-        return ("Extractor Fan", "Ventilation Fan", "Exhaust Fan")
+    if capability == "fans" and area in {"Kitchen", "Bathroom", "Ensuite", "Laundry Room",
+                                         "Scullery", "Powder Room", "Utility Room"}:
+        return _EXTRACTOR_FANS
     if capability == "switches" and area == "Kitchen":
-        return ("Coffee Maker Plug", "Kettle Plug", "Counter Outlet", "Toaster Plug")
+        return _KITCHEN_SWITCHES
     return _ROLES[capability]
 
 
@@ -197,25 +455,124 @@ _KIND_MAP: dict[str, str] = {
 }
 
 
-_NICKNAMES: dict[str, tuple[str, ...]] = {
-    "ceiling lights": ("big lights", "overhead lights", "main lights"),
-    "ceiling light": ("big light", "overhead light", "main light"),
-    "counter lights": ("worktop lights", "cooking lights"),
-    "bedside lamp": ("night lamp", "nightstand lamp"),
-    "floor lamp": ("corner lamp", "standing lamp"),
-    "reading lamp": ("book lamp", "chair lamp"),
-    "desk lamp": ("work lamp", "study lamp"),
-    "table lamp": ("side lamp",),
-    "tv": ("telly", "big screen"),
-    "television": ("telly", "big screen"),
-    "speaker": ("music speaker",),
-    "ceiling fan": ("overhead fan",),
-    "desk fan": ("cooling fan",),
-    "floor fan": ("cooling fan",),
-    "tower fan": ("cooling fan",),
-    "kettle plug": ("kettle",),
-    "coffee maker plug": ("coffee machine",),
-    "charger plug": ("phone charger",),
+_NICKNAMES = {
+    "ceiling lights": (
+        "big lights", "overhead lights", "main lights",
+    ),
+    "ceiling light": (
+        "big light", "overhead light", "main light",
+    ),
+    "counter lights": (
+        "worktop lights", "cooking lights",
+    ),
+    "bedside lamp": (
+        "night lamp", "nightstand lamp",
+    ),
+    "floor lamp": (
+        "corner lamp", "standing lamp",
+    ),
+    "reading lamp": (
+        "book lamp", "chair lamp",
+    ),
+    "desk lamp": (
+        "work lamp", "study lamp",
+    ),
+    "table lamp": (
+        "side lamp",
+    ),
+    "tv": (
+        "telly", "big screen",
+    ),
+    "television": (
+        "telly", "big screen",
+    ),
+    "speaker": (
+        "music speaker",
+    ),
+    "ceiling fan": (
+        "overhead fan",
+    ),
+    "desk fan": (
+        "cooling fan",
+    ),
+    "floor fan": (
+        "cooling fan",
+    ),
+    "tower fan": (
+        "cooling fan",
+    ),
+    "kettle plug": (
+        "kettle",
+    ),
+    "coffee maker plug": (
+        "coffee machine",
+    ),
+    "charger plug": (
+        "phone charger",
+    ),
+    "downlights": (
+        "pot lights", "can lights",
+    ),
+    "pendant lights": (
+        "hanging lights",
+    ),
+    "chandelier": (
+        "hanging light",
+    ),
+    "string lights": (
+        "twinkle lights",
+    ),
+    "floodlight": (
+        "flood lamp",
+    ),
+    "box fan": (
+        "cooling fan",
+    ),
+    "table fan": (
+        "cooling fan",
+    ),
+    "air fryer plug": (
+        "air fryer",
+    ),
+    "microwave plug": (
+        "microwave",
+    ),
+    "dishwasher plug": (
+        "dishwasher",
+    ),
+    "heater plug": (
+        "space heater",
+    ),
+    "router plug": (
+        "wifi router",
+    ),
+    "aquarium plug": (
+        "fish tank",
+    ),
+    "soundbar": (
+        "tv speaker",
+    ),
+    "robot vacuum": (
+        "robot",
+    ),
+    "thermostat": (
+        "heating control",
+    ),
+    "stand mixer plug": (
+        "mixer",
+    ),
+    "bread maker plug": (
+        "bread machine",
+    ),
+    "juicer plug": (
+        "juicer",
+    ),
+    "bookcase lights": (
+        "book lights",
+    ),
+    "headboard light": (
+        "pillow light",
+    ),
 }
 _NICKNAME_KEYS = sorted(_NICKNAMES, key=len, reverse=True)
 
@@ -262,17 +619,17 @@ _MEDIA_PROFILES: tuple[tuple[tuple[str, ...], str, tuple[str, ...]], ...] = (
         ("on", "off", "play", "pause", "volume_step", "mute"),
     ),
     (
-        ("echo", "smart speaker", "google nest", "homepod"),
+        ("echo", "smart speaker", "google nest", "homepod", "nest mini"),
         "speaker",
         ("play", "pause", "volume", "volume_step", "mute", "next", "previous", "search"),
     ),
     (
-        ("speaker", "soundbar", "sonos", "stereo", "receiver"),
+        ("speaker", "soundbar", "sonos", "stereo", "receiver", "subwoofer", "radio"),
         "speaker",
         ("on", "off", "play", "pause", "volume", "volume_step", "mute", "next", "previous"),
     ),
     (
-        ("streaming tv", "roku", "apple tv", "chromecast", "shield"),
+        ("streaming tv", "roku", "apple tv", "chromecast", "shield", "fire tv", "streaming stick"),
         "tv",
         ("on", "off", "play", "pause", "volume", "volume_step", "mute", "next", "previous", "search"),
     ),
@@ -380,8 +737,152 @@ def holdout_slice() -> dict[str, frozenset[str]]:
 
 
 _CONTEXT_PERSON_NAMES = (
-    "Alice Morgan", "Ben Carter", "Chloe Nguyen", "David Osei", "Emma Lindqvist",
-    "Farid Haddad", "Grace Kim", "Hugo Martins", "Ines Duarte", "Jonas Weber",
+    "Alice Morgan", "Ben Carter", "Chloe Nguyen", "David Osei", "Emma Lindqvist", "Farid Haddad",
+    "Grace Kim", "Hugo Martins", "Ines Duarte", "Jonas Weber", "Adam Kowalski", "Abigail Reyes",
+    "Aidan Murphy", "Akosua Mensah", "Alan Brooks", "Alicia Romero", "Amelia Clarke",
+    "Andre Dubois", "Andrea Moretti", "Angela Ruiz", "Anika Shah", "Anton Petrov", "Ariana Vega",
+    "Arnav Mehta", "Asha Pillai", "Aurora Lindgren", "Ayumi Tanaka", "Basil Hughes",
+    "Benedikt Huber", "Bianca Rossi", "Brendan Walsh", "Bruno Costa", "Callum Fraser",
+    "Carla Mendes", "Caroline Price", "Cecilia Lund", "Chiamaka Obi", "Christina Novak",
+    "Cian Byrne", "Claudia Ferrari", "Colin Grant", "Connor Doyle", "Daniela Silva",
+    "Daniel Fischer", "Darius Ahmadi", "Delia Popescu", "Dennis Wagner", "Dina Cohen",
+    "Dominic Reid", "Edgar Alves", "Edith Barnes", "Eduardo Ramos", "Elena Ivanova", "Elias Berg",
+    "Eliza Ward", "Ella Thompson", "Emil Nowak", "Eric Larsen", "Esther Adeyemi", "Ethan Cooper",
+    "Eva Horvat", "Fabian Keller", "Fiona Campbell", "Francis Okoro", "Frida Holm",
+    "Gabriel Santos", "Gemma Lewis", "George Evans", "Gloria Mwangi", "Gustav Nyberg",
+    "Hamza Malik", "Hannah Becker", "Harold Simmons", "Helen Turner", "Ibrahim Diallo",
+    "Irene Papadopoulos", "Isaac Levi", "Isabel Navarro", "Ivan Horak", "Jack Bennett",
+    "Jacob Stein", "Jade Wong", "James Patel", "Jana Novotna", "Jasmine Ali", "Jay Sharma",
+    "Jennifer Scott", "Joel Lindberg", "Jordan Hayes", "Jose Herrera", "Joseph Mbeki",
+    "Julia Hoffmann", "Julian Wolf", "June Park", "Karen Fox", "Karl Jensen", "Kate Sullivan",
+    "Kayode Bello", "Keith Morris", "Kevin Tran", "Laura Bianchi", "Leo Schmidt", "Liam O'Brien",
+    "Lily Chen", "Lina Saleh", "Logan Pierce", "Louise Garnier", "Lucas Moreau", "Lydia Hale",
+    "Madeleine Roux", "Magnus Eriksen", "Maria Gonzalez", "Mark Davies", "Martin Kral",
+    "Maya Rosen", "Megan Hart", "Michael Brown", "Mila Kovac", "Mohammed Rahman", "Monica Lopez",
+    "Nathan Wood", "Neil Kapoor", "Nicole Baker", "Noah Friedman", "Olivia Hunt", "Owen Jenkins",
+    "Patrick Kelly", "Paula Ortiz", "Paul Richter", "Peter Holmberg", "Rachel Stone",
+    "Rebecca Marsh", "Ricardo Pereira", "Robert Klein", "Ruth Abrams", "Ryan Foster",
+    "Sara Lindahl", "Sean Gallagher", "Sebastian Vogel", "Simon Ayers", "Sophie Laurent",
+    "Stefan Popov", "Stella Marino", "Stephen Quinn", "Susan Webb", "Teresa Castillo",
+    "Thomas Muller", "Tim Hartmann", "Tobias Lange", "Uma Krishnan", "Ursula Brandt",
+    "Valerie Dumont", "Vanessa Cruz", "Victor Lindholm", "Vivian Cho", "Walter Graham",
+    "Wendy Lam", "William Ford", "Xavier Blanc", "Yara Nassar", "Yvonne Bauer", "Zachary Cole",
+    "Zara Hussain", "Zoe Parsons", "Joe Adams", "Priya Adkins", "Wei Aguilar", "Amara Ahmed",
+    "Sofia Akhtar", "Yusuf Albertson", "Ingrid Alford", "Mateo Allison", "Rosa Andersen",
+    "Dmitri Anderson", "Fatima Andrade", "Kenji Andrews", "Niamh Anthony", "Tomas Archer",
+    "Leila Arellano", "Bram Arias", "Oona Armstrong", "Hallie Arnold", "Noor Arroyo",
+    "Ellis Ashley", "Hana Atkinson", "Ivy Atkins", "Dev Avila", "Leona Ayala", "Oscar Baird",
+    "Wren Baldwin", "Kwame Ballard", "Ama Banks", "Kofi Barrett", "Abena Barron", "Chidi Barry",
+    "Adaeze Bates", "Emeka Baxter", "Folake Bean", "Tunde Beard", "Yetunde Beck", "Sipho Bell",
+    "Thandi Beltran", "Zanele Benjamin", "Lindiwe Benson", "Bongani Bentley", "Amani Benton",
+    "Jabari Berger", "Zuri Bernard", "Wanjiru Berry", "Kamau Bishop", "Nia Blair",
+    "Oluwaseun Blake", "Ayodele Blankenship", "Kehinde Bolton", "Mandla Bond", "Nomvula Booker",
+    "Dayo Boone", "Arjun Booth", "Ananya Bowen", "Rohan Boyd", "Kavya Bradford", "Vikram Brady",
+    "Meera Brennan", "Aarav Brewer", "Ishaan Bridges", "Diya Briggs", "Sanjay Brock",
+    "Lakshmi Browning", "Aditi Bruce", "Nikhil Bryant", "Pooja Buchanan", "Rahul Buckley",
+    "Sunita Bullock", "Anil Burgess", "Harpreet Burke", "Gurpreet Burns", "Imran Burton",
+    "Ayesha Bush", "Zainab Butler", "Bilal Cabrera", "Farhan Cain", "Nadia Caldwell",
+    "Saanvi Cameron", "Kiran Campos", "Mei Cannon", "Jun Cantrell", "Hiroshi Cardenas",
+    "Yuki Carey", "Sakura Carlson", "Haruto Carr", "Aiko Carroll", "Ren Carson",
+    "Jiwoo Cartwright", "Hyun Castro", "Jisoo Cervantes", "Minho Chandler", "Xiu Chang",
+    "Ming Chapman", "Lan Chavez", "Bao Christensen", "Linh Christian", "Minh Church",
+    "Thao Cisneros", "Duc Clayton", "Hoa Clements", "Akira Cleveland", "Kaito Cobb",
+    "Haruka Cochran", "Daisuke Coker", "Emi Coleman", "Takumi Collier", "Jia Collins",
+    "Sora Combs", "Riku Conley", "Omar Conrad", "Layla Contreras", "Hassan Conway", "Rania Cook",
+    "Karim Copeland", "Yasmin Cortez", "Samir Cote", "Dalia Cotton", "Mona Craig", "Ziad Crawford",
+    "Hiba Crosby", "Nabil Cummings", "Salma Cunningham", "Amir Curry", "Soraya Curtis",
+    "Dariush Dalton", "Shirin Daniels", "Reza Daugherty", "Parisa Davenport", "Cyrus Davidson",
+    "Mehmet Dawson", "Ayse Decker", "Emre Delgado", "Zeynep Dempsey", "Deniz Dennis",
+    "Burak Denton", "Lars Dickerson", "Astrid Dickson", "Freya Dodson", "Sven Dominguez",
+    "Bjorn Donaldson", "Sigrid Donovan", "Henrik Dorsey", "Elin Douglas", "Mikkel Drake",
+    "Signe Dudley", "Aino Duffy", "Eero Duke", "Pieter Duncan", "Anouk Dunlap", "Joost Dunn",
+    "Lotte Duran", "Matthias Durham", "Greta Dyer", "Lukas Eaton", "Anja Edwards", "Klaus Elliott",
+    "Heidi Ellison", "Pierre Emerson", "Camille English", "Margaux Erickson", "Lucien Escobar",
+    "Elodie Espinoza", "Giulia Estes", "Luca Estrada", "Marco Everett", "Chiara Ewing",
+    "Alessandro Farley", "Francesca Farmer", "Lorenzo Farrell", "Carmen Faulkner",
+    "Javier Ferguson", "Lucia Fernandez", "Pablo Fields", "Joao Figueroa", "Beatriz Finley",
+    "Tiago Fitzpatrick", "Agnieszka Fleming", "Piotr Fletcher", "Kasia Flores", "Marek Floyd",
+    "Zofia Flynn", "Ondrej Foley", "Petra Forbes", "Milan Fowler", "Ivana Francis",
+    "Nikola Franklin", "Dragan Frazier", "Anastasia Freeman", "Sergei French", "Olga Frost",
+    "Natasha Fuentes", "Yuri Fuller", "Katya Gaines", "Bogdan Gallegos", "Oksana Galloway",
+    "Taras Gamble", "Eleni Garcia", "Nikos Gardner", "Yiannis Garza", "Cormac Gates",
+    "Siobhan Gay", "Aoife Gentry", "Ciaran Gibbs", "Declan Gibson", "Eilidh Giles", "Morag Gill",
+    "Hamish Gillespie", "Rhys Gilmore", "Cerys Glass", "Dylan Glenn", "Bethan Glover",
+    "Gethin Golden", "Diego Good", "Valentina Goodman", "Camila Goodwin", "Santiago Gordon",
+    "Ximena Gould", "Joaquin Grady", "Paloma Graves", "Rafael Gray", "Guadalupe Green",
+    "Alejandro Greene", "Renata Griffin", "Thiago Griffith", "Luana Grimes", "Caio Gross",
+    "Oliver Guerra", "Harriet Guerrero", "Felix Gutierrez", "Imogen Guzman", "Theo Haas",
+    "Poppy Hahn", "Arthur Haley", "Florence Hamilton", "Jasper Hammond", "Matilda Hampton",
+    "Rupert Hancock", "Beatrix Hanna", "Hazel Hansen", "Miles Hanson", "Nora Harding",
+    "Silas Hardy", "Clara Harmon", "Ezra Harper", "Iris Harrington", "Jude Harris",
+    "Maeve Harrison", "Rory Harvey", "Tessa Hawkins", "Wyatt Haynes", "Hattie Heath",
+    "Otis Hebert", "Ada Henderson", "Bea Hendricks", "Elsie Hendrix", "Archie Henry",
+    "Aroha Hensley", "Tane Henson", "Mere Herman", "Wiremu Hernandez", "Keanu Herring",
+    "Leilani Hess", "Malia Hester", "Kai Hicks", "Abdul Higgins", "Abdullah Hill", "Abel Hines",
+    "Abraham Hinton", "Adeline Hodge", "Adrian Hodges", "Adrienne Hogan", "Agatha Holden",
+    "Ahmed Holder", "Aisha Holland", "Albert Holloway", "Alberto Holt", "Alessia Hood",
+    "Alfred Hoover", "Alina Hopkins", "Alistair Horne", "Althea Horton", "Amelie House",
+    "Amos Houston", "Amrita Howard", "Anais Howell", "Anders Hubbard", "Angel Hudson",
+    "Ansel Huff", "Anushka Huffman", "Antonio Hull", "April Humphrey", "Ari Hunter",
+    "Ariel Hurley", "Arlo Hurst", "Arman Hutchinson", "Armando Ingram", "Asher Irwin",
+    "Asma Jackson", "Athena Jacobs", "Augustin Jarvis", "Austin Jefferson", "Ava Jennings",
+    "Axel Jimenez", "Aylin Johns", "Aziza Johnson", "Barbara Johnston", "Beatrice Jones",
+    "Benedict Jordan", "Bernadette Joyce", "Bernard Juarez", "Beth Kane", "Betty Kaufman",
+    "Beverly Keating", "Blake Kemp", "Blythe Kennedy", "Bonnie Kent", "Boris Kerr", "Brandon Key",
+    "Brenda Kidd", "Brian King", "Bridget Kirby", "Brittany Kirk", "Brody Kirkland",
+    "Caleb Kirkpatrick", "Calvin Knapp", "Cassandra Knight", "Catherine Knox", "Cedric Koch",
+    "Celeste Kramer", "Celia Lamb", "Charles Lambert", "Charlotte Lancaster", "Chester Lane",
+    "Christian Lang", "Christopher Langley", "Clarence Lara", "Clement Larson",
+    "Clementine Lawson", "Cora Leach", "Corinne Leblanc", "Cosima Leon", "Curtis Lester",
+    "Cynthia Leung", "Daisy Levine", "Dakota Li", "Damian Lim", "Daphne Little",
+    "Deborah Livingston", "Desmond Lloyd", "Diana Long", "Dolores Love", "Donovan Lovell",
+    "Dorothy Lowery", "Douglas Lozano", "Duncan Luna", "Eamon Lynch", "Eden Lynn", "Edmund Lyons",
+    "Edward Macdonald", "Edwin Mack", "Eileen Madden", "Eleanor Maddox", "Elisa Maldonado",
+    "Elizabeth Malone", "Eloise Mann", "Emanuel Manning", "Emilia Mansfield", "Emily Marks",
+    "Enid Marshall", "Enzo Martinez", "Ernest Massey", "Esme Mathews", "Estelle Mathis",
+    "Eugene Matthews", "Evelyn Maxwell", "Everett May", "Faisal Mayer", "Faye Maynard",
+    "Fern Mays", "Finlay McBride", "Finn McCarthy", "Flora McClain", "Frances McCormick",
+    "Frederick McCoy", "Gabriela McCullough", "Gareth McDaniel", "Gavin McDonald",
+    "Georgina McDowell", "Gerald McGee", "Geraldine McGuire", "Gideon McIntosh",
+    "Gilbert McKenzie", "Giovanna McKinney", "Giselle McLaughlin", "Gordon McLean",
+    "Gregory McMahon", "Gwen Medina", "Hadley Melton", "Hakeem Mendoza", "Hanan Mercer",
+    "Harlow Merritt", "Harry Meyer", "Harvey Meyers", "Hector Middleton", "Helena Miles",
+    "Hilda Miller", "Hilary Mills", "Holly Miranda", "Howard Mitchell", "Idris Molina",
+    "Ilona Monroe", "Imani Montgomery", "India Moody", "Indira Moore", "Inez Moran", "Inga Moreno",
+    "Ismail Morton", "Jacinta Moses", "Jacqueline Moss", "Jamal Moyer", "Jared Mullen",
+    "Jason Mullins", "Jean Munoz", "Jeffrey Murray", "Jemima Nash", "Jeremy Neal",
+    "Jessica Nelson", "Joanna Newman", "Jocelyn Newton", "Jonah Nichols", "Jonathan Nicholson",
+    "Josephine Nielsen", "Joshua Noble", "Judith Norman", "Justin Norris", "Kaden Norton",
+    "Kahlil Nunez", "Kaitlyn Obrien", "Kamila Ochoa", "Karina Oliver", "Katerina Olsen",
+    "Keira Olson", "Kendall Oneill", "Kenneth Osborne", "Khaled Owens", "Khadija Pace",
+    "Kiara Pacheco", "Kirsten Padilla", "Kristen Page", "Lachlan Palmer", "Lana Parker",
+    "Laurence Parks", "Lawrence Parrish", "Layton Parsons", "Leah Pate", "Leandro Patrick",
+    "Leonard Patterson", "Leonie Patton", "Leslie Payne", "Liana Pearson", "Lilian Peck",
+    "Lionel Pena", "Lisa Perez", "Lola Perkins", "Lorelei Perry", "Lorna Peters", "Louis Petersen",
+    "Lucinda Peterson", "Luis Phelps", "Mabel Phillips", "Macy Pickett", "Malcolm Pittman",
+    "Manon Pitts", "Marcel Pollard", "Marcia Poole", "Marcus Pope", "Margaret Porter",
+    "Marisol Potts", "Marjorie Powell", "Martha Pratt", "Mary Preston", "Maureen Pruitt",
+    "Maxwell Puckett", "Melina Pugh", "Melissa Raines", "Meredith Ramsey", "Micah Randolph",
+    "Mildred Rasmussen", "Miranda Ratliff", "Miriam Ray", "Mitchell Raymond", "Moira Reese",
+    "Monty Reeves", "Mustafa Reid", "Myles Reilly", "Nadine Reynolds", "Naomi Rhoades",
+    "Natalia Rhodes", "Nell Rice", "Nessa Rich", "Nicholas Richards", "Nina Richardson",
+    "Noel Riddle", "Nolan Riggs", "Octavia Riley", "Odette Rios", "Opal Rivas", "Orla Rivers",
+    "Orlando Roach", "Orson Robbins", "Paige Roberson", "Patricia Roberts", "Penelope Robertson",
+    "Percy Robinson", "Phoebe Rocha", "Pranav Rodgers", "Quentin Rodriguez", "Rachid Rogers",
+    "Ramona Rollins", "Raphael Roman", "Ray Rosales", "Raymond Rosario", "Regina Rose",
+    "Reuben Ross", "Rex Roth", "Rhiannon Rowe", "Rhoda Rowland", "Rina Roy", "Rita Rubio",
+    "Rocco Rucker", "Roland Rudolph", "Ronan Ruiz", "Rosalie Rush", "Rosalind Russell",
+    "Rose Russo", "Rosemary Rutledge", "Rowan Salazar", "Ruben Salinas", "Russell Sanchez",
+    "Sabrina Sanders", "Sadie Sanford", "Safiya Santana", "Sally Santiago", "Samson Saunders",
+    "Sandra Savage", "Savannah Sawyer", "Selina Schaefer", "Serena Schneider", "Shreya Schroeder",
+    "Sidney Schultz", "Simone Schwartz", "Solomon Sellers", "Sonia Serrano", "Spencer Sexton",
+    "Stanley Shaffer", "Stephanie Shannon", "Summer Sharp", "Sylvia Shaw", "Tabitha Shelton",
+    "Tamara Shepard", "Tanya Shepherd", "Tatiana Sherman", "Teagan Shields", "Terence Short",
+    "Thea Silva", "Theodore Simmons", "Theresa Simpson", "Tristan Sims", "Troy Singleton",
+    "Uday Skinner", "Ugo Slater", "Ulrich Sloan", "Usha Small", "Veda Smith", "Vera Snyder",
+    "Veronica Solis", "Vincent Solomon", "Violet Soto", "Virginia Sparks", "Wallace Spears",
+    "Warren Spencer", "Wesley Stafford", "Wilfred Stanley", "Winston Stanton", "Yasir Stark",
+    "Yvette Steele", "Zahra Stephens", "Zain Stevenson", "Zola Stevens",
 )
 
 
@@ -641,11 +1142,17 @@ def remove_canonical_alias_collisions(
                              if alias.casefold() not in other_names
                              and alias.casefold() not in eval_names]
 
+
+_TIMER_NAMES = (
+    "Pizza Timer", "Laundry Timer", "Kids Bath Timer", "Pasta Timer", "Oven Timer", "Tea Timer",
+    "Egg Timer", "Nap Timer", "Homework Timer",
+)
+
+
 def _synthetic_timers(rng: random.Random, holdout: bool = False) -> list[dict[str, Any]]:
-    names = ("Pizza Timer", "Laundry Timer", "Kids Bath Timer")
     return [
         {
-            "name": rng.choice(names),
+            "name": rng.choice(_TIMER_NAMES),
             "remaining_seconds": rng.randint(60, 1800),
             "area": rng.choice(_HOLDOUT_AREAS if holdout else _AREAS),
         }
