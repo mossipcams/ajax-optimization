@@ -28,6 +28,7 @@ from generators.scenarios.discrimination import (
 from generators.planning import CORE_TOOL_NAMES, REAL_HOME_EXCLUDED_FAMILIES, REAL_HOME_REFUSAL_FAMILIES
 from generators.scenarios.unavailable import unique_no_action_hint
 from generators.tools import build_turn_off, build_turn_on
+from generators.shared_alias import SHARED_ALIAS_RATE, build_shared_alias_spec
 from generators.stt_noise import apply_log_stt_noise, apply_stt_noise
 from generators.utterances import (
     apply_generic_wording,
@@ -997,6 +998,53 @@ def _rephrase_past_eval_overlap(spec: dict[str, Any]) -> None:
         spec["utterance"] = expand_utterance(spec)
 
 
+def _shared_alias_row(
+    spec: dict[str, Any],
+    config: GeneratorConfig,
+    rng: random.Random,
+    *,
+    family: str | None,
+    excluded: set[str],
+    dup_tracker: DuplicateTracker,
+    casing_counts: dict[str, Counter[str]] | None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    spec["utterance"] = finalize_training_utterance(
+        spec["utterance"], rng, upper=_balanced_upper(casing_counts, spec)
+    )
+    if spec["utterance"].casefold() in excluded:
+        return None, "excluded_prompt"
+    if check_quality_eval_overlap(spec["utterance"]):
+        return None, "quality_eval_overlap"
+    reason = validate_row(spec, token_budget=config.token_budget)
+    if reason:
+        return None, reason
+    reject = dup_tracker.would_reject(spec)
+    if reject:
+        return None, reject
+    spec["candidate_id"] = (
+        f"{spec['semantic_id']}_{pair_hash(spec['utterance'], spec['home'])[:8]}"
+        f"_{dup_tracker.occurrences(spec)}"
+    )
+    try:
+        row = render_example(spec)
+    except ValueError as exc:
+        return None, str(exc)
+    if family:
+        row["metadata"]["family"] = family
+    row["metadata"]["real_home"] = False
+    row["metadata"]["grounding_family"] = None
+    row["metadata"]["discrimination"] = False
+    row["metadata"]["shared_alias"] = spec["shared_alias"]
+    row["metadata"]["shared_candidates"] = list(spec["expected"]["candidates"])
+    reason = validate_serialized_row(
+        row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
+    )
+    if reason:
+        return None, reason
+    dup_tracker.record(spec)
+    return row, None
+
+
 def generate_row(
     slot: dict[str, Any],
     config: GeneratorConfig,
@@ -1073,6 +1121,18 @@ def generate_row(
     capability = slot["capability"]
     operation = slot["operation"]
     family = slot.get("family")
+    if (
+        family == "clarify"
+        and (slot.get("robustness") or "ambiguity") == "ambiguity"
+        and slot.get("capability") == "lights"
+        and rng.random() < SHARED_ALIAS_RATE
+    ):
+        shared = build_shared_alias_spec(rng, slot["index"] + attempt * 10000, slot["home_size"])
+        if shared is not None:
+            return _shared_alias_row(
+                shared, config, rng, family=family, excluded=excluded,
+                dup_tracker=dup_tracker, casing_counts=casing_counts,
+            )
     if family == "contrast":
         return _contrast_row(slot, config, excluded=excluded, dup_tracker=dup_tracker)
     if family == "timer_context":
@@ -1474,4 +1534,6 @@ def generate_row(
         real_home_targets.update(real)
         if real_home_usage is not None:
             real_home_usage.update(real)
+    if config.pair_rates.get("withheld_tool") and not (real_home_row or grounding_family or discrimination):
+        row["_pair_spec"] = spec
     return row, None

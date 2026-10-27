@@ -94,7 +94,29 @@ def satellite_contrast_spoken(utterance: str, call_names: list[str], excluded: l
     return lowered.endswith(f", not the {excluded[0].casefold()}")
 
 
+def shared_alias_action_conflict(spec: dict[str, Any]) -> bool:
+    if (spec.get("expected") or {}).get("kind") != "action":
+        return False
+    text = (spec.get("utterance") or "").casefold()
+    entities = (spec.get("home") or {}).get("entities") or []
+    for entity in entities:
+        for alias in entity.get("aliases") or []:
+            needle = alias.casefold()
+            if not re.search(rf"\b{re.escape(needle)}\b", text):
+                continue
+            if any(
+                other is not entity
+                and other.get("area") == entity.get("area")
+                and needle in {name.casefold() for name in other.get("aliases") or []}
+                for other in entities
+            ):
+                return True
+    return False
+
+
 def validate_spec(spec: dict[str, Any]) -> str | None:
+    if spec.get("shared_alias") and shared_alias_action_conflict(spec):
+        return "shared_alias_action"
     expected = spec.get("expected") or {}
     calls = expected.get("calls") or []
     if expected.get("kind") == "no_action" and calls:

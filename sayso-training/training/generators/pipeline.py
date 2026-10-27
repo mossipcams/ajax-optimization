@@ -22,6 +22,8 @@ from generators.grounding import (
     slot_can_carry_grounding,
     training_variants,
 )
+from generators.labels import render_example
+from generators.pairs import PAIR_SLOT_BIAS, withheld_pair_targets, withheld_sibling
 from generators.paraphrase import load_paraphraser
 from generators.coverage import bare_tool_name, row_calls
 from generators.planning import (
@@ -52,6 +54,7 @@ from generators.validation import (
     check_unsupported_calls,
 )
 from generators.stats import empty_stats, finalize_stats, record_accept, record_reject
+from generators.validation import validate_row, validate_serialized_row, validate_spec
 
 
 REAL_HOME_RETRY_LIMIT = 4
@@ -349,6 +352,39 @@ def _contrast_grounding_share(plan: AllocationPlan | None, count: int) -> float:
     return plan.requested.get("contrast", 0) / max(count, 1)
 
 
+def _withheld_pair_row(
+    spec: dict[str, Any],
+    config: GeneratorConfig,
+    rng: random.Random,
+    dup_tracker: DuplicateTracker,
+    excluded: set[str],
+) -> dict[str, Any] | None:
+    rate = config.pair_rates.get("withheld_tool", 0.0)
+    if rate <= 0.0 or rng.random() >= rate:
+        return None
+    sibling_spec = withheld_sibling(spec, rng)
+    if sibling_spec is None or validate_spec(sibling_spec) is not None:
+        return None
+    utterance = sibling_spec["utterance"]
+    if check_quality_eval_overlap(utterance) or utterance.casefold() in excluded:
+        return None
+    if validate_row(sibling_spec, token_budget=config.token_budget) is not None:
+        return None
+    if dup_tracker.would_reject(sibling_spec):
+        return None
+    try:
+        sibling_row = render_example(sibling_spec)
+    except ValueError:
+        return None
+    if validate_serialized_row(
+        sibling_row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
+    ) is not None:
+        return None
+    sibling_row["metadata"]["pair_kind"] = "withheld_tool"
+    dup_tracker.record(sibling_spec)
+    return sibling_row
+
+
 def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
     rng = random.Random(config.seed)
     grounding_rate = _effective_grounding_rate(config)
@@ -467,6 +503,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
     )
     closed_slots: set[int] = set()
     casing_counts: dict[str, Counter[str]] = {"call": Counter(), "no_call": Counter()}
+    pair_targets = withheld_pair_targets() if config.pair_rates.get("withheld_tool") else []
     slot_failures: Counter[int] = Counter()
     slot_reasons: defaultdict[int, Counter[str]] = defaultdict(Counter)
     dead_slots: dict[int, Counter[str]] = {}
@@ -551,6 +588,17 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
                 slot["home_size"] = max(slot["home_size"], 64)
                 if quota is None:
                     discrimination_index = forced["index"]
+        if (
+            pair_targets
+            and tracker is not None
+            and not want_grounding
+            and not want_discrimination
+            and slot.get("family") in (None, "ordinary")
+            and not slot.get("grounding")
+            and tracker.family_deficit("unavailable") > 0
+            and rng.random() < PAIR_SLOT_BIAS
+        ):
+            slot = {**slot, **rng.choice(pair_targets)}
         row, reason = None, None
         exclusion_cadence = (
             config.real_home_entity_cap > 0
@@ -657,6 +705,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
         if row is None:
             record_reject(stats, reason or "unknown")
             continue
+        pair_spec = row.pop("_pair_spec", None)
         if config.split == "test":
             user_text = next(
                 message["content"]
@@ -695,6 +744,15 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             grounding_missing.pop(family, None)
         if row["metadata"].get("discrimination"):
             discrimination_rows += 1
+        if pair_spec is not None and tracker is not None and len(accepted) < config.count:
+            if tracker.family_deficit("unavailable") > 0:
+                sibling_row = _withheld_pair_row(pair_spec, config, rng, dup_tracker, excluded)
+                if sibling_row is not None:
+                    row["metadata"]["contrastive_group"] = f"withheld_{pair_spec.get('candidate_id')}"
+                    sibling_row["metadata"]["contrastive_group"] = row["metadata"]["contrastive_group"]
+                    tracker.record("unavailable")
+                    accepted.append(sibling_row)
+                    record_accept(stats, sibling_row)
 
     if not complete():
         raise RuntimeError(
