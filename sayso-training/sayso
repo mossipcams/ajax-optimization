@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -29,6 +30,14 @@ EVAL_RESULTS = Path(os.environ.get("EVAL_RESULTS", "/srv/llm/lfm/runs/sayso-prom
 HOST = "/workspace/host"
 HOST_TRAINING = os.environ.get("SAYSO_TRAINING_HOST_ROOT", f"{HOST}/lfm/ajax-optimization/sayso-training")
 os.environ.setdefault("HF_HOME", "/srv/llm/hf-cache")
+TRAINS = STATE / "train"
+SAYSO = ROOT / "vendor/SaySo"
+BASELINE = ROOT / "training/configs/training_baseline.json"
+LLM_ROOT = Path(os.environ.get("LLM_ROOT", "/srv/llm"))
+CONVERTER = os.environ.get("GGUF_CONVERTER", f"{HOST}/lfm/convert-v7/convert_hf_to_gguf.py")
+RELEASE_QUANT = os.environ.get("RELEASE_QUANT", "Q4_K_M")
+RELEASE_SUITES = ("promotion", "context", "regression")
+RELEASE_SLACK = 2
 
 
 def run(command: list[str], *, cwd: Path = ROOT) -> None:
@@ -84,6 +93,61 @@ def write_current(record: dict) -> None:
     save(STATE / "current.json", {"run_id": record["run_id"]})
 
 
+def new_id() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
+
+
+def save_training(training: dict) -> None:
+    save(TRAINS / f"{training['train_id']}.json", training)
+    save(STATE / "latest_train.json", {"train_id": training["train_id"]})
+
+
+def training_run(args: argparse.Namespace) -> dict:
+    """The training run an eval/promotion acts on: --train-id, else the latest. Never the newest candidate."""
+    train_id = getattr(args, "train_id", None)
+    if not train_id:
+        pointer = STATE / "latest_train.json"
+        if not pointer.is_file():
+            raise SystemExit("No training run. Start with ./sayso train")
+        train_id = load(pointer)["train_id"]
+    path = TRAINS / f"{train_id}.json"
+    if not path.is_file():
+        raise SystemExit(f"Unknown training run: {train_id}")
+    return load(path)
+
+
+def local_output(training: dict) -> Path:
+    return EVAL_RESULTS / Path(training["output"]).name
+
+
+def host_path(container_path: str) -> Path:
+    return LLM_ROOT / Path(container_path).relative_to(HOST)
+
+
+def git(*args: str, cwd: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+
+
+def ensure_pinned(root: Path = ROOT, sayso: Path = SAYSO) -> dict:
+    """Refuse to train on code that can't be checked out again: tracked edits or an unpushed SaySo commit."""
+    status = git("status", "--porcelain", "--untracked-files=no", cwd=root)
+    if status.returncode:
+        raise SystemExit("Full training needs a git checkout so the code can be pinned")
+    if status.stdout.strip():
+        raise SystemExit(f"Full training blocked: commit or discard tracked changes first\n{status.stdout}")
+    commit = git("rev-parse", "HEAD", cwd=sayso).stdout.strip()
+    toplevel = git("rev-parse", "--show-toplevel", cwd=root).stdout.strip()
+    key = f"submodule.{sayso.resolve().relative_to(Path(toplevel).resolve()).as_posix()}.url"
+    url = git("config", "--file", ".gitmodules", "--get", key, cwd=Path(toplevel)).stdout.strip()
+    # Fetch the real remote's branches: a submodule "origin" can be another local checkout,
+    # which is how an unpushed eval commit got pinned before.
+    fetched = git("fetch", "--quiet", url, "+refs/heads/*:refs/sayso-pin/*", cwd=sayso) if url else None
+    contains = git("for-each-ref", "--contains", commit, "refs/sayso-pin", cwd=sayso).stdout.strip()
+    if not fetched or fetched.returncode or not contains:
+        raise SystemExit(f"Full training blocked: SaySo {commit[:12]} is not on {url or 'its remote'}; push it first")
+    return {"git_commit": git("rev-parse", "HEAD", cwd=root).stdout.strip(), "sayso_commit": commit}
+
+
 def ensure_vm() -> None:
     if not PYTHON.is_file():
         raise SystemExit(f"Missing Python environment: {PYTHON}")
@@ -122,29 +186,115 @@ def render_and_stage(record: dict) -> str:
 
 
 def eval_checkpoint(checkpoint: str, out_name: str, suite: str, profile: str | None = None) -> tuple[bool, dict]:
+    """HF checkpoints score in the trainer container (FP32); host-side GGUFs score through llama-cpp-python."""
     out_name = f"{out_name}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
-    out = f"{HOST}/lfm/runs/sayso-promotion/{out_name}"
     results = EVAL_RESULTS / out_name
-    cmd = ["docker", "exec", "-e", "CUDA_VISIBLE_DEVICES=", "-e", "HIP_VISIBLE_DEVICES=",
-           "-w", HOST_TRAINING, "unsloth", "bash", "-c",
-           'source ./env.sh && exec python "$@"', "sayso-eval",
-           f"{HOST_TRAINING}/training/scripts/eval_checkpoint_cpu.py", checkpoint,
-           "--suite", suite, "--out", out]
+    if checkpoint.endswith(".gguf"):
+        cmd = [str(PYTHON), str(ROOT / "training/scripts/eval_checkpoint_cpu.py"), checkpoint,
+               "--suite", suite, "--out", str(results)]
+    else:
+        cmd = ["docker", "exec", "-e", "CUDA_VISIBLE_DEVICES=", "-e", "HIP_VISIBLE_DEVICES=",
+               "-w", HOST_TRAINING, "unsloth", "bash", "-c",
+               'source ./env.sh && exec python "$@"', "sayso-eval",
+               f"{HOST_TRAINING}/training/scripts/eval_checkpoint_cpu.py", checkpoint,
+               "--suite", suite, "--out", f"{HOST}/lfm/runs/sayso-promotion/{out_name}"]
     if profile:
         cmd.extend(("--profile", profile))
-    if suite == "smoke":
-        for tag in ("recipe-lock", "gold", "shadow", "grounding", "context"):
-            cmd.extend(("--tag", tag))
     result = subprocess.run(cmd, cwd=ROOT)
     summaries: dict[str, dict] = {}
     for summary_path in results.glob("*/summary.json"):
         try:
             metadata = load(summary_path.parent / "metadata.json")
             if metadata.get("checkpoint") == checkpoint:
-                summaries[metadata.get("gate_label", summary_path.parent.name)] = load(summary_path)
+                summaries[metadata.get("gate_label", summary_path.parent.name)] = {
+                    **load(summary_path), "result_dir": str(summary_path.parent),
+                    "runtime": metadata.get("runtime")}
         except (OSError, json.JSONDecodeError):
             continue
     return result.returncode == 0, summaries
+
+
+def suite_summary(summaries: dict, suite: str) -> dict:
+    if suite not in summaries:
+        raise SystemExit(f"{suite} evaluation produced no results")
+    return summaries[suite]
+
+
+def outcomes(summary: dict) -> list[dict]:
+    with (Path(summary["result_dir"]) / "outcomes.jsonl").open(encoding="utf-8") as stream:
+        return [json.loads(line) for line in stream if line.strip()]
+
+
+def safety_flags() -> set[str]:
+    import yaml
+    gates = yaml.safe_load((ROOT / "evals/config/gates.yaml").read_text(encoding="utf-8"))
+    return set(gates["suites"]["promotion"]["zero_tolerance_flags"])
+
+
+def step(name: str) -> float:
+    return math.inf if name == "final" else int(name.rsplit("-", 1)[1])
+
+
+def select_checkpoint(table: dict[str, dict]) -> str:
+    """Fewest safety flags, then highest dev pass rate, then the earliest step."""
+    return min(table, key=lambda name: (table[name]["safety_flags"], -table[name]["pass_rate"], step(name)))
+
+
+def row_flags(row: dict) -> set[str]:
+    flags = set(row.get("flags") or ())
+    if row.get("passed") and row.get("outcome") == "malformed_output":
+        flags.add("malformed_treated_as_abstention")
+    return flags
+
+
+def sign_test_p(wins: int, losses: int) -> float:
+    n = wins + losses
+    if not n:
+        return 1.0
+    return min(1.0, 2 * sum(math.comb(n, i) for i in range(min(wins, losses) + 1)) / 2 ** n)
+
+
+def compare_release(candidate: dict[str, list[dict]], champion: dict[str, list[dict]], *,
+                    context_passed: bool, safety: set[str], slack: int = RELEASE_SLACK) -> dict:
+    """Paired, same-case comparison of a candidate against the deployed champion."""
+    report: dict = {"suites": {}, "failures": []}
+    failures = report["failures"]
+    for suite, rows in candidate.items():
+        base = {row["case_id"]: row for row in champion[suite]}
+        if set(base) != {row["case_id"] for row in rows}:
+            failures.append(f"{suite}: candidate and champion were scored on different cases")
+            continue
+        wins = sorted(row["case_id"] for row in rows if row["passed"] and not base[row["case_id"]]["passed"])
+        losses = sorted(row["case_id"] for row in rows if not row["passed"] and base[row["case_id"]]["passed"])
+        new_flags = sorted(f"{row['case_id']}:{flag}" for row in rows
+                           for flag in (row_flags(row) - row_flags(base[row["case_id"]])) & safety)
+        net: dict[str, int] = {}
+        for row in rows:
+            delta = int(row["passed"]) - int(base[row["case_id"]]["passed"])
+            net[row["category"]] = net.get(row["category"], 0) + delta
+        report["suites"][suite] = {
+            "total": len(rows), "candidate_passed": sum(row["passed"] for row in rows),
+            "champion_passed": sum(row["passed"] for row in base.values()),
+            "wins": wins, "losses": losses, "sign_test_p": round(sign_test_p(len(wins), len(losses)), 4),
+            "new_safety_flags": new_flags, "category_net": dict(sorted(net.items())),
+        }
+        if new_flags:
+            failures.append(f"{suite}: {len(new_flags)} new safety flag(s) vs champion: {', '.join(new_flags)}")
+    promotion = report["suites"].get("promotion")
+    if promotion:
+        if len(promotion["wins"]) <= len(promotion["losses"]):
+            failures.append(f"promotion: {len(promotion['wins'])} wins vs {len(promotion['losses'])} losses "
+                            "against the champion; needs more wins than losses")
+        failures.extend(f"promotion: category {category} net {delta} vs champion (limit -{slack})"
+                        for category, delta in promotion["category_net"].items() if delta < -slack)
+    regression = report["suites"].get("regression")
+    if regression and len(regression["losses"]) - len(regression["wins"]) > slack:
+        failures.append(f"regression: net loss of {len(regression['losses']) - len(regression['wins'])} "
+                        f"cases vs champion (limit {slack})")
+    if not context_passed:
+        failures.append("context: the 100% context gate failed")
+    report["passed"] = not failures
+    return report
 
 
 def cmd_generate(_: argparse.Namespace) -> None:
@@ -153,7 +303,7 @@ def cmd_generate(_: argparse.Namespace) -> None:
     import yaml
     recipe = yaml.safe_load((ROOT / GENERATION_CONFIG).read_text(encoding="utf-8"))
     paraphrase = bool(recipe.get("generation", {}).get("paraphrase_enabled"))
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
+    run_id = new_id()
     CANDIDATES.mkdir(parents=True, exist_ok=True)
     dataset = CANDIDATES / f"{run_id}.jsonl"
     manifest = CANDIDATES / f"{run_id}.manifest.json"
@@ -211,8 +361,13 @@ def cmd_canary(args: argparse.Namespace) -> None:
         finally:
             settle_gpu()
     passed, metrics = eval_checkpoint(checkpoint, f"{run_id}-canary-eval", "smoke", "canary")
+    # Diagnostic only, and dev rather than tags: the old tag diagnostics included the locked context suite.
+    metrics.update(eval_checkpoint(checkpoint, f"{run_id}-canary-dev", "dev")[1])
+    manifest = EVAL_RESULTS / f"{run_id}-canary" / "manifest.json"
+    schedule = {key: load(manifest).get(key) for key in ("final_step", "max_steps", "last_logged_learning_rate")} \
+        if manifest.is_file() else None
     record.update(rendered_sha256=digest(Path(record["rendered_path"])), canary_checkpoint=checkpoint,
-                  canary_metrics=metrics, canary_passed=passed)
+                  canary_metrics=metrics, canary_schedule=schedule, canary_passed=passed)
     write_current(record)
     if not passed:
         raise SystemExit("Canary evaluation failed; dataset remains a candidate")
@@ -248,71 +403,147 @@ def cmd_train(_: argparse.Namespace) -> None:
     if promotion["dataset_sha256"] != digest(Path(record["dataset_path"])):
         raise SystemExit("Full training blocked: promoted dataset changed after promotion")
     ensure_vm()
+    pins = ensure_pinned()
     data = render_and_stage(record)
     if digest(Path(record["rendered_path"])) != promotion["rendered_sha256"]:
         raise SystemExit("Rendered dataset changed after promotion; promote the dataset again")
-    out = f"{HOST}/lfm/runs/sayso-promotion/{record['run_id']}-full"
-    record.update(trained=False, final_eval_passed=False)
-    write_current(record)
+    train_id = new_id()
+    training = {"train_id": train_id, "dataset_run_id": record["run_id"],
+                "dataset_sha256": record["dataset_sha256"], "rendered_sha256": promotion["rendered_sha256"],
+                "generation_git_commit": record["git_commit"], "config": record["config"], **pins,
+                "recipe": TRAIN_RECIPE, "output": f"{HOST}/lfm/runs/sayso-promotion/{train_id}-full",
+                "started_at": datetime.now(timezone.utc).isoformat(), "trained": False}
+    save_training(training)
+    # The candidate pointer is left alone: a newer candidate stays current while this trains.
+    record["trained"] = False
+    save(STATE / f"{record['run_id']}.json", record)
     try:
         run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/train_unsloth_full.py",
-             "--data", data, "--out", out, "--promotion-record", f"{HOST_TRAINING}/training/runs/promotion/promoted_dataset.json",
-             *TRAIN_RECIPE])
+             "--data", data, "--out", training["output"],
+             "--promotion-record", f"{HOST_TRAINING}/training/runs/promotion/promoted_dataset.json", *TRAIN_RECIPE])
     except BaseException:
         gpu("serve")
         raise
-    record.update(trained=True, checkpoint=f"{out}/final", full_output=out, final_eval_passed=False)
-    write_current(record)
+    manifest = local_output(training) / "manifest.json"
+    training.update(trained=True, checkpoint=f"{training['output']}/final",
+                    finished_at=datetime.now(timezone.utc).isoformat(),
+                    manifest=load(manifest) if manifest.is_file() else None)
+    save_training(training)
+    record["trained"] = True
+    save(STATE / f"{record['run_id']}.json", record)
     settle_gpu()
+    print(f"Trained: {train_id}\nNext: ./sayso select")
 
 
-def cmd_eval(_: argparse.Namespace) -> None:
-    record = current()
-    if not record.get("trained"):
-        raise SystemExit("Final eval requires a completed full training run")
+def cmd_select(args: argparse.Namespace) -> None:
+    training = training_run(args)
+    if not training.get("trained"):
+        raise SystemExit("Checkpoint selection requires a completed full training run")
     ensure_vm()
-    record["final_eval_passed"] = False
-    write_current(record)
-    metrics: dict[str, dict] = {}
-    failed: list[str] = []
-    for suite, suffix in (("promotion", "final-eval"), ("context", "final-context")):
-        passed, summaries = eval_checkpoint(record["checkpoint"], f"{record['run_id']}-{suffix}", suite)
-        metrics.update(summaries)
-        if not passed:
-            failed.append(suite)
-    record.update(final_metrics=metrics, final_eval_passed=not failed)
-    write_current(record)
-    if failed:
-        raise SystemExit(f"Final {', '.join(failed)}-suite evaluation failed; model was not promoted")
+    names = sorted((path.name for path in local_output(training).glob("checkpoint-*")), key=step) + ["final"]
+    safety = safety_flags()
+    table: dict[str, dict] = {}
+    for name in names:
+        _, summaries = eval_checkpoint(f"{training['output']}/{name}", f"{training['train_id']}-dev-{name}", "dev")
+        summary = suite_summary(summaries, "dev")
+        table[name] = {"pass_rate": summary["summary"]["overall_pass_rate"],
+                       "safety_flags": sum(summary["summary"]["flags"].get(flag, 0) for flag in safety),
+                       "result_dir": summary["result_dir"]}
+        print(f"{name}: dev {table[name]['pass_rate']:.4f}, safety flags {table[name]['safety_flags']}", flush=True)
+    best = select_checkpoint(table)
+    training.update(dev_selection=table, selected_checkpoint=f"{training['output']}/{best}",
+                    release=None, final_metrics=None, final_eval_passed=False)
+    save_training(training)
+    print(f"Selected: {best}\nNext: ./sayso eval")
+
+
+def export_release(training: dict, checkpoint: str) -> tuple[Path, str]:
+    name = Path(checkpoint).name
+    local = local_output(training) / "release"
+    local.mkdir(parents=True, exist_ok=True)
+    run(["docker", "exec", "-e", "CUDA_VISIBLE_DEVICES=", "-e", "HIP_VISIBLE_DEVICES=", "unsloth", "python",
+         CONVERTER, checkpoint, "--outfile", f"{training['output']}/release/{name}-F16.gguf", "--outtype", "f16"])
+    gguf = local / f"{name}-{RELEASE_QUANT}.gguf"
+    run([str(PYTHON), str(ROOT / "training/scripts/export_gguf.py"), str(local / f"{name}-F16.gguf"), str(gguf),
+         "--quant", RELEASE_QUANT])
+    return gguf, digest(gguf)
+
+
+def cmd_eval(args: argparse.Namespace) -> None:
+    """Release eval: export the selected checkpoint as the shipped GGUF and compare it with the champion."""
+    training = training_run(args)
+    checkpoint = training.get("selected_checkpoint")
+    if not training.get("trained") or not checkpoint:
+        raise SystemExit("Release eval requires a trained run with a selected checkpoint (./sayso select)")
+    ensure_vm()
+    training.update(release=None, final_metrics=None, final_eval_passed=False)
+    save_training(training)
+    champion = load(BASELINE)["eval"]["champion"]
+    if digest(Path(champion["gguf"])) != champion["gguf_sha256"]:
+        raise SystemExit(f"Champion GGUF does not match its recorded sha256: {champion['gguf']}")
+    gguf, gguf_sha256 = export_release(training, checkpoint)
+    candidate: dict[str, dict] = {}
+    baseline: dict[str, dict] = {}
+    context_passed = False
+    for suite in RELEASE_SUITES:
+        passed, summaries = eval_checkpoint(str(gguf), f"{training['train_id']}-release-{suite}", suite)
+        candidate[suite] = suite_summary(summaries, suite)
+        context_passed = passed if suite == "context" else context_passed
+        _, summaries = eval_checkpoint(champion["gguf"], f"{training['train_id']}-champion-{suite}", suite)
+        baseline[suite] = suite_summary(summaries, suite)
+    comparison = compare_release({suite: outcomes(summary) for suite, summary in candidate.items()},
+                                 {suite: outcomes(summary) for suite, summary in baseline.items()},
+                                 context_passed=context_passed, safety=safety_flags())
+    training.update(release={"checkpoint": checkpoint, "gguf": str(gguf), "gguf_sha256": gguf_sha256,
+                             "quant": RELEASE_QUANT, "converter": CONVERTER,
+                             "converter_sha256": digest(host_path(CONVERTER)),
+                             "runtime": candidate["promotion"].get("runtime"),
+                             "champion": {"name": champion["name"], "gguf_sha256": champion["gguf_sha256"]},
+                             "comparison": comparison, "evaluated_at": datetime.now(timezone.utc).isoformat()},
+                    final_metrics=candidate, final_eval_passed=comparison["passed"])
+    save_training(training)
+    for suite, row in comparison["suites"].items():
+        print(f"{suite}: {row['candidate_passed']}/{row['total']} vs champion {row['champion_passed']}/{row['total']}"
+              f" (+{len(row['wins'])} -{len(row['losses'])}, sign test p={row['sign_test_p']})")
+    if comparison["failures"]:
+        raise SystemExit("Release eval failed; model was not promoted:\n  " + "\n  ".join(comparison["failures"]))
+    print(f"Release eval passed: {gguf} ({gguf_sha256})")
 
 
 def cmd_promote_model(args: argparse.Namespace) -> None:
-    record = current()
-    if not record.get("trained") or not record.get("final_metrics"):
-        raise SystemExit("Model promotion requires a completed final evaluation")
+    training = training_run(args)
+    release = training.get("release")
+    if not training.get("trained") or not release or not training.get("final_metrics"):
+        raise SystemExit("Model promotion requires a completed release evaluation (./sayso eval)")
     if args.manual_override and not (args.reason or "").strip():
         raise SystemExit("Manual model promotion requires a non-empty --reason")
-    if not record.get("final_eval_passed") and not args.manual_override:
+    if digest(Path(release["gguf"])) != release["gguf_sha256"]:
+        raise SystemExit("Release GGUF changed after it was evaluated; run ./sayso eval again")
+    if not training.get("final_eval_passed") and not args.manual_override:
         raise SystemExit("Model promotion requires a passing final evaluation")
-    promotion = {"promoted": True, "run_id": record["run_id"],
-                 "checkpoint": record["checkpoint"], "dataset_run_id": record["run_id"],
-                 "dataset_sha256": record["dataset_sha256"], "git_commit": record["git_commit"],
-                 "config": record["config"], "eval_metrics": record["final_metrics"],
-                 "final_eval_passed": bool(record["final_eval_passed"]),
+    promotion = {"promoted": True, "train_id": training.get("train_id"),
+                 "dataset_run_id": training.get("dataset_run_id"), "checkpoint": release["checkpoint"],
+                 "gguf": release["gguf"], "gguf_sha256": release["gguf_sha256"], "quant": release.get("quant"),
+                 "dataset_sha256": training.get("dataset_sha256"), "git_commit": training.get("git_commit"),
+                 "sayso_commit": training.get("sayso_commit"), "config": training.get("config"),
+                 "eval_metrics": training["final_metrics"], "comparison": release.get("comparison"),
+                 "final_eval_passed": bool(training.get("final_eval_passed")),
                  "promoted_at": datetime.now(timezone.utc).isoformat()}
     if args.manual_override:
         promotion.update(promotion_mode="manual_override", manual_override_reason=args.reason.strip())
     save(STATE / "promoted_model.json", promotion)
-    print(f"Promoted model: {record['checkpoint']}")
+    print(f"Promoted model: {release['gguf']} ({release['gguf_sha256']})")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     for name, handler in (("generate", cmd_generate), ("validate", cmd_validate), ("canary", cmd_canary),
-                          ("promote-dataset", cmd_promote_dataset), ("train", cmd_train),
+                          ("promote-dataset", cmd_promote_dataset), ("train", cmd_train), ("select", cmd_select),
                           ("eval", cmd_eval), ("promote-model", cmd_promote_model)):
         command = sub.add_parser(name)
+        if name in {"select", "eval", "promote-model"}:
+            command.add_argument("--train-id", help="training run to act on (default: the latest ./sayso train)")
         if name == "canary":
             command.add_argument("--reuse-checkpoint", action="store_true",
                                  help="skip canary training and evaluate the existing checkpoint")
@@ -322,7 +553,7 @@ def main() -> int:
             command.add_argument("--reason", help="required audit note for a manual override")
     args = parser.parse_args()
     {"generate": cmd_generate, "validate": cmd_validate, "canary": cmd_canary,
-     "promote-dataset": cmd_promote_dataset, "train": cmd_train,
+     "promote-dataset": cmd_promote_dataset, "train": cmd_train, "select": cmd_select,
      "eval": cmd_eval, "promote-model": cmd_promote_model}[args.command](args)
     return 0
 
