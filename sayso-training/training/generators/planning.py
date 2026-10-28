@@ -25,11 +25,25 @@ PRIMARY_FAMILIES = (
     "aliases",
 )
 
+TIMER_CONTEXT_VARIANTS = ("bare_command", "ambiguous_timers", "correction", "missing_timer")
+RELATIVE_BRIGHTNESS_VARIANTS = ("read_first", "set_from_context")
+CONVERSATION_CONTEXT_VARIANTS = ("previous_turn_reference", "other_one", "target_correction")
+CONDITIONAL_VARIANTS = ("read_first", "condition_holds", "condition_fails")
+# Restore only has a previous value to return to for these operations; the operation names key the
+# level argument that the history change and the restore call both use.
+RESTORE_OPERATIONS = (("lights", "set_brightness"), ("media_players", "volume_set"))
+
 REAL_HOME_EXCLUDED_FAMILIES = frozenset({
     "unavailable",
     "unsupported",
     "datetime",
     "area",
+    "timer_context",
+    "relative_brightness",
+    "conversation_context",
+    "restore",
+    "conditional",
+    "contrast",
 })
 
 REAL_HOME_REFUSAL_FAMILIES = frozenset({"absence", "junk"})
@@ -52,6 +66,12 @@ FAMILY_ROBUSTNESS: dict[str, str] = {
     "unsupported": "unsupported",
     "aliases": "alias_distractor",
     "junk": "ambiguity",
+    "timer_context": "ambiguity",
+    "relative_brightness": "ordinary",
+    "conversation_context": "ambiguity",
+    "restore": "ordinary",
+    "conditional": "ordinary",
+    "contrast": "ambiguity",
 }
 
 SETTINGS_OPERATIONS = frozenset({
@@ -76,6 +96,15 @@ AMBIGUOUS_SETTINGS_SHARE = 0.5
 
 SUBSTITUTION_PRONE_OPERATIONS = AMBIGUOUS_SETTINGS
 SUBSTITUTION_PRONE_SHARE = 0.5
+# Blocked operations with a refusal phrasing in scenarios/unavailable.py have no tool to withhold, so
+# they are a no-tool refusal: the unsupported family draws them at this share (response "unsupported",
+# no unavailable_tools) instead of the unavailable family, whose contract is a withheld tool.
+BLOCKED_REQUEST_OPERATIONS = (
+    ("media_players", "navigate"),
+    ("media_players", "launch_app"),
+    ("covers", "set_position"),
+)
+BLOCKED_REQUEST_SHARE = 0.12
 
 
 @dataclass
@@ -151,6 +180,24 @@ def _pick_capability_operation(
 ) -> tuple[str, str, int]:
     if family == "datetime":
         return "datetime", "query_time", 0
+    if family == "timer_context":
+        return "timers", rng.choice(TIMER_CONTEXT_VARIANTS), CAPABILITIES["timers"].tier
+    if family == "relative_brightness":
+        return "lights", rng.choice(RELATIVE_BRIGHTNESS_VARIANTS), CAPABILITIES["lights"].tier
+    if family == "conversation_context":
+        cap_name = rng.choice(["lights", "switches"])
+        return cap_name, rng.choice(CONVERSATION_CONTEXT_VARIANTS), CAPABILITIES[cap_name].tier
+    if family == "restore":
+        cap_name, operation = rng.choice(RESTORE_OPERATIONS)
+        return cap_name, operation, CAPABILITIES[cap_name].tier
+    if family == "conditional":
+        cap_name = rng.choice(["lights", "switches", "fans"])
+        return cap_name, rng.choice(CONDITIONAL_VARIANTS), CAPABILITIES[cap_name].tier
+    if family == "contrast":
+        from generators.grounding import CONTRAST_OPERATIONS
+
+        cap_name = rng.choice(sorted(CONTRAST_OPERATIONS))
+        return cap_name, rng.choice(CONTRAST_OPERATIONS[cap_name]), CAPABILITIES[cap_name].tier
     if family == "status":
         candidates = [
             (cap_name, "query_state", CAPABILITIES[cap_name].tier)
@@ -195,7 +242,10 @@ def _pick_capability_operation(
     if family == "absence":
         return rng.choice(["lights", "fans", "media_players"]), "turn_on", 1
     if family == "unsupported":
-        cap_name, operation = rng.choice(_UNDERPOWERED_OPERATIONS)
+        if rng.random() < BLOCKED_REQUEST_SHARE:
+            cap_name, operation = rng.choice(BLOCKED_REQUEST_OPERATIONS)
+        else:
+            cap_name, operation = rng.choice(_UNDERPOWERED_OPERATIONS)
         return cap_name, operation, CAPABILITIES[cap_name].tier
     if family == "aliases":
         rng.choice(["lights", "fans", "switches"])
@@ -450,7 +500,7 @@ def build_plan(
             )
         index += need
     rng.shuffle(slots)
-    for i, slot in enumerate(slots):
+    for i, slot in enumerate(sorted(slots, key=lambda item: item.family != "contrast")):
         slot.index = i
     if len(slots) != count:
         raise ValueError(f"planned {len(slots)} slots, expected {count}")
@@ -494,6 +544,7 @@ def _reserve_tool_floors(
     }
     for pool in donors.values():
         rng.shuffle(pool)
+    donor_slots = {family: len(pool) for family, pool in donors.items()}
     need_op, need_tool = int(op_floor * _FLOOR_HEADROOM), int(tool_floor * _FLOOR_HEADROOM)
 
     def move(family: str, target: tuple[str, str, int]) -> bool:
@@ -523,6 +574,26 @@ def _reserve_tool_floors(
         targets = [t for t in targets if family_of(t[1]) == family]
         while tool_have[tool] < need_tool and move(family, rng.choice(targets)):
             pass
+    # Donors are only ordinary/settings slots, so a floor the pool cannot reach is an allocation problem:
+    # fail here with the numbers rather than in the audit after the full generation run.
+    short_tools = {
+        tool: tool_have[tool]
+        for tool in by_tool
+        if tool_have[tool] < tool_floor
+    }
+    short_ops = {
+        key: op_have[key]
+        for key in {target[:2] for target in ops}
+        if op_have[key] < op_floor
+    }
+    if short_tools or short_ops:
+        raise ValueError(
+            f"min_positive_per_tool={tool_floor} / min_positive_per_operation={op_floor} cannot be "
+            f"reserved: ordinary/settings donors ran out. Short tools (carriers): {dict(sorted(short_tools.items()))}; "
+            f"short operations (carriers): {dict(sorted(short_ops.items(), key=str))}; "
+            f"donor slots available: {donor_slots}. Raise the ordinary allocation so the "
+            "donor pool covers the tool floors."
+        )
 
 
 def _mark_grounding_slots(

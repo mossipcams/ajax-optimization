@@ -181,10 +181,19 @@ def build_set_volume(entity: dict[str, Any], rng: random.Random) -> dict[str, An
     return {"name": "HassSetVolume", "arguments": args}
 
 
-def build_volume_relative(entity: dict[str, Any], *, direction: str = "up") -> dict[str, Any]:
+def build_volume_relative(entity: dict[str, Any], *, direction: str = "up", rng: random.Random | None = None) -> dict[str, Any]:
+    if rng is None:
+        volume_step: int | str = direction
+    else:
+        local = random.Random(f"volstep:{rng.getstate()!r}:{entity.get('name', '')}:{direction}")
+        if local.random() < 0.4:
+            magnitude = local.choice((5, 10, 15, 20, 25, 30))
+            volume_step = -magnitude if direction == "down" else magnitude
+        else:
+            volume_step = direction
     return {
         "name": "HassSetVolumeRelative",
-        "arguments": {"name": entity["name"], "volume_step": direction},
+        "arguments": {"name": entity["name"], "volume_step": volume_step},
     }
 
 
@@ -302,9 +311,13 @@ def build_cancel_timer(*, name: str | None = None) -> dict[str, Any]:
 
 
 def build_adjust_timer(rng: random.Random, *, direction: str, name: str | None = None) -> dict[str, Any]:
-    args: dict[str, Any] = (
-        {"seconds": rng.choice((10, 15, 30, 45))} if rng.random() < 0.25 else {"minutes": rng.choice((1, 2, 5, 10, 15))}
-    )
+    roll = rng.random()
+    if roll < 0.25:
+        args: dict[str, Any] = {"seconds": rng.choice((10, 15, 30, 45))}
+    elif roll < 0.90:
+        args = {"minutes": rng.choice((1, 2, 5, 10, 15))}
+    else:
+        args = {"hours": rng.choice((1, 2))}
     if name:
         args["name"] = name
     tool = "HassIncreaseTimer" if direction == "increase" else "HassDecreaseTimer"
@@ -412,8 +425,8 @@ _ENTITY_CALLS: dict[str, Callable[[dict[str, Any], random.Random], dict[str, Any
     "play": lambda entity, _rng: build_media_unpause(entity),
     "pause": lambda entity, _rng: build_media_pause(entity),
     "volume_set": build_set_volume,
-    "volume_up": lambda entity, _rng: build_volume_relative(entity, direction="up"),
-    "volume_down": lambda entity, _rng: build_volume_relative(entity, direction="down"),
+    "volume_up": lambda entity, rng: build_volume_relative(entity, direction="up", rng=rng),
+    "volume_down": lambda entity, rng: build_volume_relative(entity, direction="down", rng=rng),
     "mute": lambda entity, _rng: build_media_mute(entity),
     "unmute": lambda entity, _rng: build_media_unmute(entity),
     "next_track": lambda entity, _rng: build_media_next(entity),

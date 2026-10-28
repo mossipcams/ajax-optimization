@@ -19,6 +19,8 @@ DEFAULT_MAX_ATTEMPTS_MULTIPLIER = 20
 DEFAULT_NEAR_DUPLICATE_LIMIT = 8
 DEFAULT_TOKENIZER = "LiquidAI/LFM2.5-230M-Base"
 
+PAIR_KINDS = ("withheld_tool",)
+
 
 def default_allocations() -> dict[str, float]:
     return {family: 1.0 / len(PRIMARY_FAMILIES) for family in PRIMARY_FAMILIES}
@@ -64,6 +66,7 @@ class GeneratorConfig:
     real_home_rate: float = 0.0
     real_home_entity_cap: int = 0
     synthetic_only: bool = False
+    pair_rates: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.synthetic_only:
@@ -79,6 +82,11 @@ class GeneratorConfig:
             value = getattr(self, name)
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{name} must be within [0, 1], got {value}")
+        for name, rate in self.pair_rates.items():
+            if name not in PAIR_KINDS:
+                raise ValueError(f"unknown pair kind {name!r}, expected one of {PAIR_KINDS}")
+            if not 0.0 <= rate <= 1.0:
+                raise ValueError(f"pair_rates[{name!r}] must be within [0, 1], got {rate}")
         if self.grounding_rate + self.discrimination_rate > 1.0:
             raise ValueError(
                 "grounding_rate + discrimination_rate must be <= 1, "
@@ -162,6 +170,7 @@ class GeneratorConfig:
             real_home_rate=float(real.get("rate", 0.0)),
             real_home_entity_cap=int(real.get("entity_cap", 0)),
             synthetic_only=bool(gen.get("synthetic_only", True)),
+            pair_rates={str(k): float(v) for k, v in (raw.get("pairs") or {}).items()},
         )
 
     def recipe_hash(self) -> str:
@@ -170,7 +179,7 @@ class GeneratorConfig:
         return hashlib.sha256(repr(self.to_dict()).encode()).hexdigest()
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "count": self.count,
             "seed": self.seed,
             "split": self.split,
@@ -201,3 +210,6 @@ class GeneratorConfig:
             "real_home_entity_cap": self.real_home_entity_cap,
             "synthetic_only": self.synthetic_only,
         }
+        if self.pair_rates:
+            data["pair_rates"] = self.pair_rates
+        return data

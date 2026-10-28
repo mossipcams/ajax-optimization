@@ -9,11 +9,15 @@ from generators.homes import _ENTITY_TEMPLATES, make_entity
 from generators.tools import build_call_for_operation
 from generators.utterances import request_seed_from_spec
 
-_UNAVAILABLE_REQUESTS: dict[tuple[str, str], str] = {
+_UNAVAILABLE_REQUESTS: dict[tuple[str, str], str | tuple[str, ...]] = {
     ("lawn_mowers", "control"): "start mowing the lawn with {name}",
     ("todo_lists", "control"): "add milk to {name}",
     ("buttons", "control"): "press {name}",
-    ("covers", "set_position"): "set {name} to 40 percent open",
+    ("covers", "set_position"): (
+        "set {name} to 40 percent open", "set {name} halfway", "set {name} to 30 percent",
+    ),
+    ("media_players", "navigate"): ("go home on {name}", "press back on {name}"),
+    ("media_players", "launch_app"): ("open Netflix on {name}", "open YouTube on {name}"),
     ("scripts", "query_state"): "what is the status of {name}",
 }
 
@@ -36,6 +40,8 @@ def unique_no_action_hint(spec: dict[str, Any], rng: random.Random) -> str:
         )
     template = _UNAVAILABLE_REQUESTS.get((capability, operation))
     if template:
+        if isinstance(template, tuple):
+            template = rng.choice(template)
         spec["linguistics"] = [{"source": "sayso_fallback", "intent": f"{capability}.{operation}"}]
         return template.format(name=entity["name"] if entity else "it")
     call = build_call_for_operation(entity, capability, operation, rng, area=area)

@@ -13,6 +13,7 @@ from generators.capability_registry import (
     CapabilitySpec,
     SupportLevel,
     entities_supporting,
+    is_satellite,
     operation_spec,
     required_features,
     trainable_operations,
@@ -264,6 +265,29 @@ _FAMILY_GRAPH_CONSTRAINTS = frozenset({
 })
 
 
+_SATELLITE_CONTRAST_OPERATIONS = frozenset({"volume_set", "volume_up", "volume_down"})
+
+_TIMER_PAIR_RATE = 0.2
+
+
+def _is_timer_pair(index: int, seed: int) -> bool:
+    # Own RNG so choosing a timer pair leaves the existing multi_action draws untouched.
+    pair_rng = random.Random(zlib.crc32(f"timer-pair:{index}:{seed}".encode()))
+    return pair_rng.random() < _TIMER_PAIR_RATE
+
+
+def _satellite_contrast_pair(
+    cap_entities: list[dict[str, Any]], capability: str, operation: str
+) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    if capability != "media_players" or operation not in _SATELLITE_CONTRAST_OPERATIONS:
+        return None
+    satellite = next((e for e in cap_entities if is_satellite(e)), None)
+    tv = next((e for e in cap_entities if not is_satellite(e)), None)
+    if satellite is None or tv is None:
+        return None
+    return satellite, tv
+
+
 def pick_target(
     cap_entities: list[dict[str, Any]], index: int, usage: Counter[str] | None
 ) -> dict[str, Any]:
@@ -410,7 +434,17 @@ def build_scenario(
     }
     if robustness == "exclusion" and len(cap_entities) >= 2:
         in_area = [e for e in cap_entities if e["area"] == home["sayso_entity_area"]]
-        if len(in_area) >= 3 and rng.random() < 0.6:
+        pair = _satellite_contrast_pair(cap_entities, capability, operation)
+        if pair is not None and rng.random() < 0.5:
+            target, other = pair if rng.random() < 0.5 else pair[::-1]
+            scenario["target_entities"] = [target]
+            scenario["target_entity"] = target
+            scenario["target_index"] = next(i for i, e in enumerate(cap_entities) if e is target)
+            scenario["area"] = target["area"]
+            scenario["floor"] = target["floor"]
+            scenario["excluded_names"] = [other["name"]]
+            scenario["targeting"] = "multiple"
+        elif len(in_area) >= 3 and rng.random() < 0.6:
             top = max(_near_miss_score(entity, in_area) for entity in in_area)
             kept = rng.choice([e for e in in_area if _near_miss_score(e, in_area) == top])
             scenario["target_entities"] = [e for e in in_area if e is not kept]
@@ -421,10 +455,14 @@ def build_scenario(
             scenario["target_entities"] = cap_entities[:2]
             scenario["excluded_names"] = [cap_entities[2]["name"]] if len(cap_entities) > 2 else []
     if robustness == "multi_action" and len(cap_entities) >= 2:
-        others = [e for e in home["entities"]
-                  if capability != "scripts" and e["capability"] != capability
-                  and trainable_operations(CAPABILITIES[e["capability"]])]
-        scenario["target_entities"] = [target_entity, rng.choice(others)] if others else cap_entities[:2]
+        if _is_timer_pair(index, seed):
+            scenario["target_entities"] = [target_entity]
+            scenario["timer_companion"] = True
+        else:
+            others = [e for e in home["entities"]
+                      if capability != "scripts" and e["capability"] != capability
+                      and trainable_operations(CAPABILITIES[e["capability"]])]
+            scenario["target_entities"] = [target_entity, rng.choice(others)] if others else cap_entities[:2]
         scenario["targeting"] = "multiple"
     scenario["expected"] = gold_from_scenario(scenario, rng)
     if robustness == "alias_distractor" and target_entity:

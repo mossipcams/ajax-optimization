@@ -1,16 +1,22 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import math
 import re
 import sys
+from collections import Counter, defaultdict
 from functools import lru_cache
 from typing import Any
 from pathlib import Path
 
+import yaml
+
 from adapters.schema import tool_schema_map, validate_tool_arguments, v2_openai_tools
-from generators.tools import script_tool_name
-from generators.capability_registry import CAPABILITIES, SupportLevel, entity_supports
+from generators.context import STATIC_CONTEXT_HEADER
+from generators.tools import HA_TOOL_NAMESPACES, namespaced_tool_name, script_tool_name
+from generators.capability_registry import CAPABILITIES, SupportLevel, entity_supports, is_satellite_name
 from generators.config import DEFAULT_TOKEN_BUDGET
 from generators.gold import _type_label
 from generators.stt_noise import _int_to_words, utterance_contains_target
@@ -69,7 +75,48 @@ def _entity_can_run(entity: dict[str, Any], tool: str) -> bool:
     return any(entity_supports(entity, capability, op.name) for op in candidates)
 
 
+def _is_satellite_name(name: str) -> bool:
+    return is_satellite_name(name)
+
+
+def is_satellite_contrast(call_names: list[str], excluded: list[str]) -> bool:
+    if len(call_names) != 1 or len(excluded) != 1:
+        return False
+    return _is_satellite_name(call_names[0]) != _is_satellite_name(excluded[0])
+
+
+def satellite_contrast_spoken(utterance: str, call_names: list[str], excluded: list[str]) -> bool:
+    if not is_satellite_contrast(call_names, excluded):
+        return False
+    lowered = utterance.casefold()
+    if _is_satellite_name(excluded[0]):
+        return lowered.endswith(", not you")
+    return lowered.endswith(f", not the {excluded[0].casefold()}")
+
+
+def shared_alias_action_conflict(spec: dict[str, Any]) -> bool:
+    if (spec.get("expected") or {}).get("kind") != "action":
+        return False
+    text = (spec.get("utterance") or "").casefold()
+    entities = (spec.get("home") or {}).get("entities") or []
+    for entity in entities:
+        for alias in entity.get("aliases") or []:
+            needle = alias.casefold()
+            if not re.search(rf"\b{re.escape(needle)}\b", text):
+                continue
+            if any(
+                other is not entity
+                and other.get("area") == entity.get("area")
+                and needle in {name.casefold() for name in other.get("aliases") or []}
+                for other in entities
+            ):
+                return True
+    return False
+
+
 def validate_spec(spec: dict[str, Any]) -> str | None:
+    if spec.get("shared_alias") and shared_alias_action_conflict(spec):
+        return "shared_alias_action"
     expected = spec.get("expected") or {}
     calls = expected.get("calls") or []
     if expected.get("kind") == "no_action" and calls:
@@ -99,6 +146,8 @@ def validate_spec(spec: dict[str, Any]) -> str | None:
                     return "contradictory_device_support"
     if any(call.get("name") == "GetLiveContext" for call in calls) and expected.get("kind") != "status":
         return "state_query_requires_status_label"
+    if expected.get("kind") == "status" and not any(call.get("name") == "GetLiveContext" for call in calls):
+        return "status_requires_state_query"
     entities = {entity["name"]: entity for entity in spec.get("home", {}).get("entities", [])}
     if expected.get("response") == "area_unavailable":
         unavailable = expected.get("unavailable") or {}
@@ -110,7 +159,9 @@ def validate_spec(spec: dict[str, Any]) -> str | None:
             for e in entities.values()
         ):
             return "contradictory_absence"
-    if spec.get("category") in {"multi_action", "exclusion"} and len(calls) < 2:
+    call_names = [str((call.get("arguments") or {}).get("name") or "") for call in calls]
+    contrast = is_satellite_contrast(call_names, spec.get("excluded_names") or [])
+    if spec.get("category") in {"multi_action", "exclusion"} and len(calls) < 2 and not contrast:
         return "missing_multiple_actions"
     if spec.get("category") == "exclusion" and not spec.get("excluded_names"):
         return "missing_excluded_target"
@@ -204,6 +255,8 @@ def validate_utterance(spec: dict[str, Any]) -> str | None:
                     continue
                 if key in {"hours", "minutes", "seconds"} and value == 0:
                     continue
+                if key == "volume_step":
+                    value = abs(value)
                 spellings = [str(value)]
                 if float(value).is_integer():
                     spellings.append(str(int(value)))
@@ -231,6 +284,8 @@ def validate_utterance(spec: dict[str, Any]) -> str | None:
             }
         ):
             for name in spec.get("target_names") or []:
+                if _is_satellite_name(name):
+                    continue
                 spoken = spec.get("spoken_targets", {}).get(name, name).casefold()
                 if (
                     spoken not in lowered
@@ -242,9 +297,11 @@ def validate_utterance(spec: dict[str, Any]) -> str | None:
                         if spec.get("discrimination"):
                             continue
                         return "missing_expected_target"
-        for name in spec.get("excluded_names") or []:
-            if "leave" not in lowered or name.casefold() not in lowered:
-                return "missing_exclusion"
+        excluded = spec.get("excluded_names") or []
+        if not satellite_contrast_spoken(utterance, [
+            str((call.get("arguments") or {}).get("name") or "") for call in calls
+        ], excluded) and any("leave" not in lowered or name.casefold() not in lowered for name in excluded):
+            return "missing_exclusion"
     if expected.get("kind") == "status" and not _STATUS_QUERY.search(lowered):
         return "status_not_query"
     return None
@@ -373,3 +430,195 @@ def validate_serialized_row(
                     if isinstance(args, str) and len(args) > 4096:
                         return "truncated_supervision"
     return validate_token_budget(row, token_budget, tokenizer_model=tokenizer_model)
+
+
+# Row-level checks for counterfactual groups (plan Step 5).
+
+DEFAULT_JACCARD_THRESHOLD = 0.8
+_BARE_TOOL = {namespaced_tool_name(tool): tool for tool in HA_TOOL_NAMESPACES}
+
+
+def _system_prompt(row: dict[str, Any]) -> str:
+    messages = row.get("messages") or []
+    if messages and messages[0].get("role") == "system":
+        return str(messages[0].get("content") or "")
+    return ""
+
+
+def _offered_schemas(row: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return tool_schema_map(row.get("tools") or [])
+
+
+def _parsed_arguments(raw: Any) -> dict[str, Any] | None:
+    if isinstance(raw, dict):
+        return raw
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return {}
+    if not isinstance(raw, str):
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+@lru_cache(maxsize=512)
+def _static_entities(system_prompt: str) -> tuple[dict[str, Any], ...]:
+    """Entities listed in the static context: names (aliases included), domain, areas."""
+    _, header, rest = system_prompt.partition(STATIC_CONTEXT_HEADER)
+    if not header:
+        return ()
+    block: list[str] = []
+    for line in rest.split("\n"):
+        if line.startswith(("- ", " ")):
+            block.append(line)
+        elif block:
+            break
+    entities = []
+    for entry in yaml.safe_load("\n".join(block)) or []:
+        names = [name.strip() for name in str(entry.get("names") or "").split(", ") if name.strip()]
+        areas = [area.strip() for area in str(entry.get("areas") or "").split(", ") if area.strip()]
+        entities.append({"names": names, "domain": entry.get("domain"), "areas": areas})
+    return tuple(entities)
+
+
+@lru_cache(maxsize=None)
+def _domain_supports(domain: str, tool: str) -> bool | None:
+    """True/False when the domain has registry capabilities; None when it has none (not judged)."""
+    caps = [cap for cap in CAPABILITIES.values() if cap.domain == domain]
+    if not caps:
+        return None
+    return any(
+        op.tool_name == tool and op.support != SupportLevel.UNAVAILABLE
+        for cap in caps
+        for op in cap.operations
+    )
+
+
+def check_unsupported_calls(row: dict[str, Any], *, home: dict[str, Any] | None = None) -> str | None:
+    """Reason the row's assistant tool calls are not servable, or None.
+
+    The row carries no entity features, so support is judged per domain unless
+    `home` is given; with `home`, a named entity found there is checked with
+    `_entity_can_run` (features included).
+    """
+    schemas = _offered_schemas(row)
+    domains_by_name: dict[str, set] = defaultdict(set)
+    for entity in _static_entities(_system_prompt(row)):
+        for name in entity["names"]:
+            domains_by_name[name].add(entity["domain"])
+    home_by_name = {e["name"]: e for e in (home or {}).get("entities", [])}
+    for message in row.get("messages") or []:
+        if message.get("role") != "assistant":
+            continue
+        for call in message.get("tool_calls") or []:
+            function = call.get("function") or {}
+            name = function.get("name")
+            if name not in schemas:
+                return "unoffered_tool"
+            arguments = _parsed_arguments(function.get("arguments"))
+            if arguments is None:
+                return "invalid_call_shape"
+            reason = validate_tool_arguments(name, arguments, schemas)
+            if reason:
+                return reason
+            bare = _BARE_TOOL.get(name, name)
+            target = arguments.get("name")
+            if target is None or bare in _TIMER_NAME_TOOLS:
+                continue
+            if not isinstance(target, str):
+                return "invalid_call_shape"
+            domains = domains_by_name.get(target)
+            if not domains:
+                return "unknown_canonical_entity"
+            if home is not None and target in home_by_name:
+                if not _entity_can_run(home_by_name[target], bare):
+                    return "entity_lacks_capability"
+            elif all(_domain_supports(domain, bare) is False for domain in domains):
+                return "unsupported_operation"
+    return None
+
+
+def _label(row: dict[str, Any]) -> str:
+    calls = sorted(
+        (call["function"]["name"], json.dumps(_parsed_arguments(call["function"].get("arguments")), sort_keys=True))
+        for message in row.get("messages") or []
+        if message.get("role") == "assistant" and message.get("train_on_turn")
+        for call in message.get("tool_calls") or []
+    )
+    if calls:
+        return json.dumps({"calls": calls})
+    return json.dumps({"no_call": (row.get("metadata") or {}).get("no_action_reason")})
+
+
+def _context_hash(row: dict[str, Any]) -> str:
+    tools = sorted(tool["function"]["name"] for tool in row.get("tools") or [])
+    return hashlib.sha256("\0".join([_system_prompt(row), *tools]).encode()).hexdigest()
+
+
+def _command(row: dict[str, Any]) -> str:
+    return "\n".join(
+        _normalize_prompt(str(message.get("content") or ""))
+        for message in row.get("messages") or []
+        if message.get("role") == "user"
+    )
+
+
+def check_label_conflicts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Groups that share a normalized command and model-visible context but disagree on the label."""
+    groups: dict[tuple[str, str], dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
+    for index, row in enumerate(rows):
+        groups[(_command(row), _context_hash(row))][_label(row)].append(index)
+    return [
+        {"command": command, "labels": dict(labels)}
+        for (command, _), labels in groups.items()
+        if len(labels) > 1
+    ]
+
+
+@lru_cache(maxsize=1)
+def _eval_index() -> dict[str, Any]:
+    prompts = sorted(quality_eval_prompts())
+    token_sets = [frozenset(prompt.split()) for prompt in prompts]
+    postings: dict[str, list[int]] = defaultdict(list)
+    for index, tokens in enumerate(token_sets):
+        for token in tokens:
+            postings[token].append(index)
+    return {
+        "sets": token_sets,
+        "df": Counter({token: len(ids) for token, ids in postings.items()}),
+        "postings": postings,
+    }
+
+
+def _jaccard_overlap(tokens: frozenset[str], index: dict[str, Any], threshold: float) -> bool:
+    # Prefix filter: a pair with Jaccard >= t shares a token among the first
+    # |U| - ceil(t|U|) + 1 tokens of U, ordered rarest-first in the eval set.
+    ordered = sorted(tokens, key=lambda token: (index["df"].get(token, 0), token))
+    prefix = len(ordered) - math.ceil(threshold * len(ordered)) + 1
+    candidates: set[int] = set()
+    for token in ordered[:prefix]:
+        candidates.update(index["postings"].get(token, ()))
+    return any(
+        len(tokens & index["sets"][i]) / len(tokens | index["sets"][i]) >= threshold
+        for i in candidates
+    )
+
+
+def check_fuzzy_eval_overlap(
+    utterance: str,
+    *,
+    context: str = "",
+    threshold: float = DEFAULT_JACCARD_THRESHOLD,
+) -> bool:
+    """Eval leakage: the utterance matches an eval prompt after normalization, or has token-set Jaccard >= threshold with one.
+
+    `context` (the row's system prompt) is accepted for existing callers but not used for
+    rejection. Masking entity names by context made generic shapes such as "turn off the <E>"
+    match eval templates and rejected ordinary commands.
+    """
+    tokens = frozenset(_normalize_prompt(utterance).split())
+    if not tokens:
+        return False
+    return _jaccard_overlap(tokens, _eval_index(), threshold)

@@ -22,6 +22,10 @@ from generators.capability_registry import (
 from generators.coverage import expected_tool
 
 REFUSAL_OPERATION_SHARE: float = 0.05
+BLOCKED_REFUSAL_OPERATION_SHARES: dict[tuple[str, str], float] = {
+    ("media_players", "navigate"): 0.005,
+    ("media_players", "launch_app"): 0.005,
+}
 
 
 def sample_home_size(weights: dict[int, int], rng: random.Random) -> int:
@@ -114,7 +118,11 @@ def compute_operation_quotas(cap_quota: int, cap: CapabilitySpec) -> dict[str, i
     if refusals and cap_quota >= len(supported) + len(refusals):
         per = max(1, int(cap_quota * REFUSAL_OPERATION_SHARE))
         per = min(per, max(1, (cap_quota - len(supported)) // len(refusals)))
-        quotas = {name: per for name in refusals}
+        quotas = {}
+        for name in refusals:
+            share = BLOCKED_REFUSAL_OPERATION_SHARES.get((cap.name, name))
+            limit = per if share is None else max(1, int(cap_quota * share))
+            quotas[name] = min(per, limit)
         budget -= sum(quotas.values())
     quotas.update(_split_evenly(budget, supported))
     return quotas
@@ -340,14 +348,15 @@ class QuotaTracker:
 
     def _best_keys(self) -> list[tuple[int, str, str]]:
         best: list[tuple[int, str, str]] = []
-        best_gap = 0
+        best_rank: tuple[bool, int] = (False, 0)
         for key in self.targets["operation"]:
             gap = self._key_gap(key)
             if gap <= 0:
                 continue
-            if gap > best_gap:
-                best_gap, best = gap, [key]
-            elif gap == best_gap:
+            rank = (self.targets["positive"][key] > self.accepted_positive[key], gap)
+            if rank > best_rank:
+                best_rank, best = rank, [key]
+            elif rank == best_rank:
                 best.append(key)
         if not best:
             raise RuntimeError("quota tracker has no remaining shortfall buckets")
