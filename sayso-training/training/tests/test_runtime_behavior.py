@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import copy
 import datetime
 import json
+import random
 import re
 import sys
 from pathlib import Path
@@ -9,14 +11,25 @@ from pathlib import Path
 TRAINING_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TRAINING_ROOT))
 
+from generators import shared_alias
+from generators.capability_registry import CAPABILITIES, entity_supports, trainable_operations
+from generators.context import system_prompt
+from generators.tools import production_catalog
+from generators.real_home import load_real_home
 from generators.rendering import _round_time, render_example, scenario_to_spec
 from generators.scenarios import build_scenario
+from generators.tools import build_light_set
+from generators.validation import gate_named_device_calls
 
 TIMER_KEYS = [
     "id", "name", "device_id", "language", "start_hours", "start_minutes", "start_seconds", "is_active",
     "hours_left", "minutes_left", "seconds_left", "rounded_hours_left", "rounded_minutes_left",
     "rounded_seconds_left", "total_seconds_left",
 ]
+
+REAL_HOME_PATH = TRAINING_ROOT / "fixtures" / "real_home.json"
+TARGETINGS = ("individual", "area", "floor", "multiple")
+BANNED_LIGHT_COLORS = ("warm white", "cool white", "soft white", "daylight")
 
 
 def _render(utterance, *, calls=None, **scenario):
@@ -103,3 +116,140 @@ def test_single_turn_on_action_still_ends_with_done_and_plain_result():
     assert set(payload) == {"speech", "response_type", "data"}
     assert payload["response_type"] == "action_done"
     assert payload["data"]["failed"] == []
+
+
+def _tool_calls(scenario):
+    return scenario["expected"].get("calls") or []
+
+
+def test_real_home_floor_arguments_are_only_fixture_floors():
+    fixture = json.loads(REAL_HOME_PATH.read_text(encoding="utf-8"))
+    fixture_floors = set(fixture["area_floors"].values()) | {entity["floor"] for entity in fixture["entities"]}
+    assert fixture_floors == {"Floor 1"}
+
+    floors = set()
+    for capability, spec in CAPABILITIES.items():
+        for operation in trainable_operations(spec):
+            for targeting in TARGETINGS:
+                for index in range(12):
+                    scenario = build_scenario(
+                        index=index, seed=3, capability=capability, operation=operation.name,
+                        home_size=8, targeting=targeting, home=load_real_home(REAL_HOME_PATH),
+                    )
+                    floors |= {
+                        call["arguments"]["floor"] for call in _tool_calls(scenario)
+                        if "floor" in call["arguments"]
+                    }
+    assert floors
+    assert floors <= fixture_floors
+
+
+def test_volume_step_only_media_player_gets_no_relative_volume_label():
+    home = load_real_home(REAL_HOME_PATH)
+    media_players = [entity for entity in home["entities"] if entity["capability"] == "media_players"]
+    assert media_players
+    for entity in media_players:
+        entity["capabilities"] = ["on", "off", "volume_step", "mute"]
+        assert not entity_supports(entity, "media_players", "volume_up")
+        assert not entity_supports(entity, "media_players", "volume_down")
+
+    for operation in ("volume_up", "volume_down"):
+        for targeting in ("individual", "area"):
+            for index in range(12):
+                scenario = build_scenario(
+                    index=index, seed=11, capability="media_players", operation=operation,
+                    home_size=8, targeting=targeting, inject_missing=False,
+                    home=copy.deepcopy(home),
+                )
+                names = {call["name"] for call in _tool_calls(scenario)}
+                assert "HassSetVolumeRelative" not in names
+
+
+def test_generated_light_color_arguments_are_home_assistant_names():
+    colors = {
+        build_light_set({"name": "Lamp"}, random.Random(seed), "set_color")["arguments"]["color"]
+        for seed in range(200)
+    }
+    assert colors
+    assert not colors & set(BANNED_LIGHT_COLORS)
+
+    for index in range(12):
+        scenario = build_scenario(index=index, seed=5, capability="lights", operation="set_color", home_size=16)
+        for call in _tool_calls(scenario):
+            if call["name"] == "HassLightSet":
+                assert call["arguments"].get("color") not in BANNED_LIGHT_COLORS
+
+    for template in shared_alias._TEMPLATES["set_color"]:
+        assert not any(color in template for color in BANNED_LIGHT_COLORS)
+
+
+LABEL_HOME = {
+    "areas": ["Den", "Living Room"],
+    "entities": [
+        {"name": "Den Ceiling Lights", "domain": "light", "capability": "lights", "capabilities": ["on", "off", "brightness", "color"],
+         "area": "Den", "aliases": [], "entity_id": "light.den_ceiling_lights"},
+        {"name": "Living Room TV", "domain": "media_player", "capability": "media_players",
+         "capabilities": ["on", "off"], "area": "Living Room", "aliases": [],
+         "entity_id": "media_player.living_room_tv"},
+        {"name": "Sun", "domain": "sun", "capability": None, "capabilities": [], "area": None,
+         "aliases": [], "entity_id": "sun.sun"},
+        {"name": "Den Temperature", "domain": "sensor", "capability": None, "capabilities": [],
+         "area": "Den", "aliases": [], "entity_id": "sensor.den_temperature"},
+    ],
+}
+
+
+def _label_row(call_name, arguments, utterance="turn on the den lights"):
+    return {
+        "messages": [
+            {"role": "system", "content": system_prompt(LABEL_HOME, utterance), "train_on_turn": False},
+            {"role": "user", "content": utterance, "train_on_turn": False},
+            {
+                "role": "assistant",
+                "content": "",
+                "train_on_turn": True,
+                "tool_calls": [{
+                    "id": "call_0", "type": "function",
+                    "function": {"name": call_name, "arguments": json.dumps(arguments)},
+                }],
+            },
+        ],
+        "tools": production_catalog(LABEL_HOME),
+        "metadata": {},
+    }
+
+
+def test_gate_target_consistency_rejects_name_outside_area_and_wrong_domain():
+    outside = _label_row("intent__HassTurnOn", {"name": "Den Ceiling Lights", "area": "Living Room"})
+    assert gate_named_device_calls(outside) == "target_outside_area"
+
+    wrong_domain = _label_row("intent__HassTurnOn", {"name": "Den Ceiling Lights", "domain": ["switch"]})
+    assert gate_named_device_calls(wrong_domain) == "target_domain_mismatch"
+
+
+def test_gate_target_consistency_accepts_name_in_area_and_domain():
+    row = _label_row("intent__HassTurnOn", {"name": "Den Ceiling Lights", "area": "Den", "domain": ["light"]})
+    assert gate_named_device_calls(row) is None
+
+
+def test_gate_unactionable_domain_rejects_turn_on_of_sun():
+    row = _label_row("intent__HassTurnOn", {"name": "Sun"})
+    assert gate_named_device_calls(row) == "unactionable_domain"
+
+    sensor = _label_row("intent__HassTurnOff", {"domain": ["sensor"]})
+    assert gate_named_device_calls(sensor) == "unactionable_domain"
+
+
+def test_gate_unactionable_domain_accepts_actionable_light():
+    row = _label_row("intent__HassTurnOn", {"name": "Den Ceiling Lights", "domain": ["light"]})
+    assert gate_named_device_calls(row) is None
+
+
+def test_gate_light_color_rejects_non_home_assistant_color_names():
+    row = _label_row("light__HassLightSet", {"name": "Den Ceiling Lights", "color": "warm white"})
+    assert gate_named_device_calls(row) == "unknown_light_color"
+
+
+def test_gate_light_color_accepts_home_assistant_color_name():
+    row = _label_row("light__HassLightSet", {"name": "Den Ceiling Lights", "color": "red"})
+    assert gate_named_device_calls(row) is None

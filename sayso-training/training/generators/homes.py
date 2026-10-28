@@ -1202,6 +1202,16 @@ def _unique_media_name(area: str, rng: random.Random, taken: set[str], roles: tu
     raise ValueError("no unique media player name")
 
 
+def _area_floor(home: dict[str, Any], area: str) -> str:
+    floors = home.get("area_floors") or {}
+    if area in floors:
+        return floors[area]
+    entity_floors = {entity["floor"] for entity in home["entities"] if entity.get("floor")}
+    if len(entity_floors) == 1:
+        return entity_floors.pop()
+    return "Main Floor"
+
+
 def _append_media_player(
     home: dict[str, Any],
     *,
@@ -1245,7 +1255,7 @@ def prepare_media_tv_ambiguity(
         target = 0
     else:
         target = 1
-    floor = (home.get("area_floors") or {}).get(area, "Main Floor")
+    floor = _area_floor(home, area)
     taken = {entity["entity_id"].split(".", 1)[1] for entity in home["entities"]}
     tvs = _visible_tv_entities(home, area)
     while len(tvs) > target:

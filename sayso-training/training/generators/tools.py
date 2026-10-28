@@ -140,7 +140,7 @@ def build_light_set(entity: dict[str, Any], rng: random.Random, operation: str) 
     if operation == "set_brightness":
         args["brightness"] = rng.randrange(10, 101)
     elif operation == "set_color":
-        args["color"] = rng.choice(("red", "blue", "warm white", "cool white"))
+        args["color"] = rng.choice(("red", "blue", "green", "yellow"))
     elif operation == "set_color_temperature":
         args["temperature"] = rng.choice((2700, 3000, 4000, 5000))
     return {"name": "HassLightSet", "arguments": args}
