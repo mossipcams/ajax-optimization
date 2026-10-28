@@ -14,8 +14,6 @@
   domain: sensor
 - names: Date & Time
   domain: sensor
-- names: Desk Echo Dot
-  domain: media_player
 - names: Everywhere
   domain: media_player
 - names: Home Assistant Climate

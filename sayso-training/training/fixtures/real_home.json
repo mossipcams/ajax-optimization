@@ -1,6 +1,6 @@
 {
   "home_id": "real_home",
-  "size": 21,
+  "size": 20,
   "sayso_entity_area": "Hallway",
   "entities": [
     {
@@ -141,25 +141,6 @@
         "color_temp",
         "off",
         "on"
-      ]
-    },
-    {
-      "entity_id": "media_player.desk_echo_dot",
-      "name": "Desk Echo Dot",
-      "aliases": [
-        "Desk Echo Dot"
-      ],
-      "domain": "media_player",
-      "kind": "media_player",
-      "capability": "media_players",
-      "device_class": "speaker",
-      "area": "Unassigned",
-      "floor": "Main Floor",
-      "state": "idle",
-      "capabilities": [
-        "mute",
-        "volume",
-        "volume_step"
       ]
     },
     {
