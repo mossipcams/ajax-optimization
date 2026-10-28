@@ -13,8 +13,15 @@ TRAINING_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TRAINING_ROOT))
 
 from generators.context import system_prompt
-from generators.tools import production_catalog
-from generators.utterances import discrimination_utterance, finalize_training_utterance, vary_training_utterance
+from generators.tools import production_catalog, script_tool_name
+from generators.utterances import (
+    _routine_phrasing,
+    _timer_room_areas,
+    _timer_room_phrasing,
+    discrimination_utterance,
+    finalize_training_utterance,
+    vary_training_utterance,
+)
 from generators.validation import (
     gate_areas,
     gate_clarification,
@@ -1020,3 +1027,60 @@ def test_run_scripts_keep_the_run_start_activate_variants():
         text = vary_training_utterance("run Movie Night Script", random.Random(seed))
         seen.update(re.findall(r"\b(run|start|activate)(?: the)? movie night script\b", text.casefold()))
     assert {"run", "start", "activate"} <= seen
+
+
+
+def test_start_timer_room_phrasing_mentions_only_visible_areas():
+    call = {"name": "HassStartTimer", "arguments": {"minutes": 7}}
+    spec = {"home": HOME, "candidate_id": "room-timer-1", "expected": {"calls": [call]}}
+    visible = set(_timer_room_areas(HOME))
+    assert visible == {"Den", "Living Room"}
+    phrases = [_timer_room_phrasing(spec, call, f"seed-{index}") for index in range(200)]
+    mentions = [phrase for phrase in phrases if phrase is not None]
+    assert 25 <= len(mentions) <= 75, len(mentions)
+    areas_seen = set()
+    for phrase in mentions:
+        match = re.search(r"\bin the (.+)$", phrase)
+        assert match is not None, phrase
+        area = match.group(1)
+        assert area in visible, phrase
+        areas_seen.add(area)
+        row = _polarity_row(f"Set a 7 minute timer in the {area}", [("intent__HassStartTimer", {"minutes": 7})])
+        assert not {"name", "area"} & set(call["arguments"])
+        reason = _serialized(row)
+        assert reason is None, reason
+    assert areas_seen == visible
+
+
+def test_start_timer_room_phrasing_skips_named_timers():
+    call = {"name": "HassStartTimer", "arguments": {"minutes": 7, "name": "Pasta"}}
+    spec = {"home": HOME, "candidate_id": "room-timer-named"}
+    for index in range(40):
+        assert _timer_room_phrasing(spec, call, f"seed-{index}") is None
+
+
+def test_routine_name_with_polarity_never_becomes_turn_on():
+    for seed in range(200):
+        text = vary_training_utterance("run my kitchen lights off routine", random.Random(seed))
+        assert "turn on my kitchen lights off routine" not in text.casefold(), text
+
+
+def test_routine_phrasing_skips_turn_on_for_polarity_names():
+    scripts = [
+        {"name": "Kitchen Lights Off", "domain": "script", "capability": None, "capabilities": [],
+         "aliases": [], "entity_id": "script.kitchen_lights_off"},
+        {"name": "Morning Coffee", "domain": "script", "capability": None, "capabilities": [],
+         "aliases": [], "entity_id": "script.morning_coffee"},
+    ]
+    home_with_scripts = dict(HOME)
+    home_with_scripts["entities"] = list(HOME["entities"]) + scripts
+    off_tool = script_tool_name(scripts[0])
+    on_tool = script_tool_name(scripts[1])
+    for seed in range(200):
+        phrase = _routine_phrasing({"home": home_with_scripts}, {"name": off_tool, "arguments": {}}, f"off:{seed}")
+        assert not (phrase is not None and phrase.casefold().startswith("turn on my")), phrase
+    turned_on = [
+        _routine_phrasing({"home": home_with_scripts}, {"name": on_tool, "arguments": {}}, f"on:{seed}")
+        for seed in range(200)
+    ]
+    assert any(phrase is not None and phrase.casefold().startswith("turn on my") for phrase in turned_on)
