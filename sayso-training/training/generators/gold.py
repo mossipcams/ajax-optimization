@@ -274,7 +274,8 @@ def _requested(
     intent = intent or {}
     area = intent.get("area") or home["sayso_entity_area"]
     present = entities_in_area(home, capability, area)
-    return area, [item for item in present if refers_to(item, intent.get("name"))]
+    nouns = ("tv", "television") if capability == "media_players" and intent.get("name") == "tv" else (intent.get("name"),)
+    return area, [item for item in present if any(refers_to(item, noun) for noun in nouns)]
 
 
 def _ambiguous_gold(
@@ -287,7 +288,11 @@ def _ambiguous_gold(
     if capability == "scripts":
         return expected_no_action("clarify")
     area, present = _requested(home, capability, intent)
-    matches = entities_supporting(present, capability, operation)
+    matches = (
+        present if capability == "media_players" and (intent or {}).get("name") == "tv"
+        else entities_supporting(present, capability, operation)
+    )
+    matches = list({entity["name"].casefold(): entity for entity in matches}.values())
     if len(matches) == 0:
         if present:
             return {"kind": "reject", "reason": "entity_lacks_capability", "calls": []}

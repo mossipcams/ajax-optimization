@@ -40,6 +40,10 @@ def vary_training_utterance(text: str, rng: random.Random) -> str:
                     alternatives = tuple(choice for choice in alternatives if not choice.startswith("dim "))
                 text = rng.choice(alternatives).format(*match.groups())
                 break
+    if text.startswith("pause ") and "timer" in text and rng.random() < 0.4:
+        text = rng.choice(("hold ", "freeze ")) + text[len("pause "):]
+    if text.startswith("run ") and not re.search(r"\b(?:on|off)\b", text[4:].casefold()) and rng.random() < 0.2:
+        text = ("turn on " if rng.random() < 0.5 else "switch on ") + text[4:]
     variants = {
         "turn on ": ("turn on ", "switch on "),
         "turn off ": ("turn off ", "switch off "),
@@ -95,13 +99,15 @@ def apply_generic_wording(spec: dict[str, Any]) -> dict[str, Any]:
     capability = spec.get("capability")
     if capability in (None, "timers") or not spec.get("target_names"):
         return spec
-    area = spec["home"]["sayso_entity_area"]
+    area = (spec.get("request_intent") or {}).get("area") or spec["home"]["sayso_entity_area"]
     by_name = {entity["name"]: entity for entity in spec.get("home", {}).get("entities", [])}
     default_noun = _ENTITY_TEMPLATES[capability][0].lower()
     spoken = {}
     for name in spec["target_names"]:
         device_class = (by_name.get(name) or {}).get("device_class")
-        noun = device_class if capability == "media_players" and device_class else default_noun
+        noun = (spec.get("request_intent") or {}).get("name") or (
+            device_class if capability == "media_players" and device_class else default_noun
+        )
         spoken[name] = f"the {area} {noun}"
     spec["spoken_targets"] = spoken
     return spec
@@ -229,7 +235,7 @@ _VACUUM_CLEAN_AREA = (
     "clean the {area} with {0}", "tell {0} to vacuum the {area}", "tell {0} to clean the {area}",
 )
 
-_ROUTINE_ACTIONS = ("run my {0} routine", "start the {0} routine", "run the routine called {0}", "go ahead and kick off {0}")
+_ROUTINE_ACTIONS = ("run my {0} routine", "start the {0} routine", "run the routine called {0}", "go ahead and kick off {0}", "turn on my {0} routine")
 
 _FRACTION_WORDS: dict[int, str] = {25: "a quarter", 33: "a third", 50: "half"}
 
@@ -563,6 +569,24 @@ _STOP_TOKENS: frozenset[str] = frozenset(
      "thermostats", "lock", "locks", "fan", "fans", "vacuum", "scene",
      "script", "button", "and", "of", "my", "in", "on", "for"}
 )
+
+
+_DISCRIMINATION_VERBS: tuple[str, ...] = (
+    "turn on", "turn off", "open", "close", "lock", "unlock", "set", "run",
+)
+_OFF_DISCRIMINATION_VERBS: frozenset[str] = frozenset({"turn off", "close", "unlock"})
+
+
+def discrimination_utterance(call_name: str, seed: str, description: str) -> str:
+    off = call_name.rsplit("__", 1)[-1] == "HassTurnOff"
+    verb = "turn off" if off else "turn on"
+    lowered = seed.lower()
+    for candidate in _DISCRIMINATION_VERBS:
+        if lowered.startswith(candidate):
+            if candidate in {"set", "run"} or (candidate in _OFF_DISCRIMINATION_VERBS) == off:
+                verb = candidate
+            break
+    return f"{verb} {description}"
 
 
 def describe_target(

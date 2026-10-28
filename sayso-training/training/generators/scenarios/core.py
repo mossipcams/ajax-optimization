@@ -150,6 +150,9 @@ def configure_family_scenario(
     removed_tools: list[str] = []
     request_intent: dict[str, Any] | None = None
 
+    if capability == "media_players" and family in {"clarify", "follow_up"}:
+        return "area", "ambiguity", {"area": area, "name": "tv"}, removed_tools
+
     if family in {"clarify", "junk", "follow_up"}:
         _ensure_supporting_in_area(home, capability, operation, area, 2, rng, index)
         return "area", "ambiguity", request_intent, removed_tools
@@ -369,7 +372,9 @@ def build_scenario(
         targeting, robustness, request_intent, removed_tools = configure_family_scenario(
             home, capability, operation, family, rng, index,
         )
-        if family in {"absence", "unsupported"}:
+        if family in {"absence", "unsupported"} or (
+            capability == "media_players" and family in {"clarify", "follow_up"}
+        ):
             inject_missing = False
     cap_entities = entities_of_capability(home, capability)
     if capability == "timers":

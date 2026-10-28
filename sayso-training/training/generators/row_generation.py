@@ -13,9 +13,9 @@ from generators.capability_registry import CAPABILITIES, operation_spec, trainab
 from generators.config import GeneratorConfig
 from generators.deduplication import DuplicateTracker, pair_hash
 from generators.grounding import is_blocked_request, pick_variant
-from generators.homes import generate_home
+from generators.homes import generate_home, prepare_media_tv_ambiguity
 from generators.correction import entity_name_contains_area
-from generators.gold import expected_action, expected_no_action, expected_unexposed_domain, gold_from_scenario, gold_matches_family, target_names_from_expected
+from generators.gold import expected_action, expected_no_action, expected_status, expected_unexposed_domain, gold_from_scenario, gold_matches_family, target_names_from_expected
 from generators.labels import render_example, scenario_to_spec
 from generators.rendering import ha_brightness_pct
 from generators.real_home import load_real_home
@@ -32,6 +32,7 @@ from generators.shared_alias import SHARED_ALIAS_RATE, build_shared_alias_spec
 from generators.stt_noise import apply_log_stt_noise, apply_stt_noise
 from generators.utterances import (
     apply_generic_wording,
+    discrimination_utterance,
     expand_utterance,
     finalize_training_utterance,
     request_seed_from_spec,
@@ -1308,8 +1309,28 @@ def generate_row(
         if any(entity not in real_home_context["entities"] for entity in targets):
             return None, "family_mismatch"
         scenario["home"] = real_home_context
-        if family in REAL_HOME_REFUSAL_FAMILIES and scenario["robustness"] == "ambiguity":
-            scenario["expected"] = gold_from_scenario(scenario, rng)
+    if (
+        capability == "media_players"
+        and family in {"clarify", "follow_up"}
+        and scenario.get("robustness") == "ambiguity"
+    ):
+        intent_area = (scenario.get("request_intent") or {}).get("area") or scenario["home"]["sayso_entity_area"]
+        prepare_media_tv_ambiguity(scenario["home"], operation, intent_area, rng, slot["index"])
+    if (
+        (
+            capability == "media_players"
+            and family in {"clarify", "follow_up"}
+            and scenario.get("robustness") == "ambiguity"
+        )
+        or (
+            real_home_row
+            and family in REAL_HOME_REFUSAL_FAMILIES | {"clarify", "follow_up"}
+            and scenario["robustness"] == "ambiguity"
+        )
+    ):
+        scenario["expected"] = gold_from_scenario(scenario, rng)
+        scenario["semantic_id"] = semantic_id(scenario)
+    if real_home_row:
         if family == "junk":
             scenario["expected"] = expected_no_action("not_understood")
         scenario["semantic_id"] = semantic_id(scenario)
@@ -1318,8 +1339,15 @@ def generate_row(
     if grounding_family:
         scenario["phrasing_seed"] = variant["phrasing_seed"]
 
+    media_ambiguity = capability == "media_players" and family in {"clarify", "follow_up"}
+    if media_ambiguity and scenario["expected"].get("response") != "clarify":
+        kind = scenario["expected"].get("kind")
+        family = {"action": "ordinary", "status": "status", "no_action": "absence"}.get(kind, family)
+        scenario["family"] = family
     spec = scenario_to_spec(scenario)
-    if family == "absence" and not real_home_row and rng.random() < UNEXPOSED_DOMAIN_RATE:
+    if media_ambiguity:
+        spec["request_intent"] = scenario["request_intent"]
+    if family == "absence" and not media_ambiguity and not real_home_row and rng.random() < UNEXPOSED_DOMAIN_RATE:
         unexposed = expected_unexposed_domain(spec["home"], rng)
         if unexposed is not None:
             spec["expected"] = unexposed
@@ -1410,7 +1438,10 @@ def generate_row(
         )
         if entity is None:
             return None, "family_mismatch"
-        spec["expected"] = expected_action(entity, operation, rng)
+        spec["expected"] = (
+            expected_status(entity) if media_ambiguity and operation == "query_state"
+            else expected_action(entity, operation, rng)
+        )
         if spec.get("hint_call"):
             hint_args = spec["hint_call"].get("arguments") or {}
             gold_args = spec["expected"]["calls"][0]["arguments"]
@@ -1438,12 +1469,9 @@ def generate_row(
         seed_text = request_seed_from_spec(spec)
         description = pick_discriminating_description(scenario, rng)
         if description:
-            verb = "turn on"
-            for candidate in ("turn on", "turn off", "open", "close", "lock", "unlock", "set", "run"):
-                if seed_text.lower().startswith(candidate):
-                    verb = candidate
-                    break
-            spec["utterance"] = f"{verb} {description}"
+            spec["utterance"] = discrimination_utterance(
+                expected["calls"][0]["name"], seed_text, description
+            )
             discrimination = True
             spec["discrimination"] = True
 

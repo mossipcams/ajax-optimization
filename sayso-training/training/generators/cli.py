@@ -10,12 +10,28 @@ TRAINING_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = TRAINING_ROOT.parent
 sys.path.insert(0, str(TRAINING_ROOT))
 
+from generators.audit import audit_corpus
 from generators.config import GeneratorConfig
 from generators.pipeline import run_build, run_generation, write_jsonl
 from generators.manifest import write_manifest
 
 
+def _audit(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="python -m generators.cli audit",
+        description="Run the hard label gates over a corpus .jsonl and print a JSON summary",
+    )
+    parser.add_argument("corpus", type=Path)
+    parser.add_argument("--limit", type=int, default=None, help="Stop after N rows")
+    args = parser.parse_args(argv)
+    print(json.dumps(audit_corpus(args.corpus, limit=args.limit), indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "audit":
+        return _audit(argv[1:])
     parser = argparse.ArgumentParser(description="Generate SaySo synthetic training dataset")
     parser.add_argument(
         "--config",

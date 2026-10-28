@@ -14,6 +14,7 @@ from generators.capability_registry import (
     SATELLITE_NAME_BRAND,
     SATELLITE_NAME_SUFFIX,
     CapabilitySpec,
+    required_features,
 )
 
 SATELLITE_RATE = 0.30
@@ -1166,3 +1167,101 @@ def entities_of_capability(home: dict[str, Any], capability: str) -> list[dict[s
 
 def entities_in_area(home: dict[str, Any], capability: str, area: str) -> list[dict[str, Any]]:
     return [e for e in entities_of_capability(home, capability) if e["area"] == area]
+
+
+_TV_ROLE_WORD = re.compile(r"\b(?:t[ .]*v|television)s?\b", re.I)
+_TV_MEDIA_ROLES = tuple(role for role in _ROLES["media_players"] if _TV_ROLE_WORD.search(role))
+_NONTV_MEDIA_ROLES = tuple(role for role in _ROLES["media_players"] if role not in _TV_MEDIA_ROLES)
+
+
+def _visible_tv_entities(home: dict[str, Any], area: str) -> list[dict[str, Any]]:
+    from generators.gold import refers_to
+
+    return [
+        entity
+        for entity in entities_in_area(home, "media_players", area)
+        if refers_to(entity, "tv") or refers_to(entity, "television")
+    ]
+
+
+def _unique_media_name(area: str, rng: random.Random, taken: set[str], roles: tuple[str, ...]) -> str:
+    brands = _BRANDS.get("media_players", ())
+    for _ in range(128):
+        if roles is _TV_MEDIA_ROLES and brands and rng.random() < 0.35:
+            name = f"{area} {rng.choice(brands)} TV"
+        else:
+            name = f"{area} {rng.choice(roles)}"
+        if rng.random() < 0.26:
+            name = name[:1] + name[1:].lower()
+        if _slug(name) not in taken and name.casefold() not in _eval_entity_names():
+            return name
+    for number in range(2, len(taken) + 3):
+        name = f"{area} {roles[0]} {number}"
+        if _slug(name) not in taken and name.casefold() not in _eval_entity_names():
+            return name
+    raise ValueError("no unique media player name")
+
+
+def _append_media_player(
+    home: dict[str, Any],
+    *,
+    area: str,
+    floor: str,
+    operation: str,
+    rng: random.Random,
+    taken: set[str],
+    tv: bool,
+) -> None:
+    roles = _TV_MEDIA_ROLES if tv else _NONTV_MEDIA_ROLES
+    name = _unique_media_name(area, rng, taken, roles)
+    taken.add(_slug(name))
+    needed = set(_ENTITY_TEMPLATES["media_players"][2]) | set(required_features("media_players", operation))
+    home["entities"].append(
+        make_entity(
+            name=name,
+            capability="media_players",
+            area=area,
+            floor=floor,
+            rng=rng,
+            features=tuple(sorted(needed)),
+        )
+    )
+
+
+def prepare_media_tv_ambiguity(
+    home: dict[str, Any],
+    operation: str,
+    area: str,
+    rng: random.Random,
+    index: int,
+) -> None:
+    if home.get("home_id") == "ambiguity_regression":
+        return
+    bucket = random.Random(zlib.crc32(f"media-tv-amb:{index}:{area}".encode()))
+    roll = bucket.random()
+    if roll < 0.85:
+        target = 2
+    elif roll < 0.90:
+        target = 0
+    else:
+        target = 1
+    floor = (home.get("area_floors") or {}).get(area, "Main Floor")
+    taken = {entity["entity_id"].split(".", 1)[1] for entity in home["entities"]}
+    tvs = _visible_tv_entities(home, area)
+    while len(tvs) > target:
+        home["entities"].remove(tvs.pop())
+    while len(_visible_tv_entities(home, area)) < target:
+        _append_media_player(
+            home, area=area, floor=floor, operation=operation, rng=rng, taken=taken, tv=True,
+        )
+    if target >= 2 and bucket.random() < 0.55:
+        speakers = [
+            entity
+            for entity in entities_in_area(home, "media_players", area)
+            if entity not in _visible_tv_entities(home, area)
+        ]
+        if not speakers:
+            _append_media_player(
+                home, area=area, floor=floor, operation=operation, rng=rng, taken=taken, tv=False,
+            )
+    remove_canonical_alias_collisions(home["entities"])
