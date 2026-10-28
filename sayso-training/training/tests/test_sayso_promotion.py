@@ -15,6 +15,8 @@ LOADER.exec_module(SAYSO)
 
 
 def test_manual_promotion_keeps_failed_eval_gate(tmp_path: Path, monkeypatch) -> None:
+    gguf = tmp_path / "model.gguf"
+    gguf.write_bytes(b"GGUF")
     record = {
         "run_id": "run-1",
         "trained": True,
@@ -24,9 +26,10 @@ def test_manual_promotion_keeps_failed_eval_gate(tmp_path: Path, monkeypatch) ->
         "config": "config.yaml",
         "final_eval_passed": False,
         "final_metrics": {"promotion": {"passed": False, "overall_pass_rate": 0.5}},
+        "release": {"checkpoint": "/models/checkpoint", "gguf": str(gguf), "gguf_sha256": SAYSO.digest(gguf)},
     }
     monkeypatch.setattr(SAYSO, "STATE", tmp_path)
-    monkeypatch.setattr(SAYSO, "current", lambda: record)
+    monkeypatch.setattr(SAYSO, "training_run", lambda args: record)
 
     try:
         SAYSO.cmd_promote_model(argparse.Namespace(manual_override=False, reason=None))

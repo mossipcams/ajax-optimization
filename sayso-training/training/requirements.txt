@@ -1,6 +1,9 @@
 # Corpus generation, data views, and training-repo tests (CPU; no torch, no trainer).
 # The trainer lives in its host container; this venv never needs torch.
 # Host venv: /srv/llm/sayso/training/.venv on `ssh llm`. See README.md.
+# llama-cpp-python is the integration's embedded runtime (SaySo const.py LLAMA_CPP_*); ./sayso eval scores
+# and quantizes release GGUFs with it, so keep it on the same CPU wheel index.
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 hassil==3.12.1
 jsonschema==4.26.0
 PyYAML==6.0.3
@@ -10,3 +13,4 @@ Jinja2==3.1.6
 requests>=2.32.0
 hypothesis==6.168.4
 pytest==9.1.1
+llama-cpp-python==0.3.36
