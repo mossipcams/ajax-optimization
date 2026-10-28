@@ -1,0 +1,45 @@
+name: sayso-training
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sayso-training-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime-contract:
+    name: runtime-contract behaviour tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: sayso-training
+    steps:
+      - name: Check out repository and SaySo submodule
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install generator test dependencies
+        # Only the pins the generator tests import. Torch, transformers, and
+        # llama-cpp-python stay out of CI: no test under these two files loads them.
+        run: |
+          grep -E '^(hassil|jsonschema|PyYAML|hypothesis|pytest)==' training/requirements.txt > "$RUNNER_TEMP/ci-requirements.txt"
+          python -m pip install -r "$RUNNER_TEMP/ci-requirements.txt"
+
+      - name: Set PYTHONPATH as training_paths.py does
+        run: echo "PYTHONPATH=$(python training_paths.py)" >> "$GITHUB_ENV"
+
+      - name: Run runtime-contract behaviour tests
+        run: python -m pytest training/tests/test_runtime_behavior.py training/tests/test_label_gates.py -q
