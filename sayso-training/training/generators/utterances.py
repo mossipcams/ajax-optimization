@@ -159,6 +159,12 @@ def request_seed_from_spec(spec: dict[str, Any]) -> str:
             target = spec["spoken_targets"][canonical]
         elif canonical in spec.get("target_names", []):
             target = canonical
+        room = _timer_room_phrasing(spec, call, f"{seed_key}:{index}")
+        if room is not None:
+            if provenance is not None:
+                provenance.append({"source": "sayso_fallback", "intent": call["name"]})
+            phrases.append(room)
+            continue
         routine = _routine_phrasing(spec, call, f"{seed_key}:{index}")
         if routine is not None:
             if provenance is not None:
@@ -282,6 +288,43 @@ def _duration(arguments: dict[str, Any]) -> str:
     )
 
 
+def _timer_room_areas(home: dict[str, Any]) -> list[str]:
+    from generators.context import OVERVIEW_EXCLUDED_DOMAINS
+
+    areas: list[str] = []
+    for source in ((home or {}).get("entities") or [], (home or {}).get("context_entities") or []):
+        for entity in source:
+            if entity.get("domain") in OVERVIEW_EXCLUDED_DOMAINS:
+                continue
+            area = entity.get("area")
+            if area and area != "Unassigned" and area not in areas:
+                areas.append(area)
+    return areas
+
+
+_TIMER_ROOM_PHRASES = (
+    "set a {delta} timer in the {area}",
+    "start a {delta} timer in the {area}",
+)
+
+
+def _timer_room_phrasing(spec: dict[str, Any], call: dict[str, Any], seed: str) -> str | None:
+    arguments = call.get("arguments") or {}
+    if call["name"] != "HassStartTimer":
+        return None
+    units = [unit for unit in ("hours", "minutes", "seconds") if arguments.get(unit)]
+    if len(units) != 1 or set(arguments) - {"hours", "minutes", "seconds"}:
+        return None
+    areas = _timer_room_areas(spec.get("home") or {})
+    if not areas:
+        return None
+    rng = random.Random(zlib.crc32(f"timer-room:{seed}".encode()))
+    if rng.random() >= 0.25:
+        return None
+    unit = units[0]
+    delta = f"{arguments[unit]} {unit[:-1]}"
+    return rng.choice(_TIMER_ROOM_PHRASES).format(delta=delta, area=rng.choice(areas))
+
 _VOLUME_STEP_PHRASES: dict[str, tuple[str, ...]] = {
     "up": ("turn {target} volume up {n} percent", "make {target} louder by {n}",
            "raise {target} volume by {n} percent"),
@@ -383,7 +426,10 @@ def _routine_phrasing(spec: dict[str, Any], call: dict[str, Any], seed: str) -> 
     rng = random.Random(zlib.crc32(f"routine:{seed}".encode()))
     if rng.random() >= 0.5:
         return None
-    return rng.choice(_ROUTINE_ACTIONS).format(name)
+    actions = _ROUTINE_ACTIONS
+    if re.search(r"\b(?:on|off)\b", folded):
+        actions = tuple(action for action in _ROUTINE_ACTIONS if not action.startswith("turn on"))
+    return rng.choice(actions).format(name)
 
 
 def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenance=None) -> str:
