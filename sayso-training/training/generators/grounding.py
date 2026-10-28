@@ -6,7 +6,7 @@ import re
 from functools import lru_cache
 from typing import Any
 
-from generators.homes import make_entity
+from generators.homes import entities_in_area, make_entity
 
 
 def entity(
@@ -251,13 +251,6 @@ def supported_action_family(*, prefix: str, area: str, name: str) -> list[dict[s
                              features=("on", "off", "play", "pause", "volume", "volume_step", "mute"))],
             **common,
         ),
-        variant(
-            label="incapable",
-            entities=[entity(name, "media_players", area, device_class="speaker",
-                             features=("on", "off", "play", "pause"))],
-            inject_missing=False,
-            **common,
-        ),
     ]
 
 
@@ -440,6 +433,8 @@ def build_spec(variant: dict[str, Any], *, seed: int = 20260910, index: int = 0)
         inject_missing=variant.get("inject_missing", True),
         request_intent=variant.get("request_intent"),
     )
+    if variant.get("withheld_tools"):
+        scenario["expected"] = variant["expected"]
     scenario["phrasing_seed"] = variant["phrasing_seed"]
     spec = scenario_to_spec(scenario)
     spec["grounding_family"] = variant["family"]
@@ -502,11 +497,25 @@ def carrier_variants(family: str) -> tuple[dict[str, Any], ...]:
     )
 
 
+def is_blocked_request(family: str, capability: Any, operation: Any) -> bool:
+    from generators.planning import BLOCKED_REQUEST_OPERATIONS
+
+    return family == "unsupported" and (capability, operation) in BLOCKED_REQUEST_OPERATIONS
+
+
 def pick_carrier_variant(
-    slot: dict[str, Any], rng: random.Random, missing: Any = ()
+    slot: dict[str, Any], rng: random.Random, missing: Any = (), exclude: Any = ()
 ) -> dict[str, Any] | None:
-    pool = list(carrier_variants(slot.get("family") or ""))
-    pool = [v for v in pool if v["family"] in missing] or pool
+    family = slot.get("family") or ""
+    # Blocked-request slots keep their own capability/operation and refusal wording; no catalogue
+    # variant may overwrite them, and no blocked pair may leak into an ordinary unsupported slot.
+    if is_blocked_request(family, slot.get("capability"), slot.get("operation")):
+        return None
+    pool = [
+        v for v in carrier_variants(family)
+        if v["family"] in missing and v["family"] not in exclude
+        and not is_blocked_request(family, v["capability"], v["operation"])
+    ]
     if slot.get("grounding"):
         return rng.choice(pool) if pool else None
     same_pair = [
@@ -550,6 +559,427 @@ def slot_ceiling(config: Any, pairs: set[tuple[str, str]]) -> float:
 def grounding_available_share(config: Any) -> float:
     catalogue_share = grounding_capacity(config) / max(config.count, 1)
     return min(slot_ceiling(config, grounding_pairs()), catalogue_share)
+
+
+CONTRAST_AXES = ("presence", "domain", "count", "area", "feature", "distractor")
+CONTRAST_GROUP_SIZE = 4
+_COMMAND_RETRIES = 32
+_GROUP_ATTEMPTS = 8
+
+
+class ContrastCommandError(ValueError):
+    """No phrasing of this base's command clears the eval-overlap checks."""
+
+
+CONTRAST_OPERATIONS: dict[str, tuple[str, ...]] = {
+    "lights": ("turn_on", "turn_off"),
+    "fans": ("turn_on", "turn_off"),
+    "switches": ("turn_on", "turn_off"),
+    "media_players": ("turn_on", "turn_off", "pause", "mute", "next_track"),
+}
+
+
+def _clone(household: dict[str, Any]) -> dict[str, Any]:
+    import copy
+
+    return copy.deepcopy(household)
+
+
+def _find(household: dict[str, Any], name: str) -> dict[str, Any]:
+    return next(item for item in household["entities"] if item["name"] == name)
+
+
+def mutate_presence(household: dict[str, Any], target: str) -> dict[str, Any]:
+    mutated = _clone(household)
+    mutated["entities"] = [item for item in mutated["entities"] if item["name"] != target]
+    return mutated
+
+
+def mutate_domain(household: dict[str, Any], target: str, domain: str = "sensor") -> dict[str, Any]:
+    removed = _find(household, target)
+    mutated = mutate_presence(household, target)
+    mutated["context_entities"] = [
+        *(mutated.get("context_entities") or []),
+        {"name": target, "domain": domain, "area": removed["area"]},
+    ]
+    return mutated
+
+
+def mutate_count(household: dict[str, Any], target: str) -> dict[str, Any]:
+    mutated = _clone(household)
+    original = _find(mutated, target)
+    twin = _clone(original)
+    twin["name"] = f"{target} 2"
+    twin["aliases"] = [twin["name"]]
+    twin["entity_id"] = f"{original['entity_id']}_2"
+    mutated["entities"].append(twin)
+    return mutated
+
+
+def mutate_area(household: dict[str, Any], target: str, area: str) -> dict[str, Any]:
+    mutated = _clone(household)
+    moved = _find(mutated, target)
+    moved["area"] = area
+    moved["floor"] = (mutated.get("area_floors") or {}).get(area, moved.get("floor"))
+    return mutated
+
+
+def mutate_feature(household: dict[str, Any], target: str, operation: str) -> dict[str, Any]:
+    from generators.capability_registry import required_features
+
+    mutated = _clone(household)
+    stripped = _find(mutated, target)
+    dropped = set(required_features(stripped["capability"], operation))
+    stripped["capabilities"] = [item for item in stripped["capabilities"] if item not in dropped]
+    return mutated
+
+
+def mutate_distractor(household: dict[str, Any], target: str) -> dict[str, Any]:
+    mutated = _clone(household)
+    original = _find(mutated, target)
+    suffix = "Active App" if original["capability"] == "media_players" else "Power"
+    mutated["context_entities"] = [
+        *(mutated.get("context_entities") or []),
+        {"name": f"{target} {suffix}", "domain": "sensor", "area": original["area"]},
+    ]
+    return mutated
+
+
+def contrast_gold(
+    household: dict[str, Any], capability: str, operation: str, noun: str, *, seed: int = 0
+) -> dict[str, Any]:
+    from generators.gold import expected_no_action, gold_from_scenario, refers_to
+    from generators.tools import build_call_for_operation
+    from generators.coverage import bare_tool_name
+
+    expected = gold_from_scenario(
+        {
+            "home": household,
+            "capability": capability,
+            "operation": operation,
+            "targeting": "individual",
+            "robustness": "ambiguity",
+            "request_intent": {"name": noun, "area": None},
+        },
+        random.Random(seed),
+    )
+    removed = withheld_tools(household, capability, operation)
+    if expected.get("kind") == "reject" and removed:
+        target = next(
+            item for item in household["entities"]
+            if item["capability"] == capability
+            and item["area"] == household["sayso_entity_area"]
+            and refers_to(item, noun)
+        )
+        requested = {"kind": "action", "calls": [
+            build_call_for_operation(target, capability, operation, random.Random(seed))
+        ]}
+        return expected_no_action(
+            "unsupported", requested=requested,
+            unavailable_tools=[bare_tool_name(tool) for tool in removed],
+        )
+    return expected
+
+
+def behaviour_class(expected: dict[str, Any]) -> str:
+    from generators.gold import gold_matches_family
+
+    for family, label in (
+        ("ordinary", "action"),
+        ("clarify", "clarify"),
+        ("absence", "no_action"),
+        ("unsupported", "refusal"),
+        ("unavailable", "refusal"),
+    ):
+        if gold_matches_family(expected, family):
+            return label
+    raise ValueError(f"no behaviour class for {expected}")
+
+
+def model_visible_facts(household: dict[str, Any]) -> dict[str, tuple[Any, ...]]:
+    facts: dict[str, tuple[Any, ...]] = {}
+    for item in household["entities"]:
+        facts[item["name"].casefold()] = (
+            item["domain"], item.get("area"),
+            tuple(sorted(dict.fromkeys(item.get("aliases") or []))),
+            tuple(sorted(item.get("capabilities") or ())),
+        )
+    for item in household.get("context_entities") or []:
+        facts[item["name"].casefold()] = (item["domain"], item.get("area"), (), ())
+    return facts
+
+
+def _noun(target: dict[str, Any]) -> str | None:
+    name, area = target["name"], target["area"]
+    if not name.casefold().startswith(f"{area.casefold()} "):
+        return None
+    return name[len(area):].strip()
+
+
+def _contrast_bases(household: dict[str, Any]) -> list[tuple[dict[str, Any], str, str]]:
+    from generators.capability_registry import entity_supports, is_satellite
+    from generators.gold import refers_to
+
+    bases = []
+    for target in household["entities"]:
+        noun = _noun(target)
+        if noun is None or is_satellite(target):
+            continue
+        same = [
+            item for item in entities_in_area(household, target["capability"], target["area"])
+            if refers_to(item, noun)
+        ]
+        if same != [target]:
+            continue
+        for operation in CONTRAST_OPERATIONS.get(target["capability"], ()):
+            if entity_supports(target, target["capability"], operation):
+                bases.append((target, noun, operation))
+    return bases
+
+
+def _withholdable_tool(capability: str, operation: str) -> str | None:
+    from generators.capability_registry import operation_spec, required_features
+    from generators.planning import CORE_TOOL_NAMES
+
+    op = operation_spec(capability, operation)
+    if op is None or not op.tool_name or op.tool_name in CORE_TOOL_NAMES:
+        return None
+    return op.tool_name if required_features(capability, operation) else None
+
+
+def withheld_tools(household: dict[str, Any], capability: str, operation: str) -> list[str]:
+    from generators.capability_registry import entity_supports
+    from generators.tools import namespaced_tool_name
+
+    tool = _withholdable_tool(capability, operation)
+    if tool is None or any(
+        entity_supports(item, capability, operation)
+        for item in household["entities"] if item["capability"] == capability
+    ):
+        return []
+    return [namespaced_tool_name(tool)]
+
+
+def _axes_for(household: dict[str, Any], target: dict[str, Any], operation: str) -> list[str]:
+    axes = ["presence", "domain", "count", "distractor"]
+    if any(area != target["area"] for area in household.get("areas") or ()):
+        axes.append("area")
+    if _withholdable_tool(target["capability"], operation):
+        axes.append("feature")
+    return [axis for axis in CONTRAST_AXES if axis in axes]
+
+
+def _sole_supporter(household: dict[str, Any], target: dict[str, Any], operation: str) -> None:
+    from generators.capability_registry import required_features
+
+    dropped = set(required_features(target["capability"], operation))
+    for item in household["entities"]:
+        if item is not target and item["capability"] == target["capability"]:
+            item["capabilities"] = [cap for cap in item["capabilities"] if cap not in dropped]
+
+
+def _add_twin(household: dict[str, Any], target: dict[str, Any], noun: str, area: str) -> str | None:
+    name = f"{area} {noun}"
+    taken = {item["name"].casefold() for item in household["entities"]}
+    taken |= {item["name"].casefold() for item in household.get("context_entities") or []}
+    if name.casefold() in taken:
+        return None
+    twin = _clone(target)
+    twin.update(
+        name=name,
+        aliases=[name],
+        area=area,
+        floor=(household.get("area_floors") or {}).get(area, target.get("floor")),
+        entity_id=f"{target['domain']}.{_slug(name)}_contrast",
+    )
+    household["entities"].append(twin)
+    return name
+
+
+def _area_mutation(
+    base_home: dict[str, Any], target: dict[str, Any], noun: str, rng: random.Random
+) -> Any:
+    others = [area for area in base_home["areas"] if area != target["area"]]
+    twin_area = rng.choice(others)
+    twin = _add_twin(base_home, target, noun, twin_area)
+    kinds: dict[str, Any] = {"out": lambda: mutate_area(base_home, target["name"], rng.choice(others))}
+    if twin:
+        kinds["in"] = lambda: mutate_area(base_home, twin, target["area"])
+        aside = [area for area in others if area != twin_area]
+        if aside:
+            kinds["aside"] = lambda: mutate_area(base_home, twin, rng.choice(aside))
+    return kinds[rng.choice(sorted(kinds))]
+
+
+def contrast_command(
+    household: dict[str, Any], name: str, expected: dict[str, Any], noun: str, group_id: str
+) -> str:
+    import zlib
+
+    from generators.utterances import finalize_training_utterance, request_seed_from_spec
+    from generators.validation import check_fuzzy_eval_overlap, check_quality_eval_overlap
+
+    spec = {
+        "expected": expected,
+        "target_names": [name],
+        "spoken_targets": {name: f"the {noun.casefold()}"},
+        "home": household,
+    }
+    for retry in range(_COMMAND_RETRIES):
+        key = f"{group_id}:{retry}"
+        seed = request_seed_from_spec({**spec, "phrasing_seed": key})
+        command = finalize_training_utterance(seed, random.Random(zlib.crc32(key.encode())))
+        # Same predicate the pipeline applies to synthetic rows; a rejected phrasing must not be retried as-is.
+        if not (check_quality_eval_overlap(command) or check_fuzzy_eval_overlap(command)):
+            return command
+    raise ContrastCommandError(f"every contrast command for {group_id} overlaps an eval prompt")
+
+
+def build_contrast_group(
+    index: int,
+    rng: random.Random,
+    *,
+    size: int | None = None,
+    axes: tuple[str, ...] | None = None,
+    variants: int | None = None,
+) -> list[dict[str, Any]]:
+    # Short commands such as "turn off the ceiling fan" can overlap an eval prompt under every phrasing seed,
+    # so a fresh base (and household) is drawn instead; the first draw is unchanged.
+    for _ in range(_GROUP_ATTEMPTS - 1):
+        try:
+            return _build_contrast_group(index, rng, size=size, axes=axes, variants=variants)
+        except ContrastCommandError:
+            continue
+    return _build_contrast_group(index, rng, size=size, axes=axes, variants=variants)
+
+
+def _build_contrast_group(
+    index: int,
+    rng: random.Random,
+    *,
+    size: int | None,
+    axes: tuple[str, ...] | None,
+    variants: int | None,
+) -> list[dict[str, Any]]:
+    from generators.homes import generate_home
+
+    for _ in range(32):
+        household = generate_home(index, size or rng.choice((32, 64)), rng)
+        bases = _contrast_bases(household)
+        if axes:
+            bases = [
+                base for base in bases
+                if set(axes) <= set(_axes_for(household, base[0], base[2]))
+            ]
+        if bases:
+            break
+    else:
+        raise ValueError(f"no contrast base for index {index}")
+    by_capability: dict[str, list[tuple[dict[str, Any], str, str]]] = {}
+    for base in bases:
+        by_capability.setdefault(base[0]["capability"], []).append(base)
+    target, noun, operation = rng.choice(by_capability[rng.choice(sorted(by_capability))])
+    name, capability = target["name"], target["capability"]
+    base_home = _clone(household)
+    base_home["sayso_entity_area"] = target["area"]
+    base_home["context_entities"] = [
+        item for item in base_home.get("context_entities") or []
+        if not item["name"].casefold().startswith(name.casefold())
+    ]
+    available = _axes_for(base_home, target, operation)
+    if axes:
+        chosen = list(axes)
+    elif variants:
+        chosen = rng.sample(available, min(variants - 1, len(available)))
+    else:
+        chosen = rng.sample(available, rng.randint(1, min(4, len(available))))
+    target = _find(base_home, name)
+    area_mutation = _area_mutation(base_home, target, noun, rng) if "area" in chosen else None
+    if "feature" in chosen:
+        _sole_supporter(base_home, target, operation)
+    mutations = {
+        "presence": lambda: mutate_presence(base_home, name),
+        "domain": lambda: mutate_domain(base_home, name, rng.choice(("sensor", "binary_sensor"))),
+        "count": lambda: mutate_count(base_home, name),
+        "area": area_mutation,
+        "feature": lambda: mutate_feature(base_home, name, operation),
+        "distractor": lambda: mutate_distractor(base_home, name),
+    }
+    group_id = f"contrast_{index:06d}_{_slug(name)}_{operation}"
+    base_expected = contrast_gold(base_home, capability, operation, noun, seed=index)
+    command = contrast_command(base_home, name, base_expected, noun, group_id)
+    homes = [("base", base_home), *((axis, mutations[axis]()) for axis in chosen)]
+    group = []
+    for position, (axis, mutated) in enumerate(homes):
+        mutated["home_id"] = f"{group_id}_{position}"
+        expected = contrast_gold(mutated, capability, operation, noun, seed=index)
+        group.append({
+            "family": f"contrast_{axis}",
+            "phrasing_seed": group_id,
+            "capability": capability,
+            "operation": operation,
+            "targeting": "individual",
+            "robustness": "ambiguity",
+            "inject_missing": False,
+            "utterance": command,
+            "rng_index": index,
+            "request_intent": {"name": noun, "area": None},
+            "home": mutated,
+            "target_name": name,
+            "noun": noun,
+            "withheld_tools": withheld_tools(mutated, capability, operation),
+            "expected": expected,
+            "expected_class": behaviour_class(expected),
+            "contrast_group": group_id,
+            "contrast_axis": axis,
+            "contrast_variant": position,
+        })
+    return group
+
+
+def seeded_contrast_group(group_index: int, seed: int) -> list[dict[str, Any]]:
+    return build_contrast_group(
+        group_index, random.Random(seed * 1_000_003 + group_index), variants=CONTRAST_GROUP_SIZE
+    )
+
+
+GENERATED_CARRIER_AXES: dict[str, tuple[str, ...]] = {
+    "ordinary": ("distractor",),
+    "clarify": ("count",),
+    "absence": ("presence", "domain"),
+}
+GENERATED_INDEX_OFFSET = 1_000_000
+CONTEXT_SENSOR_DOMAINS = frozenset({"sensor", "select"})
+
+
+def _targets_context_sensor(item: dict[str, Any]) -> bool:
+    if item["expected"].get("kind") != "action":
+        return False
+    sensors = {
+        entity["name"] for entity in item["home"].get("context_entities") or []
+        if entity.get("domain") in CONTEXT_SENSOR_DOMAINS
+    }
+    return item.get("target_name") in sensors
+
+
+def generated_carrier_variant(family: str, index: int, seed: int) -> dict[str, Any] | None:
+    from generators.gold import gold_matches_family
+
+    # "unsupported" has no generated carrier: its blocked-request slots must keep their own
+    # capability/operation, and this call does not know which slot it is filling.
+    axes = GENERATED_CARRIER_AXES.get(family)
+    if not axes:
+        return None
+    group_index = GENERATED_INDEX_OFFSET + index
+    rng = random.Random(seed * 1_000_003 + group_index)
+    axis = rng.choice(axes)
+    try:
+        item = build_contrast_group(group_index, rng, axes=(axis,))[-1]
+    except ValueError:
+        return None
+    if not gold_matches_family(item["expected"], family) or _targets_context_sensor(item):
+        return None
+    return {**item, "family": f"ground_generated_{axis}"}
 
 
 def grounding_capable_slot(quota: Any, rng: random.Random) -> dict[str, Any] | None:

@@ -35,23 +35,28 @@ requirements:
     media_player__HassMediaUnpause: 100
     media_player__HassSetVolume: 200
     media_player__HassSetVolumeRelative: 100
-    homeassistant__GetLiveContext: 1000
+    homeassistant__GetLiveContext: 700
     vacuum__HassVacuumCleanArea: 100
     vacuum__HassVacuumReturnToBase: 100
     vacuum__HassVacuumStart: 100
   minimum_family_examples:
     clarify: 500
     unavailable: 500
-    multi_action: 800
-    status: 1000
+    multi_action: 700
+    status: 700
   minimum_category_examples:
     ambiguity: 500
   required_positive_tools:
     - intent__HassTurnOn
 limits:
   max_negative_ratio_by_capability:
+    media_players: 0.85
+  target_negative_ratio_by_capability:
     media_players: 0.8
   max_negative_ratio_by_tool:
+    media_player__HassMediaPause: 0.85
+    media_player__HassSetVolume: 0.85
+  target_negative_ratio_by_tool:
     media_player__HassMediaPause: 0.8
     media_player__HassSetVolume: 0.8
   max_duplicate_rate: 0.01

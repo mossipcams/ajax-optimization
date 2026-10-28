@@ -8,7 +8,7 @@ import re
 from adapters.schema import tool_schema_map, validate_tool_arguments
 from generators.capability_registry import SCRIPT_ACTION_TOOL
 from generators.coverage import ABSENCE, bare_tool_name, classify_row, expected_tool
-from generators.validation import check_quality_eval_overlap
+from generators.validation import check_quality_eval_overlap, is_satellite_contrast, satellite_contrast_spoken
 
 
 def _shares_long_word(name: str, alias: str) -> bool:
@@ -93,6 +93,7 @@ def audit_rows(
                 raise ValueError(f"contradictory timer refusal: {row_id}")
         if any(bare_tool_name(call["name"]) == "GetLiveContext" for call in calls) and final.strip().lower() == "done.":
             raise ValueError(f"state query labeled as action: {row_id}")
+        call_names = []
         for call in calls:
             arguments = call["arguments"]
             arguments = json.loads(arguments) if isinstance(arguments, str) else arguments
@@ -101,12 +102,15 @@ def audit_rows(
                 raise ValueError(f"{row_id}: {reason}")
             if arguments.get("name") in meta.get("excluded_names", []):
                 raise ValueError(f"excluded target called: {row_id}")
+            call_names.append(str(arguments.get("name") or ""))
         if set(meta.get("unavailable_tools", [])) & offered_bare:
             raise ValueError(f"blocked tool is offered: {row_id}")
         excluded = meta.get("excluded_names", [])
-        if excluded and ("leave" not in user.lower() or any(name.lower() not in user.lower() for name in excluded)):
+        if excluded and not satellite_contrast_spoken(user, call_names, excluded) and (
+            "leave" not in user.lower() or any(name.lower() not in user.lower() for name in excluded)
+        ):
             raise ValueError(f"missing exclusion wording: {row_id}")
-        if meta.get("category") in {"multi_action", "exclusion"} and len(calls) < 2:
+        if meta.get("category") in {"multi_action", "exclusion"} and len(calls) < 2 and not is_satellite_contrast(call_names, excluded):
             raise ValueError(f"false multiple-action tag: {row_id}")
         if meta.get("category") == "exclusion" and not excluded:
             raise ValueError(f"false exclusion tag: {row_id}")

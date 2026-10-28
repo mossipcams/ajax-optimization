@@ -1,0 +1,72 @@
+# Full fine-tune corpus v12: user-specified ordinary-heavy allocation (ordinary 40%, settings 12%, clarify 9%, aliases 6%, follow-up 7%, status 2%, correction 4%, junk 5%, multi-action 2%, exclusion 2%, unavailable 4%, unsupported 4%, absence 3%; six newer families at 0%).
+version: 1
+count: 40000
+seed: 20261027
+split: train
+output: training/datasets/sayso_full_sft_v12_20261027.jsonl
+manifest: training/datasets/sayso_full_sft_v12_20261027.manifest.json
+
+tokenizer:
+  model: LiquidAI/LFM2.5-230M-Base
+
+schema:
+  path: schemas/sayso-tool-schema-v2.json
+
+allocations:
+  ordinary: 0.40
+  settings: 0.12
+  clarify: 0.09
+  aliases: 0.06
+  follow_up: 0.07
+  status: 0.02
+  correction: 0.04
+  junk: 0.05
+  multi_action: 0.02
+  exclusion: 0.02
+  unavailable: 0.04
+  unsupported: 0.04
+  absence: 0.03
+  contrast: 0.0
+  timer_context: 0.0
+  conversation_context: 0.0
+  relative_brightness: 0.0
+  restore: 0.0
+  conditional: 0.0
+
+cross_cutting:
+  area:
+    enabled: true
+    distribution: training/configs/area_distribution_v1.json
+
+generation:
+  stt_noise_rate: 0.15
+  stt_log_rate: 0.10
+  paraphrase_enabled: false
+  token_budget: 8000
+  near_duplicate_limit: 8
+  max_attempts_multiplier: 20
+  synthetic_only: false
+  bare_name_rate: 0.35
+
+real_home:
+  path: training/fixtures/real_home.json
+  rate: 0.10
+  entity_cap: 0
+
+grounding:
+  rate: 0.08
+
+discrimination:
+  rate: 0.015
+
+coverage:
+  min_positive_per_operation: 40
+  min_positive_per_tool: 200
+  max_absence_rate: 0.10
+  get_datetime_positive_min: 400
+
+pairs:
+  withheld_tool: 1.0
+
+recipe_exclusions:
+  withheld_from_catalog: []

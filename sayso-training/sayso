@@ -21,7 +21,8 @@ PYTHON = Path(os.environ.get("PYTHON", ROOT / "training/.venv/bin/python"))
 STATE = ROOT / "training/runs/promotion"
 CANDIDATES = ROOT / "training/datasets/candidates"
 GPU_LOCK = os.environ.get("GPU_LOCK", "/srv/llm/bin/gpu")
-GENERATION_CONFIG = "training/configs/generation/full_sft_v6.yaml"
+GENERATION_CONFIG = "training/configs/generation/full_sft_v12.yaml"
+TRAIN_RECIPE = ["--lr", "5e-5", "--warmup-ratio", "0.1"]
 BASE_MODEL = os.environ.get("BASE_MODEL", "/srv/llm/lfm/models/LFM2.5-230M-Base")
 DATASET_DIR = Path(os.environ.get("DATASET_DIR", "/srv/llm/data/lfm/datasets"))
 EVAL_RESULTS = Path(os.environ.get("EVAL_RESULTS", "/srv/llm/lfm/runs/sayso-promotion"))
@@ -206,7 +207,7 @@ def cmd_canary(args: argparse.Namespace) -> None:
     else:
         try:
             run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/train_unsloth_full.py",
-                 "--data", data, "--canary", "--out", out])
+                 "--data", data, "--canary", "--out", out, *TRAIN_RECIPE])
         finally:
             settle_gpu()
     passed, metrics = eval_checkpoint(checkpoint, f"{run_id}-canary-eval", "smoke", "canary")
@@ -255,9 +256,10 @@ def cmd_train(_: argparse.Namespace) -> None:
     write_current(record)
     try:
         run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/train_unsloth_full.py",
-             "--data", data, "--out", out, "--promotion-record", f"{HOST_TRAINING}/training/runs/promotion/promoted_dataset.json"])
+             "--data", data, "--out", out, "--promotion-record", f"{HOST_TRAINING}/training/runs/promotion/promoted_dataset.json",
+             *TRAIN_RECIPE])
     except BaseException:
-        settle_gpu()
+        gpu("serve")
         raise
     record.update(trained=True, checkpoint=f"{out}/final", full_output=out, final_eval_passed=False)
     write_current(record)

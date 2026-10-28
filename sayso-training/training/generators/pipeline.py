@@ -5,7 +5,7 @@ import json
 import random
 import shutil
 import tempfile
-from collections import Counter, defaultdict
+from collections import ChainMap, Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +14,7 @@ from generators.config import GeneratorConfig
 from generators.deduplication import DuplicateTracker
 from generators.grounding import (
     GROUNDING_FAMILY_SLACK,
+    generated_carrier_variant,
     grounding_capacity,
     grounding_capable_slot,
     pick_carrier_variant,
@@ -21,8 +22,15 @@ from generators.grounding import (
     slot_can_carry_grounding,
     training_variants,
 )
+from generators.labels import render_example
+from generators.pairs import (
+    PAIR_SLOT_BIAS,
+    retarget_keeps_tool_floor,
+    withheld_pair_targets,
+    withheld_sibling,
+)
 from generators.paraphrase import load_paraphraser
-from generators.coverage import bare_tool_name, row_calls
+from generators.coverage import bare_tool_name, classify_row, expected_tool, row_calls
 from generators.planning import (
     CORE_TOOL_NAMES,
     REAL_HOME_EXCLUDED_FAMILIES,
@@ -44,7 +52,14 @@ from generators.rates import (
 from generators.real_home import derive_entity_cap, load_real_home
 from generators.row_generation import casing_kind, generate_row
 from generators.sampling import QuotaTracker
+from generators.validation import (
+    check_fuzzy_eval_overlap,
+    check_label_conflicts,
+    check_quality_eval_overlap,
+    check_unsupported_calls,
+)
 from generators.stats import empty_stats, finalize_stats, record_accept, record_reject
+from generators.validation import validate_row, validate_serialized_row, validate_spec
 
 
 REAL_HOME_RETRY_LIMIT = 4
@@ -111,15 +126,56 @@ def _slot_still_needed(slot: GenerationSlot, tracker: FamilyTracker, plan: Alloc
 
 SLOT_MAX_FAILURES = 50
 
+_DUPLICATE_REASONS = frozenset({"duplicate_semantic_id", "exact_duplicate_utterance"})
+
+
+def _dead_slot_report(slots: list[GenerationSlot], reasons: dict[int, Counter[str]]) -> str:
+    return "; ".join(
+        f"{slot.family}/{slot.area_scenario or slot.capability}/{slot.operation}"
+        f" #{slot.index}: {dict(reasons.get(slot.index, Counter()).most_common(3))}"
+        for slot in slots
+    )
+
 
 def _pick_family_slot(
-    plan: AllocationPlan, tracker: FamilyTracker, rng: random.Random, closed: set[int] = frozenset()
+    plan: AllocationPlan,
+    tracker: FamilyTracker,
+    rng: random.Random,
+    closed: set[int] = frozenset(),
+    dead: dict[int, Counter[str]] | None = None,
 ) -> GenerationSlot:
     needed = [slot for slot in plan.slots if _slot_still_needed(slot, tracker, plan)]
     if not needed:
         raise RuntimeError("family tracker has no remaining shortfall slots")
     open_slots = [slot for slot in needed if slot.index not in closed]
-    return rng.choice(open_slots or needed)
+    if open_slots:
+        return rng.choice(open_slots)
+    # Area slots cannot be reassigned, and each retry draws a fresh home, so a pending area slot
+    # keeps being retried. Only when no such slot is left is a dead slot a real stall.
+    retriable = [slot for slot in needed if slot.area_scenario]
+    stuck = [slot for slot in needed if dead and slot.index in dead]
+    if stuck and not retriable:
+        raise RuntimeError(f"dead generation slots: {_dead_slot_report(stuck, dead)}")
+    return rng.choice(retriable or needed)
+
+
+def _reassign_slot(
+    slot: GenerationSlot,
+    yielding: Counter[tuple[str, str]],
+    tried: set[tuple[str, str]],
+    rng: random.Random,
+) -> bool:
+    from generators.capability_registry import CAPABILITIES
+
+    if slot.area_scenario:
+        return False
+    tried.add((slot.capability, slot.operation))
+    candidates = sorted(pair for pair in yielding if pair not in tried and pair[0] in CAPABILITIES)
+    if not candidates:
+        return False
+    slot.capability, slot.operation = rng.choice(candidates)
+    slot.tier = CAPABILITIES[slot.capability].tier
+    return True
 
 
 def _datetime_slot_dict(index: int) -> dict[str, Any]:
@@ -245,6 +301,95 @@ def run_generation(config: GeneratorConfig) -> dict[str, Any]:
     return result
 
 
+class _StagedDuplicateTracker(DuplicateTracker):
+    """One attempt's view of the shared tracker. Reads see both; writes stay here until commit()."""
+
+    def __init__(self, shared: DuplicateTracker) -> None:
+        super().__init__(near_limit=shared.near_limit)
+        self._shared = shared
+        self._pair_counts = ChainMap({}, shared._pair_counts)
+        self._semantic_counts = ChainMap({}, shared._semantic_counts)
+        self._specs: list[dict[str, Any]] = []
+
+    def record(self, spec: dict[str, Any]) -> None:
+        super().record(spec)
+        self._specs.append(spec)
+
+    def commit(self) -> None:
+        # A row the row-level validators reject must not reserve its utterance or semantic id.
+        for spec in self._specs:
+            self._shared.record(spec)
+
+
+def _row_rejection(row: dict[str, Any]) -> str | None:
+    """Reject reason from the row-level validators, or None when the row may be accepted."""
+    # Only trained turns are labels; a correction's untrained first try may name a missing entity on purpose.
+    trained = {
+        **row,
+        "messages": [
+            message for message in row["messages"]
+            if message["role"] != "assistant" or message.get("train_on_turn")
+        ],
+    }
+    if check_unsupported_calls(trained) is not None:
+        return "unsupported_call"
+    system = next(
+        (str(m.get("content") or "") for m in row["messages"] if m["role"] == "system"), ""
+    )
+    # The real home shares device names with the nonstandard evals (e.g. 'TV'), so its rows get only the
+    # exact normalized match; the fuzzy Jaccard check would reject ordinary real-home TV commands.
+    real_home = bool(row.get("metadata", {}).get("real_home"))
+    for message in row["messages"]:
+        if message["role"] != "user":
+            continue
+        utterance = str(message.get("content") or "")
+        if check_quality_eval_overlap(utterance) or (
+            not real_home and check_fuzzy_eval_overlap(utterance, context=system)
+        ):
+            return "fuzzy_eval_overlap"
+    return None
+
+
+def _contrast_grounding_share(plan: AllocationPlan | None, count: int) -> float:
+    # Contrast rows are grounding counterfactuals, so the planned contrast slots add to the reachable rate.
+    if plan is None:
+        return 0.0
+    return plan.requested.get("contrast", 0) / max(count, 1)
+
+
+def _withheld_pair_row(
+    spec: dict[str, Any],
+    config: GeneratorConfig,
+    rng: random.Random,
+    dup_tracker: DuplicateTracker,
+    excluded: set[str],
+) -> dict[str, Any] | None:
+    rate = config.pair_rates.get("withheld_tool", 0.0)
+    if rate <= 0.0 or rng.random() >= rate:
+        return None
+    sibling_spec = withheld_sibling(spec, rng)
+    if sibling_spec is None or validate_spec(sibling_spec) is not None:
+        return None
+    utterance = sibling_spec["utterance"]
+    if check_quality_eval_overlap(utterance) or utterance.casefold() in excluded:
+        return None
+    if validate_row(sibling_spec, token_budget=config.token_budget) is not None:
+        return None
+    if dup_tracker.would_reject(sibling_spec):
+        return None
+    try:
+        sibling_row = render_example(sibling_spec)
+    except ValueError:
+        return None
+    if validate_serialized_row(
+        sibling_row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
+    ) is not None:
+        return None
+    sibling_row["metadata"]["pair_kind"] = "withheld_tool"
+    dup_tracker.record(sibling_spec)
+    return sibling_row
+
+
 def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
     rng = random.Random(config.seed)
     grounding_rate = _effective_grounding_rate(config)
@@ -326,6 +471,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
     real_home_refusal_rows = 0
     grounding_rows: Counter[str] = Counter()
     required_grounding = required_training_variants()
+    groundable_pairs = {(variant["capability"], variant["operation"]) for variant in training_variants()}
     grounding_missing = (
         {variant["family"]: variant for variant in required_grounding}
         if grounding_rate > 0
@@ -357,17 +503,32 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             and quota.accepted_total() + datetime_accepted >= config.count
         )
 
+    unused_grounding_slots = (
+        {slot.index for slot in plan.slots if slot.grounding} if plan is not None else set()
+    )
     closed_slots: set[int] = set()
     casing_counts: dict[str, Counter[str]] = {"call": Counter(), "no_call": Counter()}
+    pair_targets = withheld_pair_targets() if config.pair_rates.get("withheld_tool") else []
+    tool_floor = config.scaled_floor(config.min_positive_per_tool)
+    accepted_by_tool: Counter[str] = Counter()
     slot_failures: Counter[int] = Counter()
+    slot_reasons: defaultdict[int, Counter[str]] = defaultdict(Counter)
+    dead_slots: dict[int, Counter[str]] = {}
+    slot_tried: defaultdict[int, set[tuple[str, str]]] = defaultdict(set)
+    family_yield: defaultdict[str, Counter[tuple[str, str]]] = defaultdict(Counter)
+    stale_variants: defaultdict[int, set[str]] = defaultdict(set)
     while not complete() and attempts < max_attempts:
-        family_slot = _pick_family_slot(plan, tracker, rng, closed_slots) if tracker is not None else None
+        family_slot = (
+            _pick_family_slot(plan, tracker, rng, closed_slots, dead_slots)
+            if tracker is not None else None
+        )
         rows_remaining = max(1, config.count - accepted_total())
         datetime_deficit = datetime_target - datetime_accepted
         if datetime_deficit > 0 and rows_remaining <= datetime_deficit:
             slot = _datetime_slot_dict(attempts)
         elif family_slot is not None:
             slot = _slot_to_dict(family_slot)
+            unused_grounding_slots.discard(slot["index"])
         else:
             slot = quota.next_slot()
         real_home_selected = None
@@ -386,16 +547,22 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
         carrier = quota is None and slot_can_carry_grounding(slot)
         want_grounding = False
         recipe_variant = None
-        if grounding_rate > 0 and grounding_deficit > 0:
-            rate_hit = rng.random() < min(1.0, grounding_deficit / rows_remaining)
+        # Contrast rows can meet the rate before every catalogue family is covered, so the catalogue is
+        # still offered while families are missing; past the rate, only those missing families are taken.
+        if grounding_rate > 0 and (grounding_deficit > 0 or grounding_missing):
+            rate_hit = grounding_deficit > 0 and rng.random() < min(1.0, grounding_deficit / rows_remaining)
             if quota is not None:
                 want_grounding = bool(grounding_missing) or rate_hit
             elif carrier:
-                variant = pick_carrier_variant(slot, rng, grounding_missing)
-                forced = variant is not None and variant["family"] in grounding_missing
-                want_grounding = variant is not None and (
-                    slot.get("grounding") or (forced and rng.random() < 0.5)
+                variant = pick_carrier_variant(
+                    slot, rng, grounding_missing, stale_variants[slot["index"]]
                 )
+                surplus = rate_hit and grounding_deficit > len(unused_grounding_slots)
+                if variant is not None:
+                    want_grounding = bool(slot.get("grounding") or rng.random() < 0.5 or surplus)
+                elif grounding_deficit > 0 and (slot.get("grounding") or surplus):
+                    variant = generated_carrier_variant(slot["family"], attempts, config.seed)
+                    want_grounding = variant is not None
                 if want_grounding:
                     slot = {
                         **slot,
@@ -414,6 +581,9 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             forced = grounding_capable_slot(quota, rng)
             if forced is not None:
                 slot = forced
+            elif (slot["capability"], slot["operation"]) not in groundable_pairs:
+                # e.g. the datetime slot: no grounding variant can serve it, so it would miss every attempt.
+                want_grounding = False
         elif want_discrimination:
             forced = (
                 discrimination_capable_slot(quota, rng)
@@ -425,6 +595,18 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
                 slot["home_size"] = max(slot["home_size"], 64)
                 if quota is None:
                     discrimination_index = forced["index"]
+        if (
+            pair_targets
+            and tracker is not None
+            and not want_grounding
+            and not want_discrimination
+            and slot.get("family") in (None, "ordinary")
+            and not slot.get("grounding")
+            and retarget_keeps_tool_floor(slot, accepted_by_tool, tool_floor)
+            and tracker.family_deficit("unavailable") > 0
+            and rng.random() < PAIR_SLOT_BIAS
+        ):
+            slot = {**slot, **rng.choice(pair_targets)}
         row, reason = None, None
         exclusion_cadence = (
             config.real_home_entity_cap > 0
@@ -459,12 +641,13 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
                 if real_home_retries
                 else rng
             )
+            staged_dups = _StagedDuplicateTracker(dup_tracker)
             row, reason = generate_row(
                 slot,
                 config,
                 row_rng,
                 excluded=excluded,
-                dup_tracker=dup_tracker,
+                dup_tracker=staged_dups,
                 attempt=attempts,
                 retry=real_home_retries,
                 stt_remaining=max(
@@ -491,8 +674,15 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
                 ),
                 casing_counts=casing_counts,
             )
+            # Row-level rejections are retried like generator rejections, so a real-home row is not lost to them.
             if row is not None:
-                break
+                reason = _row_rejection(row)
+                if reason is None:
+                    staged_dups.commit()
+                    break
+                row = None
+            else:
+                staged_dups.commit()
             if real_home_selected is not True and not exclusion_cadence:
                 break
             real_home_retries += 1
@@ -502,16 +692,28 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
         plan_index = discrimination_index if discrimination_index is not None else (
             family_slot.index if family_slot is not None else None
         )
+        if recipe_variant and row is None and reason in _DUPLICATE_REASONS:
+            stale_variants[slot["index"]].add(recipe_variant[0]["family"])
         if plan_index is not None and slot.get("index") == plan_index:
             if row is not None:
                 closed_slots.add(plan_index)
+                if not want_grounding:
+                    family_yield[slot["family"]][(slot["capability"], slot["operation"])] += 1
             else:
                 slot_failures[plan_index] += 1
+                slot_reasons[plan_index][reason or "unknown"] += 1
                 if slot_failures[plan_index] >= SLOT_MAX_FAILURES:
-                    closed_slots.add(plan_index)
+                    planned = next(item for item in plan.slots if item.index == plan_index)
+                    if _reassign_slot(planned, family_yield[planned.family], slot_tried[plan_index], rng):
+                        slot_failures[plan_index] = 0
+                    else:
+                        closed_slots.add(plan_index)
+                        if not planned.area_scenario:
+                            dead_slots[plan_index] = slot_reasons[plan_index]
         if row is None:
             record_reject(stats, reason or "unknown")
             continue
+        pair_spec = row.pop("_pair_spec", None)
         if config.split == "test":
             user_text = next(
                 message["content"]
@@ -532,6 +734,9 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             quota.record_accept(row)
         accepted.append(row)
         record_accept(stats, row)
+        facets = classify_row(row)
+        if facets["positive"] and (tool := expected_tool(facets["capability"], facets["operation"])):
+            accepted_by_tool[tool] += 1
         first_user = next(m["content"] for m in row["messages"] if m["role"] == "user")
         casing_counts[casing_kind(bool(row_calls(row)))]["upper" if first_user[:1].isupper() else "lower"] += 1
         if any(
@@ -550,6 +755,15 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             grounding_missing.pop(family, None)
         if row["metadata"].get("discrimination"):
             discrimination_rows += 1
+        if pair_spec is not None and tracker is not None and len(accepted) < config.count:
+            if tracker.family_deficit("unavailable") > 0:
+                sibling_row = _withheld_pair_row(pair_spec, config, rng, dup_tracker, excluded)
+                if sibling_row is not None:
+                    row["metadata"]["contrastive_group"] = f"withheld_{pair_spec.get('candidate_id')}"
+                    sibling_row["metadata"]["contrastive_group"] = row["metadata"]["contrastive_group"]
+                    tracker.record("unavailable")
+                    accepted.append(sibling_row)
+                    record_accept(stats, sibling_row)
 
     if not complete():
         raise RuntimeError(
@@ -558,6 +772,14 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             f"{tracker.summary() if tracker is not None else quota.shortfall()}; "
             f"missing_grounding={sorted(grounding_missing)}; "
             f"rejections={dict(stats['rejection_reasons'])}"
+        )
+
+    conflicts = check_label_conflicts(accepted)
+    if conflicts:
+        shown = ", ".join(repr(conflict["command"]) for conflict in conflicts[:5])
+        raise RuntimeError(
+            f"{len(conflicts)} accepted command/context group(s) disagree on the label; "
+            f"first commands: {shown}"
         )
 
     if tracker is not None:
@@ -612,7 +834,8 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             "grounding",
             config,
             len(accepted),
-            available_share=grounding_available_share(config),
+            available_share=grounding_available_share(config)
+            + _contrast_grounding_share(plan, config.count),
         )
     enforce_rate_gate(
         report["discrimination"],
