@@ -13,6 +13,7 @@ from pathlib import Path
 
 HOST = "/workspace/host"
 CANARY_STEPS = 250
+EVAL_ROWS = 512
 
 
 def sha256(path: str | Path) -> str:
@@ -49,6 +50,7 @@ def build_manifest(args, training_args: dict, data_sha256: str) -> dict:
         "base_model_files": tree_sha256(args.model),
         "data": args.data,
         "data_sha256": data_sha256,
+        "eval_data": getattr(args, "eval_data", None),
         "training_args": training_args,
         "packages": package_versions(),
     }
@@ -72,6 +74,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", default=f"{HOST}/lfm/models/LFM2.5-230M-Base")
     parser.add_argument("--data", default=f"{HOST}/datasets/sayso_full_sft_v5_20260922_rendered.jsonl")
+    parser.add_argument("--eval-data", help="group-held-out rendered rows for validation loss")
     parser.add_argument("--out")
     parser.add_argument("--cutoff", type=int, default=8192)
     parser.add_argument("--epochs", type=float, default=2)
@@ -117,6 +120,7 @@ def main() -> int:
         args.model,
         max_seq_length=args.cutoff,
         dtype=torch.bfloat16,
+        float32_mixed_precision=True,
         load_in_4bit=False,
         full_finetuning=True,
     )
@@ -138,11 +142,18 @@ def main() -> int:
                 row = json.loads(line)
                 yield {"instruction": row["instruction"], "output": row["output"]}
 
-    stat = os.stat(args.data)
-    dataset = Dataset.from_generator(
-        rows, gen_kwargs={"path": args.data, "stamp": f"{stat.st_size}:{stat.st_mtime_ns}"}
-    )
-    dataset = dataset.map(encode, remove_columns=dataset.column_names, num_proc=6)
+    def load_rows(path):
+        stat = os.stat(path)
+        dataset = Dataset.from_generator(rows, gen_kwargs={"path": path, "stamp": f"{stat.st_size}:{stat.st_mtime_ns}"})
+        return dataset.map(encode, remove_columns=dataset.column_names, num_proc=6)
+
+    dataset = load_rows(args.data)
+    eval_dataset = None
+    if args.eval_data:
+        eval_dataset = load_rows(args.eval_data).shuffle(seed=20260922)
+        eval_dataset = eval_dataset.select(range(min(EVAL_ROWS, len(eval_dataset))))
+        eval_dataset = eval_dataset.filter(lambda row: row["length"] <= args.cutoff and row["supervised"] > 0)
+        eval_dataset = eval_dataset.remove_columns(["length", "supervised"])
     lengths = dataset["length"]
     too_long = sum(length > args.cutoff for length in lengths)
     empty = sum(count == 0 for count in dataset["supervised"])
@@ -156,6 +167,7 @@ def main() -> int:
     trainer = Trainer(
         model=model,
         train_dataset=dataset,
+        eval_dataset=eval_dataset,
         data_collator=DataCollatorForSeq2Seq(tokenizer, padding=True),
         processing_class=tokenizer,
         args=TrainingArguments(
@@ -171,6 +183,9 @@ def main() -> int:
             bf16=True,
             optim="adamw_torch",
             logging_steps=5,
+            eval_strategy="steps" if eval_dataset is not None else "no",
+            eval_steps=200,
+            per_device_eval_batch_size=1,
             save_strategy="steps",
             save_steps=200,
             # ponytail: weights only (~0.5 GB each) so every checkpoint survives for ./sayso select;
@@ -189,7 +204,12 @@ def main() -> int:
     trainer.train()
     rates = [entry["learning_rate"] for entry in trainer.state.log_history if "learning_rate" in entry]
     manifest.update(finished_at=datetime.now(timezone.utc).isoformat(), final_step=trainer.state.global_step,
-                    max_steps=trainer.state.max_steps, last_logged_learning_rate=rates[-1] if rates else None)
+                    max_steps=trainer.state.max_steps, last_logged_learning_rate=rates[-1] if rates else None,
+                    eval_loss=[{"step": entry["step"], "eval_loss": entry["eval_loss"]}
+                               for entry in trainer.state.log_history if "eval_loss" in entry],
+                    parameter_dtypes=sorted({str(param.dtype) for param in model.parameters() if param.requires_grad}),
+                    optimizer_state_dtypes=sorted({str(state["exp_avg"].dtype)
+                                                   for state in trainer.optimizer.state.values() if "exp_avg" in state}))
     manifest_path.write_text(json.dumps(manifest, indent=2, default=str) + "\n", encoding="utf-8")
     trainer.save_model(f"{args.out}/final")
     tokenizer.save_pretrained(f"{args.out}/final")

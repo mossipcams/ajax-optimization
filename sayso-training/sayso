@@ -24,6 +24,7 @@ CANDIDATES = ROOT / "training/datasets/candidates"
 GPU_LOCK = os.environ.get("GPU_LOCK", "/srv/llm/bin/gpu")
 GENERATION_CONFIG = "training/configs/generation/full_sft_v13.yaml"
 TRAIN_RECIPE = ["--lr", "5e-5", "--warmup-ratio", "0.1"]
+VAL_RATIO = 0.05
 BASE_MODEL = os.environ.get("BASE_MODEL", "/srv/llm/lfm/models/LFM2.5-230M-Base")
 DATASET_DIR = Path(os.environ.get("DATASET_DIR", "/srv/llm/data/lfm/datasets"))
 EVAL_RESULTS = Path(os.environ.get("EVAL_RESULTS", "/srv/llm/lfm/runs/sayso-promotion"))
@@ -173,16 +174,25 @@ def settle_gpu() -> None:
 
 
 def render_and_stage(record: dict) -> str:
+    """Hold out whole scenario groups for validation loss, then render and stage both splits."""
     rendered = Path(record["rendered_path"])
-    run([str(PYTHON), str(ROOT / "training/scripts/export_llamafactory_view.py"), record["dataset_path"],
-         "--output", str(rendered), "--dataset-name", f"sayso_{record['run_id']}",
-         "--dataset-info-out", str(rendered.with_suffix(".info.json")), "--model", BASE_MODEL])
+    split_dir = rendered.with_suffix(".split")
+    run([str(PYTHON), str(ROOT / "training/scripts/split_dataset.py"), record["dataset_path"],
+         "--out-dir", str(split_dir), "--train-ratio", str(1 - VAL_RATIO), "--val-ratio", str(VAL_RATIO)])
     DATASET_DIR.mkdir(parents=True, exist_ok=True)
-    staged = DATASET_DIR / rendered.name
-    shutil.copy2(rendered, staged)
+    for split, out in (("train", rendered), ("val", rendered.with_suffix(".val.jsonl"))):
+        run([str(PYTHON), str(ROOT / "training/scripts/export_llamafactory_view.py"), str(split_dir / f"sayso_{split}.jsonl"),
+             "--output", str(out), "--dataset-name", f"sayso_{record['run_id']}_{split}",
+             "--dataset-info-out", str(out.with_suffix(".info.json")), "--model", BASE_MODEL])
+        shutil.copy2(out, DATASET_DIR / out.name)
     record["rendered_sha256"] = digest(rendered)
-    record["staged_data"] = f"{HOST}/datasets/{staged.name}"
+    record["staged_data"] = f"{HOST}/datasets/{rendered.name}"
+    record["staged_eval_data"] = f"{HOST}/datasets/{rendered.with_suffix('.val.jsonl').name}"
     return record["staged_data"]
+
+
+def eval_data_args(record: dict) -> list[str]:
+    return ["--eval-data", record["staged_eval_data"]] if record.get("staged_eval_data") else []
 
 
 def eval_checkpoint(checkpoint: str, out_name: str, suite: str, profile: str | None = None) -> tuple[bool, dict]:
@@ -357,7 +367,7 @@ def cmd_canary(args: argparse.Namespace) -> None:
     else:
         try:
             run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/train_unsloth_full.py",
-                 "--data", data, "--canary", "--out", out, *TRAIN_RECIPE])
+                 "--data", data, *eval_data_args(record), "--canary", "--out", out, *TRAIN_RECIPE])
         finally:
             settle_gpu()
     passed, metrics = eval_checkpoint(checkpoint, f"{run_id}-canary-eval", "smoke", "canary")
@@ -419,7 +429,7 @@ def cmd_train(_: argparse.Namespace) -> None:
     save(STATE / f"{record['run_id']}.json", record)
     try:
         run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/train_unsloth_full.py",
-             "--data", data, "--out", training["output"],
+             "--data", data, *eval_data_args(record), "--out", training["output"],
              "--promotion-record", f"{HOST_TRAINING}/training/runs/promotion/promoted_dataset.json", *TRAIN_RECIPE])
     except BaseException:
         gpu("serve")
