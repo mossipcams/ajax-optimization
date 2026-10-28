@@ -73,24 +73,6 @@ def expected_unexposed_domain(
     )
 
 
-def expected_device_unsupported(
-    entities: list[dict[str, Any]],
-    capability: str,
-    operation: str,
-    rng: random.Random,
-) -> dict[str, Any]:
-    target = entities[0]
-    requested = {
-        "kind": "action",
-        "calls": [build_call_for_operation(target, capability, operation, rng)],
-    }
-    return expected_no_action(
-        "device_unsupported",
-        requested=requested,
-        unsupported_names=[entity["name"] for entity in entities],
-    )
-
-
 def gold_matches_family(expected: dict[str, Any], family: str) -> bool:
     kind = expected.get("kind")
     response = expected.get("response")
@@ -199,7 +181,7 @@ def gold_from_scenario(scenario: dict[str, Any], rng: random.Random) -> dict[str
         matches = entities_supporting(present, capability, operation)
         if not matches:
             if present:
-                return expected_device_unsupported(present, capability, operation, rng)
+                return {"kind": "reject", "reason": "entity_lacks_capability", "calls": []}
             return expected_no_action(
                 "area_unavailable",
                 unavailable={"area": area.casefold(), "type": _type_label(capability)},
@@ -308,7 +290,7 @@ def _ambiguous_gold(
     matches = entities_supporting(present, capability, operation)
     if len(matches) == 0:
         if present:
-            return expected_device_unsupported(present, capability, operation, rng)
+            return {"kind": "reject", "reason": "entity_lacks_capability", "calls": []}
         noun = (intent or {}).get("name")
         if noun:
             return expected_no_action(

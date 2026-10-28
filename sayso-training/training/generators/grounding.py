@@ -251,13 +251,6 @@ def supported_action_family(*, prefix: str, area: str, name: str) -> list[dict[s
                              features=("on", "off", "play", "pause", "volume", "volume_step", "mute"))],
             **common,
         ),
-        variant(
-            label="incapable",
-            entities=[entity(name, "media_players", area, device_class="speaker",
-                             features=("on", "off", "play", "pause"))],
-            inject_missing=False,
-            **common,
-        ),
     ]
 
 
@@ -440,6 +433,8 @@ def build_spec(variant: dict[str, Any], *, seed: int = 20260910, index: int = 0)
         inject_missing=variant.get("inject_missing", True),
         request_intent=variant.get("request_intent"),
     )
+    if variant.get("withheld_tools"):
+        scenario["expected"] = variant["expected"]
     scenario["phrasing_seed"] = variant["phrasing_seed"]
     spec = scenario_to_spec(scenario)
     spec["grounding_family"] = variant["family"]
@@ -653,9 +648,11 @@ def mutate_distractor(household: dict[str, Any], target: str) -> dict[str, Any]:
 def contrast_gold(
     household: dict[str, Any], capability: str, operation: str, noun: str, *, seed: int = 0
 ) -> dict[str, Any]:
-    from generators.gold import gold_from_scenario
+    from generators.gold import expected_no_action, gold_from_scenario, refers_to
+    from generators.tools import build_call_for_operation
+    from generators.coverage import bare_tool_name
 
-    return gold_from_scenario(
+    expected = gold_from_scenario(
         {
             "home": household,
             "capability": capability,
@@ -666,6 +663,22 @@ def contrast_gold(
         },
         random.Random(seed),
     )
+    removed = withheld_tools(household, capability, operation)
+    if expected.get("kind") == "reject" and removed:
+        target = next(
+            item for item in household["entities"]
+            if item["capability"] == capability
+            and item["area"] == household["sayso_entity_area"]
+            and refers_to(item, noun)
+        )
+        requested = {"kind": "action", "calls": [
+            build_call_for_operation(target, capability, operation, random.Random(seed))
+        ]}
+        return expected_no_action(
+            "unsupported", requested=requested,
+            unavailable_tools=[bare_tool_name(tool) for tool in removed],
+        )
+    return expected
 
 
 def behaviour_class(expected: dict[str, Any]) -> str:
@@ -676,6 +689,7 @@ def behaviour_class(expected: dict[str, Any]) -> str:
         ("clarify", "clarify"),
         ("absence", "no_action"),
         ("unsupported", "refusal"),
+        ("unavailable", "refusal"),
     ):
         if gold_matches_family(expected, family):
             return label

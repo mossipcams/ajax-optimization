@@ -1327,7 +1327,18 @@ def generate_row(
     if family:
         spec["family"] = family
     spec["full_tool_catalog"] = True
+    context_name = None
+    if (
+        family == "unsupported"
+        and spec["home"].get("context_entities")
+        and not is_blocked_request(family, slot.get("capability"), slot.get("operation"))
+        and rng.random() < CONTEXT_HARD_NEGATIVE_RATE
+    ):
+        context_name = rng.choice(spec["home"]["context_entities"])["name"]
+        spec["expected"] = expected_no_action("device_unsupported", unsupported_names=[context_name])
     expected = spec.get("expected") or {}
+    if expected.get("kind") == "reject":
+        return None, expected["reason"]
     if family and not gold_matches_family(expected, family):
         return None, "family_mismatch"
     follow_up_clarify_candidates: list[str] | None = None
@@ -1376,23 +1387,16 @@ def generate_row(
         spec["linguistics"] = [{"source": "sayso_fallback", "intent": "unexposed_domain"}]
         spec.pop("request_hint", None)
         spec.pop("clarify_question", None)
-    elif (
-        family == "unsupported"
-        and spec["home"].get("context_entities")
-        and not is_blocked_request(family, slot.get("capability"), slot.get("operation"))
-        and rng.random() < CONTEXT_HARD_NEGATIVE_RATE
-    ):
+    elif context_name is not None:
         context_hard_negative = True
-        name = rng.choice(spec["home"]["context_entities"])["name"]
         state = rng.choice(("on", "off"))
         template = rng.choice((
             "turn {state} {name}",
             "switch {name} {state}",
             "could you turn {name} {state}?",
         ))
-        spec["utterance"] = template.format(name=name, state=state)
+        spec["utterance"] = template.format(name=context_name, state=state)
         spec["linguistics"] = [{"source": "sayso_fallback", "intent": "device_unsupported"}]
-        spec["expected"] = expected_no_action("device_unsupported", unsupported_names=[name])
         spec.pop("request_hint", None)
         spec.pop("clarify_question", None)
     elif family == "follow_up":
