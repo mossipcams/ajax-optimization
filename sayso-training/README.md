@@ -4,6 +4,8 @@ This directory contains the training tools imported from SaySo. Run the commands
 in the older training and wake runbooks from this directory: `training/.venv`,
 `training/configs`, `satellite/models`, and `scripts/` are relative to here.
 
+The canonical end-to-end LFM training pipeline — stages, commands, artifacts, and the invariants a run must not deviate from — is documented in [docs/PIPELINE.md](docs/PIPELINE.md).
+
 | Path | Purpose |
 |---|---|
 | `training/` | Corpus generators, adapters, recipes, fixtures, tests, and training/export commands. |
