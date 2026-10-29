@@ -112,7 +112,7 @@ def _is_true(node: ast.AST | None) -> bool:
     return isinstance(node, ast.Constant) and node.value is True
 
 
-def test_trainer_kwargs_full_finetuning_fp32_bf16() -> None:
+def test_trainer_kwargs_full_finetuning_bf16() -> None:
     tree = ast.parse(TRAINER.read_text(encoding="utf-8"))
     calls = {}
     for node in ast.walk(tree):
@@ -122,8 +122,11 @@ def test_trainer_kwargs_full_finetuning_fp32_bf16() -> None:
     fast_model = calls.get("FastModel.from_pretrained", [])
     training_args = calls.get("TrainingArguments", [])
     assert any(_is_true(kwargs.get("full_finetuning")) for kwargs in fast_model), "FastModel(full_finetuning=True) missing"
-    assert any(_is_true(kwargs.get("float32_mixed_precision")) for kwargs in fast_model), (
-        "FastModel(float32_mixed_precision=True) missing"
+    assert any(ast.unparse(kwargs.get("dtype", "")) == "torch.bfloat16" for kwargs in fast_model), (
+        "FastModel(dtype=torch.bfloat16) missing"
+    )
+    assert not any(_is_true(kwargs.get("float32_mixed_precision")) for kwargs in fast_model), (
+        "FastModel(float32_mixed_precision=True) must not be set"
     )
     assert any(_is_true(kwargs.get("bf16")) for kwargs in training_args), "TrainingArguments(bf16=True) missing"
 

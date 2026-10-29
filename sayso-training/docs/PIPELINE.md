@@ -68,8 +68,8 @@ passes `--promotion-record`. Every GPU job runs inside a lock turn: `gpu run <la
 
 - **Config it reads / recipe:** base model `LFM2.5-230M-Base` (`BASE_MODEL` in `sayso`;
   `--model` default in `training/scripts/train_unsloth_full.py`); learning rate and warmup from
-  `TRAIN_RECIPE`. The trainer is full-parameter (`full_finetuning=True`) with FP32 master weights
-  (`float32_mixed_precision=True`) and BF16 compute (`bf16=True`).
+  `TRAIN_RECIPE`. The trainer is full-parameter (`full_finetuning=True`) with BF16 weights and
+  compute (`dtype=torch.bfloat16`, `bf16=True`) and no FP32 master weights (`float32_mixed_precision` not set).
 - **Render + group-held-out split:** before training, the CLI renders both splits —
   `training/scripts/split_dataset.py` (whole-scenario-group held-out; the CLI gets `1 - VAL_RATIO`
   and `VAL_RATIO`, where `VAL_RATIO = 0.05` is defined in `sayso`, so a 95/5 train/val split) and `training/scripts/export_llamafactory_view.py` (the derived
@@ -134,8 +134,8 @@ direction rather than proceeding.
    default in `training/scripts/train_unsloth_full.py`.
 2. **Full-parameter fine-tuning from fresh Base — no LoRA/adapter, no continued merge.** Defined by
    `full_finetuning=True` in `training/scripts/train_unsloth_full.py`.
-3. **FP32 master weights with BF16 compute.** Defined by `float32_mixed_precision=True` and
-   `bf16=True` in `training/scripts/train_unsloth_full.py`.
+3. **BF16 weights and compute; no FP32 master weights.** Defined by `dtype=torch.bfloat16` /
+   `bf16=True` in `training/scripts/train_unsloth_full.py` and the absence of `float32_mixed_precision=True`.
 4. **Group-held-out validation split — a scenario/household group never spans two splits.** Defined
    by `_group_keys`, `assign_split`, and the violation checks in `training/scripts/split_dataset.py`;
    held at `VAL_RATIO = 0.05` in `sayso`.

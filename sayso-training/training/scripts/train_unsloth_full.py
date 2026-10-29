@@ -120,7 +120,6 @@ def main() -> int:
         args.model,
         max_seq_length=args.cutoff,
         dtype=torch.bfloat16,
-        float32_mixed_precision=True,
         load_in_4bit=False,
         full_finetuning=True,
     )
