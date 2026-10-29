@@ -53,3 +53,41 @@ non-commands and completes commands.
   sessions in `data/splits.json` and never reselects them.
 - `eval_v2.py` — v5 / v6 / v6b on the locked sessions with bootstrap intervals.
 - `koda-phonics-v6b.yaml` — v6 config with batch real_positive 20, hard_real_words 50.
+
+## Live threshold 0.31 (2026-10-29)
+
+The Pi now fires at 0.31 instead of 0.20. The model is unchanged.
+
+- **Config:** `/etc/sayso-satellite/config.yaml`, changed at 11:44 CDT. The previous config is saved as
+  `config.yaml.bak-pre-threshold-031-20261029`.
+- **Rollback:** copy that backup over `config.yaml`, then
+  `sudo systemctl restart sayso-satellite.service`.
+
+**Evidence.** Satellite recordings were replayed on the satellite's own scoring grid. The window end is a live hop, and
+±80 ms steps stay on its mel/embedding grid, so replayed scores equal the live scores exactly.
+
+- Script: `/srv/llm/data/wake/runs/fn-20261029-live.py` on the llm VM.
+- Output: `/srv/llm/data/wake/runs/fn-20261029/live.json`.
+
+| | Peak score |
+|---|---|
+| v6b live false wakes (10-21, and three on 10-29) | 0.21, 0.22, 0.27, 0.28 |
+| Real Koda since deploy (10-28 timer commands) | 0.86, 0.90 |
+
+The table below uses the same 45 locked-session Koda as above. Here a Koda counts as caught if any hop within ±0.5 s
+of its window passes, so the 0.20 row differs from the per-window table.
+
+| Rule | Koda caught | v6b false wakes passing |
+|---|---|---|
+| One hop ≥ 0.20 (previous live rule) | 35/45 | 4/4 |
+| Two hops in a row, 80 ms apart, ≥ 0.20 | 33/45 | 3/4 |
+| Two hops in a row, 160 ms apart, ≥ 0.20 | 29/45 | 1/4 |
+| One hop ≥ 0.30 | 33/45 | 0/4 |
+
+Requiring several hops in a row only stops false wakes that flicker. Most v6b false wakes stay just above 0.20 for
+0.16–0.4 s instead. What separates them from real Koda is their low peak.
+
+**Limits:**
+- Only 4 false wakes support this.
+- 0.31 sits just above the highest of them (0.28).
+- The expected cost is the 2 locked Koda that peak at 0.22 and 0.28.
