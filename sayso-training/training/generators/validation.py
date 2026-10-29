@@ -572,8 +572,95 @@ def gate_offered_tools(row: dict[str, Any]) -> str | None:
     return None
 
 
+_NON_TARGET_TOOLS = frozenset({"GetLiveContext", "GetDateTime"})
+_TOGGLE_TOOLS = frozenset({"HassTurnOn", "HassTurnOff"})
+_UNACTIONABLE_DOMAINS = frozenset({"sun", "sensor", "binary_sensor", "number", "weather", "person", "device_tracker", "zone"})
+_NON_HA_LIGHT_COLORS = frozenset({"warm white", "cool white", "soft white", "daylight"})
+
+
+def _domains_argument(arguments: dict[str, Any]) -> set[str]:
+    raw = arguments.get("domain")
+    if isinstance(raw, str):
+        return {raw}
+    if isinstance(raw, list):
+        return {domain for domain in raw if isinstance(domain, str)}
+    return set()
+
+
+def _target_consistency_reason(row: dict[str, Any]) -> str | None:
+    entities = _static_entities(_system_prompt(row))
+    for call in _labelled_calls(row):
+        function = call.get("function") or {}
+        bare = _BARE_TOOL.get(function.get("name"), function.get("name"))
+        if bare in _NON_TARGET_TOOLS or bare in _TIMER_NAME_TOOLS:
+            continue
+        arguments = _parsed_arguments(function.get("arguments"))
+        if arguments is None:
+            return "invalid_call_shape"
+        target = arguments.get("name")
+        if target is None:
+            continue
+        if not isinstance(target, str):
+            return "invalid_call_shape"
+        entries = [entry for entry in entities if target in entry["names"]]
+        if not entries:
+            return "unknown_canonical_entity"
+        area = arguments.get("area")
+        if isinstance(area, str):
+            entries = [entry for entry in entries if area.casefold() in {a.casefold() for a in entry["areas"]}]
+            if not entries:
+                return "target_outside_area"
+        domains = _domains_argument(arguments)
+        if domains and not any(entry["domain"] in domains for entry in entries):
+            return "target_domain_mismatch"
+    return None
+
+
+def _unactionable_domain_reason(row: dict[str, Any]) -> str | None:
+    entities = _static_entities(_system_prompt(row))
+    for call in _labelled_calls(row):
+        function = call.get("function") or {}
+        if _BARE_TOOL.get(function.get("name"), function.get("name")) not in _TOGGLE_TOOLS:
+            continue
+        arguments = _parsed_arguments(function.get("arguments"))
+        if arguments is None:
+            return "invalid_call_shape"
+        target = arguments.get("name")
+        if isinstance(target, str):
+            domains = {entry["domain"] for entry in entities if target in entry["names"]}
+            if domains and domains <= _UNACTIONABLE_DOMAINS:
+                return "unactionable_domain"
+        domains = _domains_argument(arguments)
+        if domains and domains <= _UNACTIONABLE_DOMAINS:
+            return "unactionable_domain"
+    return None
+
+
+def _light_color_reason(row: dict[str, Any]) -> str | None:
+    for call in _labelled_calls(row):
+        function = call.get("function") or {}
+        if _BARE_TOOL.get(function.get("name"), function.get("name")) != "HassLightSet":
+            continue
+        arguments = _parsed_arguments(function.get("arguments"))
+        if arguments is None:
+            return "invalid_call_shape"
+        color = arguments.get("color")
+        if color is None:
+            continue
+        if not isinstance(color, str):
+            return "invalid_call_shape"
+        if color.strip().casefold() in _NON_HA_LIGHT_COLORS:
+            return "unknown_light_color"
+    return None
+
+
 def gate_named_device_calls(row: dict[str, Any]) -> str | None:
-    reason = check_unsupported_calls(row)
+    reason = (
+        check_unsupported_calls(row)
+        or _target_consistency_reason(row)
+        or _unactionable_domain_reason(row)
+        or _light_color_reason(row)
+    )
     if reason:
         return reason
     canonical = {entry["names"][0] for entry in _static_entities(_system_prompt(row)) if entry["names"]}

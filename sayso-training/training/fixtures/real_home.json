@@ -112,7 +112,7 @@
       "capability": "lights",
       "device_class": null,
       "area": "Outside",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "on",
       "capabilities": [
         "brightness",
@@ -133,7 +133,7 @@
       "capability": "lights",
       "device_class": null,
       "area": "Outside",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "on",
       "capabilities": [
         "brightness",
@@ -154,7 +154,7 @@
       "capability": "media_players",
       "device_class": "speaker",
       "area": "Unassigned",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "idle",
       "capabilities": [
         "mute",
@@ -173,7 +173,7 @@
       "capability": "media_players",
       "device_class": "tv",
       "area": "Living Room",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "idle",
       "capabilities": [
         "mute",
@@ -197,7 +197,7 @@
       "capability": "media_players",
       "device_class": "speaker",
       "area": "Unassigned",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "idle",
       "capabilities": [
         "mute",
@@ -216,7 +216,7 @@
       "capability": "scenes",
       "device_class": null,
       "area": "Living Room",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "2026-09-22T23:21:49.718325+00:00",
       "capabilities": [
         "activate"
@@ -233,7 +233,7 @@
       "capability": "switches",
       "device_class": "outlet",
       "area": "Living Room",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "on",
       "capabilities": [
         "on",
@@ -251,7 +251,7 @@
       "capability": "switches",
       "device_class": "switch",
       "area": "Living Room",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "on",
       "capabilities": [
         "on",
@@ -287,7 +287,7 @@
       "capability": "switches",
       "device_class": "outlet",
       "area": "Living Room",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "on",
       "capabilities": [
         "on",
@@ -305,7 +305,7 @@
       "capability": "switches",
       "device_class": "switch",
       "area": "Living Room",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "on",
       "capabilities": [
         "on",
@@ -323,7 +323,7 @@
       "capability": "switches",
       "device_class": "outlet",
       "area": "Rock's room",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "off",
       "capabilities": [
         "on",
@@ -341,7 +341,7 @@
       "capability": "switches",
       "device_class": "outlet",
       "area": "Living Room",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "on",
       "capabilities": [
         "on",
@@ -359,7 +359,7 @@
       "capability": "switches",
       "device_class": "switch",
       "area": "Living Room",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "on",
       "capabilities": [
         "on",
@@ -377,7 +377,7 @@
       "capability": "todo_lists",
       "device_class": null,
       "area": "Unassigned",
-      "floor": "Main Floor",
+      "floor": "Floor 1",
       "state": "2",
       "capabilities": [
         "add"
@@ -521,10 +521,10 @@
     "Hallway": "Floor 1",
     "Bedroom": "Floor 1",
     "Kitchen": "Floor 1",
-    "Outside": "Main Floor",
-    "Unassigned": "Main Floor",
-    "Living Room": "Main Floor",
-    "Rock's room": "Main Floor"
+    "Outside": "Floor 1",
+    "Unassigned": "Floor 1",
+    "Living Room": "Floor 1",
+    "Rock's room": "Floor 1"
   },
   "owners": [],
   "exposure_source": "assist_exposure"

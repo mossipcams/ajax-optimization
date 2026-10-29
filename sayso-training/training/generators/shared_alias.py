@@ -56,7 +56,7 @@ _TEMPLATES: dict[str, tuple[str, ...]] = {
         "brighten the {alias} in the {room}",
     ),
     "set_color": (
-        "set the {alias} to warm white",
+        "set the {alias} to yellow",
         "make the {alias} in the {room} blue",
         "change the {alias} to green",
         "set the {alias} in the {room} to purple",

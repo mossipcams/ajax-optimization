@@ -6,6 +6,7 @@ import json
 import random
 import re
 import zlib
+from datetime import datetime, timedelta
 from typing import Any
 
 from generators.capability_registry import operation_spec
@@ -109,6 +110,9 @@ def _final_text(spec: dict[str, Any]) -> str:
             return f"{names[0]} has {state} item{'' if state == '1' else 's'}."
         return f"{names[0]} is {state}."
     if expected["kind"] == "action":
+        calls = expected.get("calls") or []
+        if len(calls) == 1 and calls[0]["name"] in RUNTIME_ANSWER_TOOLS:
+            return _runtime_answer(spec, calls[0])
         return "Done."
     if expected.get("response") == "clarify":
         named = _did_you_mean(list(expected.get("candidates") or []))
@@ -249,10 +253,102 @@ def _intent_success(spec: dict[str, Any], call: dict[str, Any]) -> list[dict[str
     return [{"name": spoken, "type": "entity", "id": entity["entity_id"]}]
 
 
+RUNTIME_ANSWER_TOOLS = ("GetDateTime", "HassTimerStatus")
+
+
+def _runtime_moment(spec: dict[str, Any]) -> datetime:
+    rng = random.Random(zlib.crc32(f"datetime:{spec['candidate_id']}".encode()))
+    return datetime(2026, 1, 1) + timedelta(seconds=rng.randrange(365 * 86400))
+
+
+def _round_time(hours: int, minutes: int, seconds: int) -> tuple[int, int, int]:
+    if hours > 0:
+        rounded_hours = hours
+        rounded_seconds = 0
+        if minutes > 45:
+            rounded_hours += 1
+            rounded_minutes = 0
+        elif minutes < 15:
+            rounded_minutes = 0
+        else:
+            rounded_minutes = 30
+    elif minutes > 0:
+        rounded_hours = 0
+        rounded_minutes = minutes
+        if seconds > 45:
+            rounded_minutes += 1
+            rounded_seconds = 0
+        elif seconds < 15:
+            rounded_seconds = 0
+        else:
+            rounded_seconds = 30
+    else:
+        rounded_hours = 0
+        rounded_minutes = 0
+        if seconds > 50:
+            rounded_minutes = 1
+            rounded_seconds = 0
+        elif seconds < 10:
+            rounded_seconds = seconds
+        else:
+            rounded_seconds = seconds - (seconds % 10)
+    return rounded_hours, rounded_minutes, rounded_seconds
+
+
+def _timer_status_timer(spec: dict[str, Any], call: dict[str, Any]) -> dict[str, Any]:
+    rng = random.Random(zlib.crc32(f"timer:{spec['candidate_id']}".encode()))
+    start_minutes = rng.choice((5, 10, 15, 20, 30, 45))
+    minutes_left = rng.randint(2, start_minutes - 1)
+    seconds_left = rng.randint(2, 59)
+    rounded_hours, rounded_minutes, rounded_seconds = _round_time(0, minutes_left, seconds_left)
+    return {
+        "id": "".join(rng.choice("0123456789ABCDEFGHJKMNPQRSTVWXYZ") for _ in range(26)),
+        "name": (call.get("arguments") or {}).get("name") or "",
+        "device_id": format(rng.getrandbits(128), "032x"),
+        "language": "en",
+        "start_hours": 0,
+        "start_minutes": start_minutes,
+        "start_seconds": 0,
+        "is_active": True,
+        "hours_left": 0,
+        "minutes_left": minutes_left,
+        "seconds_left": seconds_left,
+        "rounded_hours_left": rounded_hours,
+        "rounded_minutes_left": rounded_minutes,
+        "rounded_seconds_left": rounded_seconds,
+        "total_seconds_left": minutes_left * 60 + seconds_left,
+    }
+
+
+def _runtime_answer(spec: dict[str, Any], call: dict[str, Any]) -> str:
+    if call["name"] == "GetDateTime":
+        moment = _runtime_moment(spec)
+        meridiem = "AM" if moment.hour < 12 else "PM"
+        return f"It's {moment.hour % 12 or 12}:{moment.minute:02d} {meridiem}."
+    timer = _timer_status_timer(spec, call)
+    where = f"the {timer['name']} timer" if timer["name"] else "your timer"
+    return f"There are {timer['minutes_left']} minutes and {timer['seconds_left']} seconds left on {where}."
+
+
 def _tool_result(spec: dict[str, Any], call: dict[str, Any]) -> dict[str, Any]:
     if call["name"] == "GetLiveContext":
         header = "Live Context: An overview of the areas and the devices in this smart home:"
         return {"result": f"{header}\n{_dump(_live_context_entries(spec, call))}"}
+    if call["name"] == "GetDateTime":
+        moment = _runtime_moment(spec)
+        return {
+            "date": moment.strftime("%Y-%m-%d"),
+            "time": moment.strftime("%H:%M:%S"),
+            "timezone": "CDT",
+            "weekday": moment.strftime("%A"),
+        }
+    if call["name"] == "HassTimerStatus":
+        return {
+            "speech": {},
+            "response_type": "action_done",
+            "speech_slots": {"timers": [_timer_status_timer(spec, call)]},
+            "data": {"success": [], "failed": []},
+        }
     return {
         "speech": {},
         "response_type": "action_done",
