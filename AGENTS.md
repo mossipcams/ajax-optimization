@@ -52,6 +52,8 @@ Serving-only hard constraints unless the user says otherwise:
 
 ## SaySo training
 
+- `sayso-training/docs/PIPELINE.md` is the canonical pipeline; do not
+  deviate from its invariants without explicit user approval.
 - SaySo model training design lives in
   `sayso-training/docs/SAYSO_LFM_TRAINING_PLAN.md`; wake-word training has its
   own `sayso-training/docs/SAYSO_WAKE_WORD_TRAINING_PLAN.md`. The model target
