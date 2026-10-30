@@ -75,6 +75,13 @@ def _entity_can_run(entity: dict[str, Any], tool: str) -> bool:
     return any(entity_supports(entity, capability, op.name) for op in candidates)
 
 
+def _unsupported_same_domain(spec: dict[str, Any], entity: dict[str, Any]) -> bool:
+    if spec.get("family") != "unsupported":
+        return False
+    cap = CAPABILITIES.get(entity.get("capability"))
+    return cap is not None and entity.get("domain") == cap.domain
+
+
 def _is_satellite_name(name: str) -> bool:
     return is_satellite_name(name)
 
@@ -195,7 +202,7 @@ def validate_spec(spec: dict[str, Any]) -> str | None:
             return "unknown_canonical_entity"
         if target in excluded:
             return "excluded_entity_called"
-        if target in entities and not _entity_can_run(entities[target], name):
+        if target in entities and not _entity_can_run(entities[target], name) and not _unsupported_same_domain(spec, entities[target]):
             return "entity_lacks_capability"
     for canonical, spoken in (spec.get("spoken_targets") or {}).items():
         if canonical not in entities or not str(spoken).strip():

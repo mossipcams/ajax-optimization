@@ -185,7 +185,9 @@ def gold_from_scenario(scenario: dict[str, Any], rng: random.Random) -> dict[str
         return {"kind": "action", "calls": [call]}
 
     if scenario.get("robustness") == "ambiguity":
-        return _ambiguous_gold(home, capability, operation, rng, scenario.get("request_intent"))
+        return _ambiguous_gold(
+            home, capability, operation, rng, scenario.get("request_intent"), scenario.get("family"),
+        )
 
     if operation == "query_state":
         entity = _pick_entity(scenario, rng)
@@ -197,9 +199,11 @@ def gold_from_scenario(scenario: dict[str, Any], rng: random.Random) -> dict[str
         area = scenario.get("area") or home["sayso_entity_area"]
         present = entities_in_area(home, capability, area)
         matches = entities_supporting(present, capability, operation)
+        if not matches and scenario.get("family") == "unsupported":
+            matches = [e for e in present if e.get("domain") == cap_spec.domain]
+        if not matches and present:
+            return expected_device_unsupported(present, capability, operation, rng)
         if not matches:
-            if present:
-                return expected_device_unsupported(present, capability, operation, rng)
             return expected_no_action(
                 "area_unavailable",
                 unavailable={"area": area.casefold(), "type": _type_label(capability)},
@@ -301,14 +305,17 @@ def _ambiguous_gold(
     operation: str,
     rng: random.Random,
     intent: dict[str, Any] | None = None,
+    family: str | None = None,
 ) -> dict[str, Any]:
     if capability == "scripts":
         return expected_no_action("clarify")
     area, present = _requested(home, capability, intent)
     matches = entities_supporting(present, capability, operation)
+    if not matches and family == "unsupported":
+        matches = [e for e in present if e.get("domain") == CAPABILITIES[capability].domain]
+    if not matches and present:
+        return expected_device_unsupported(present, capability, operation, rng)
     if len(matches) == 0:
-        if present:
-            return expected_device_unsupported(present, capability, operation, rng)
         noun = (intent or {}).get("name")
         if noun:
             return expected_no_action(

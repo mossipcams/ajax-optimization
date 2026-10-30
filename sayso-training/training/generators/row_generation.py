@@ -1328,7 +1328,8 @@ def generate_row(
         spec["family"] = family
     spec["full_tool_catalog"] = True
     expected = spec.get("expected") or {}
-    if family and not gold_matches_family(expected, family):
+    same_domain_action = family == "unsupported" and expected.get("kind") == "action"
+    if family and not gold_matches_family(expected, family) and not same_domain_action:
         return None, "family_mismatch"
     follow_up_clarify_candidates: list[str] | None = None
     if family == "correction":

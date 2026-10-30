@@ -314,7 +314,7 @@ def test_absence_family_never_labels_action_or_script_clarify() -> None:
         assert expected["response"] in ("area_unavailable", "device_absent")
 
 
-def test_unsupported_family_keeps_tool_and_labels_no_action() -> None:
+def test_same_domain_unsupported_family_yields_tool_call() -> None:
     for seed in range(20):
         scenario = build_scenario(
             index=seed,
@@ -325,16 +325,16 @@ def test_unsupported_family_keeps_tool_and_labels_no_action() -> None:
             family="unsupported",
         )
         expected = scenario["expected"]
-        assert gold_matches_family(expected, "unsupported")
-        assert expected["kind"] == "no_action"
-        assert expected["response"] == "device_unsupported"
+        assert expected["kind"] == "action"
         assert not expected.get("unavailable_tools")
+        assert [call["name"] for call in expected["calls"]] == ["HassTurnOn"]
         spec = scenario_to_spec(scenario)
         spec["utterance"] = "Turn on the TV"
         row = render_example(spec)
         offered = {t["function"]["name"] for t in row["tools"]}
         assert namespaced_tool_name("HassTurnOn") in offered
-        assert not any(message.get("tool_calls") for message in row["messages"])
+        calls = [call for message in row["messages"] for call in message.get("tool_calls") or []]
+        assert [call["function"]["name"] for call in calls] == [namespaced_tool_name("HassTurnOn")]
 
 
 def test_manifest_reconciles_row_count() -> None:

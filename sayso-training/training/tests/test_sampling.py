@@ -72,6 +72,9 @@ def test_generation_family_outcomes_match_slots() -> None:
             continue
         facets = classify_row(row)
         calls = row_calls(row)
+        if family == "unsupported" and facets["outcome"] == "action":
+            assert calls, row["metadata"]
+            continue
         if facets["outcome"] == "action":
             expected = {"kind": "action", "calls": calls, "unavailable_tools": []}
         elif facets["outcome"] == "status":
