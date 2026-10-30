@@ -340,7 +340,6 @@ def test_no_training_wording_reproduces_a_held_out_eval_prompt():
 
 def test_namespaced_rows_keep_prompt_schema_and_label_in_one_contract():
     from generators.labels import render_example
-    from generators.tools import namespaced_tool_name
 
     variant = next(v for v in training_variants()
                    if v["phrasing_seed"].split("_")[1] == "named")
@@ -355,7 +354,7 @@ def test_namespaced_rows_keep_prompt_schema_and_label_in_one_contract():
         for call in message.get("tool_calls") or []:
             assert call["function"]["name"] in offered, call["function"]["name"]
     prompt = row["messages"][0]["content"]
-    assert namespaced_tool_name("GetLiveContext") in prompt
+    assert "homeassistant__GetLiveContext" in offered
     assert "`GetLiveContext`" not in prompt
     assert len(row["tools"]) > 20
 

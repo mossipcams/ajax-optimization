@@ -11,7 +11,7 @@ from preflight import inspect_dataset
 from adapters.schema import v2_openai_tools
 
 
-def _row(*, positive: bool = True, family: str = "ordinary", utterance: str = "Pause the TV") -> dict:
+def _row(*, positive: bool = True, family: str = "ordinary", utterance: str = "Dim the hallway lamp slowly") -> dict:
     schemas = {tool["function"]["name"]: tool for tool in v2_openai_tools()}
     names = ("GetDateTime", "GetLiveContext", "HassTurnOn", "HassTurnOff", "HassMediaPause")
     tools = []
