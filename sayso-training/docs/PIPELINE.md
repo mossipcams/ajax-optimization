@@ -73,7 +73,8 @@ passes `--promotion-record`. Every GPU job runs inside a lock turn: `gpu run <la
 - **Render + group-held-out split:** before training, the CLI renders both splits —
   `training/scripts/split_dataset.py` (whole-scenario-group held-out; the CLI gets `1 - VAL_RATIO`
   and `VAL_RATIO`, where `VAL_RATIO = 0.05` is defined in `sayso`, so a 95/5 train/val split) and `training/scripts/export_llamafactory_view.py` (the derived
-  prompt/completion view rendered with the pinned Base template). The val split is passed as
+  prompt/completion view rendered with the pinned Base template; the tool list is placed before
+  the `Area context:` block, as SaySo's embedded runtime prompts the model since 1.17.0). The val split is passed as
   `--eval-data` so the trainer reports group-held-out validation loss (`eval_strategy="steps"`).
 - **Outputs:** canary checkpoint + smoke/dev metrics under `/srv/llm/lfm/runs/sayso-promotion/`;
   a full run's checkpoints at `<out>/checkpoint-*` and `<out>/final`, plus a training-run record
