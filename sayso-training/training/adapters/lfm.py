@@ -118,27 +118,6 @@ def _message_for_template(message: dict[str, Any]) -> dict[str, Any]:
     return entry
 
 
-_AREA_BLOCK_MARKER = "\nArea context:\n"
-
-
-# ponytail: mirror of SaySo custom_components/sayso/area_context.py:tools_before_area_messages
-# (1.17.0, 382623c); import it instead once vendor/SaySo is bumped past that commit.
-def tools_before_area_messages(
-    messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None
-) -> list[dict[str, Any]]:
-    """Put the tool list before the area block, as the embedded runtime prompts the model."""
-    if not tools or not messages or messages[0].get("role") != "system":
-        return messages
-    content = messages[0].get("content") or ""
-    index = content.rfind(_AREA_BLOCK_MARKER)
-    if index < 0:
-        return messages
-    head, block = content[:index], content[index + 1 :]
-    rendered = ", ".join(json.dumps(tool, ensure_ascii=False) for tool in tools)
-    content = f"{head}\nList of tools: [{rendered}]\n{block}"
-    return [{**messages[0], "content": content}, *messages[1:]]
-
-
 def assert_no_chatml_tool_call_markers(text: str, *, field: str) -> None:
     if contains_chatml_tool_call_markers(text):
         raise ValueError(f"{field} must not contain ChatML <tool_call> labels")
@@ -158,9 +137,6 @@ def render_supervised_turn(
     tokenizer = _tokenizer(model_name or default_chat_template_model())
     tools = _openai_tools_for_template(row.get("tools") or [])
     prefix = [_message_for_template(item) for item in messages[:supervised_index]]
-    moved = tools_before_area_messages(prefix, tools)
-    if moved is not prefix:
-        prefix, tools = moved, []
     target = _message_for_template(message)
     full_messages = prefix + [target]
 
