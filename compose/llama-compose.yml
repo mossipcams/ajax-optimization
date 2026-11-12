@@ -1,7 +1,13 @@
+# ajax-profile: swift-1.5
+# label: Swift 1.5
+# model: Swift-1.5-Qwen3.8-27B-GGUF:Q4_K_M + mtp-M2-L8-O4.gguf
+# serving: ctx 163840, 2 slots, alias swift-1.5-qwen3.8-27b
+# sampling: temp=1.0, top_p=0.95, top_k=20, min_p=0, repeat=1.05, freq=0.3, reasoning=medium
+
 name: llama
 services:
   llama:
-    image: sayso/llama.cpp:d280808-fa2pack  # FA2 + GQA token packing (4 tokens/tile at n=4, else 2): 2026-09-30 A/B vs d280808-fa2: SOLO 59.6->61.6, PAIR 76.5->88.7, accept unchanged. GGML_VK_FA_TOK_PACK=1 disables. Previous: d280808-fa2
+    image: sayso/llama.cpp:d280808-fa2pack-mo  # FA2 + GQA token packing (4 tokens/tile at n=4, else 2): 2026-09-30 A/B vs d280808-fa2: SOLO 59.6->61.6, PAIR 76.5->88.7, accept unchanged. GGML_VK_FA_TOK_PACK=1 disables. Previous: d280808-fa2 | -mo: GQA decode/verify mask_opt block-skip (idle slot resident): 2026-09-30 SOLO 61.6->63.0, PAIR neutral; GGML_VK_FA_MASK_OPT=0 disables. Previous: d280808-fa2pack
     build:
       context: /srv/llm/data/llama.cpp/src-fa2b
       dockerfile: .devops/vulkan.Dockerfile
@@ -21,21 +27,28 @@ services:
     environment:
       VK_DRIVER_FILES: /usr/share/vulkan/icd.d/radeon_icd.json
       GGML_VK_SUBALLOCATION_BLOCK_SIZE: "4294967296"
+      # 2026-09-30 A/B (2 slots, 3 alternating rounds): SOLO 63.4 -> 66.7 tok/s, PAIR 84.5/94.1 -> 87.8/98.8; async compute queue has higher dispatch latency than the universal queue on RADV.
+      GGML_VK_ALLOW_GRAPHICS_QUEUE: "1"
       LLAMA_CACHE: /cache/llama
       LLAMA_API_KEY: ${VLLM_API_KEY:?VLLM_API_KEY must be set in secrets.env}
     command:
-      - --model
-      # ggml-org Q4_K_M with its Q8_0 attn/ssm tensors requantized to Q6_K (KLD 0.0018 vs source): ~8% faster decode, 1.3 GB VRAM headroom.
-      # unsloth UD-Q4_K_M (16.46 GB): 2026-09-29 llama-bench @30k verify pp4 95.2 vs 92.5, pp8 141.5 vs 135.4 (attnQ6),
-      # SaySo-code PPL 2.11 vs 2.142, 0.9 GB less VRAM. Previous: /models/Qwen3.8-27B-Q4_K_M-attnQ6.gguf
-      - /models/Qwen3.8-27B-UD-Q4_K_M.gguf
+      - -hf
+      # Swift 1.5 Qwen3.8-27B, Q4_K_M GGUF from Hugging Face.
+      - ukisai/Swift-1.5-Qwen3.8-27B-GGUF:Q4_K_M
+      # 2026-11-11: -hf auto-loads the 0.93 GB F16 mmproj (VRAM 67 MiB free, 1.7 GiB GTT). Text only; images use atomic.
+      - --no-mmproj
       - --model-draft
       # MTP head rebuilt from ggml-org BF16: layer Q8_0, output Q4_0 (2026-09-29 MTP-only bench: 85.9 vs 82.5 tok/s ggml Q4_0,
       # +0.2 GB VRAM). Lossless: drafts only change speed. Previous: /models/mtp-Qwen3.8-27B-Q4_0.gguf
       - /models/mtp-M2-L8-O4.gguf
-      # MTP + ngram-mod lookup: lossless; ~+54% decode on code edits/rewrites, neutral elsewhere (bench 2026-09-24).
+      # MTP + ngram-map-k lookup (size_n 16), lossless. 2026-11-11 single-slot A/B under Pi sampling (T1.0, repeat 1.05,
+      # freq 0.3; bench/ngram_sweep.sh ROUND=3): edit SOLO mean 135.9 -> 152.6 (+12%), review 59.7 -> 64.6 (+8%).
+      # size_n 8: edit 157.9 but review 57.7; 12: edit 148.6. map-k 12/48 edit PAIR 176 -> 214 (T0.6).
+      # Previous: draft-mtp,ngram-mod (defaults 24/48/64; lowering n_match/n_min made edits 2-5x slower).
       - --spec-type
-      - draft-mtp,ngram-mod
+      - draft-mtp,ngram-map-k
+      - --spec-ngram-map-k-size-n
+      - "16"
       - --spec-draft-n-max
       - "3"
       - --n-gpu-layers
@@ -56,17 +69,16 @@ services:
       - --cache-type-v-draft
       - q8_0
       - --ctx-size
-      - "131072"
+      - "163840"
       - --parallel
-      - "-1"
-      - --kv-unified
+      - "2"
       - --no-cache-idle-slots
-      # Server-side sampling defaults = Qwen3.8 model-card non-thinking values; only used when a request sends none
+      # Keep existing Qwen3.8 server-side sampling defaults; only used when a request sends none
       # (Pi sends its own). Higher MTP acceptance: sudoingX probe.py 80.0 -> 93.9 tok/s (2026-09-29).
       - --temp
-      - "0.7"
+      - "1.0"
       - --top-p
-      - "0.8"
+      - "0.95"
       - --top-k
       - "20"
       - --min-p
@@ -74,7 +86,7 @@ services:
       # Default (on) saves+clears EVERY idle slot from VRAM whenever any new request starts; the RAM reload then missed,
       # forcing ~30k-token re-prefills that stalled concurrent streams to ~5 t/s. Off: idle slots stay resident and are
       # only purged on demand when the 128k pool is full (bench 2026-09-28: all cache hits, 2 streams 68-71 t/s).
-      # --ctx-size is the shared KV pool. Auto (4) slots cost 2.4 GB of recurrent state and only fit with the attnQ6 model; any spill into GTT halves tok/s.
+      # --ctx-size is split per slot, 2 x 81920 (2026-10-20: non-unified KV, pair 87.6 -> 103.4 t/s; was unified since 2026-09-30: set to 2 slots / 122880 by request, was 4 auto slots / 131072; 4 slots cost 2.4 GB of recurrent state) and only fit with the attnQ6 model; any spill into GTT halves tok/s.
       - --n-predict
       - "8192"
       - --jinja
@@ -83,8 +95,15 @@ services:
       - /models/qwen-fixed-chat-template.jinja
       - --reasoning-format
       - deepseek
+      # 2026-10-05 anti-loop sampling for Swift (Matt): repeat/frequency penalties + medium reasoning effort.
+      - --repeat-penalty
+      - "1.05"
+      - --frequency-penalty
+      - "0.3"
+      - --reasoning-effort
+      - medium
       - --alias
-      - qwen3.8-27b
+      - swift-1.5-qwen3.8-27b
       - --host
       - 0.0.0.0
       - --port
