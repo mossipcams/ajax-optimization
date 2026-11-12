@@ -40,9 +40,8 @@ fixed layout.
 
 Serving-only hard constraints unless the user says otherwise:
 
-- Keep 2 slots with per-slot (non-unified) KV at ~80k context each
-  (`--parallel 2`, no `--kv-unified`, `n_ctx_slot = 81920`). Propose layout
-  changes; never apply them.
+- Keep 1 slot with the full 163840 context (`--parallel 1`, `--ctx-size 163840`,
+  no `--kv-unified`). Propose layout changes; never apply them.
 - GPU-side changes only: no CPU or RAM offload (layers, KV, experts), and do not
   add or optimize host-side work. If a GPU bottleneck traces to CPU-bound host
   code, name it and stop.
@@ -78,7 +77,7 @@ Serving-only hard constraints unless the user says otherwise:
 - Deploy scripts and compose changes by writing a temp file and `mv` (atomic
   rename). Back up the previous file first. Never overwrite a script in place
   while a job that runs it is active.
-- Benchmark from real workload shapes (about 30k depth, two concurrent streams),
+- Benchmark from real workload shapes (about 30k depth, single stream; prod has one slot),
   alternate A/B images, and quote medians; sampled runs swing +/-10%.
 
 ## Universal safety

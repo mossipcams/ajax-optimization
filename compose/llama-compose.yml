@@ -1,7 +1,7 @@
 # ajax-profile: swift-1.5
 # label: Swift 1.5
 # model: Swift-1.5-Qwen3.8-27B-GGUF:Q4_K_M + mtp-M2-L8-O4.gguf
-# serving: ctx 163840, 2 slots, alias swift-1.5-qwen3.8-27b
+# serving: ctx 163840, 1 slot, alias swift-1.5-qwen3.8-27b
 # sampling: temp=1.0, top_p=0.95, top_k=20, min_p=0, repeat=1.05, freq=0.3, reasoning=medium
 
 name: llama
@@ -46,9 +46,8 @@ services:
       # size_n 8: edit 157.9 but review 57.7; 12: edit 148.6. map-k 12/48 edit PAIR 176 -> 214 (T0.6).
       # Previous: draft-mtp,ngram-mod (defaults 24/48/64; lowering n_match/n_min made edits 2-5x slower).
       - --spec-type
-      - draft-mtp,ngram-map-k
-      - --spec-ngram-map-k-size-n
-      - "16"
+      # 2026-11-12 1-slot test: map-k keeps a stale index when the slot switches conversation (0 ngram drafts on the new prompt).
+      - draft-mtp,ngram-mod
       - --spec-draft-n-max
       - "3"
       - --n-gpu-layers
@@ -70,8 +69,10 @@ services:
       - q8_0
       - --ctx-size
       - "163840"
+      # 2026-11-12: one slot holds the whole 163840 (user choice: single-stream focus; a second request queues).
+      # Previous: 2 slots, 2 x 81920; Q4_K_S + V q4_0 2 x 118784 was live briefly (backup .bak-20261112-q4ks-118k).
       - --parallel
-      - "2"
+      - "1"
       - --no-cache-idle-slots
       # Keep existing Qwen3.8 server-side sampling defaults; only used when a request sends none
       # (Pi sends its own). Higher MTP acceptance: sudoingX probe.py 80.0 -> 93.9 tok/s (2026-09-29).

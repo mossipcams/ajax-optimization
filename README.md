@@ -1,10 +1,10 @@
 # Ajax Optimization
 
 llama.cpp serving configuration, Vulkan kernel changes and benchmarks for running
-Swift-1.5 Qwen3.8-27B Q4_K_M + MTP draft + ngram-map-k on a single AMD RX 7900 XTX (RADV, Vulkan).
+Swift-1.5 Qwen3.8-27B Q4_K_M + MTP draft + ngram-mod on a single AMD RX 7900 XTX (RADV, Vulkan).
 The repository also hosts [SaySo training and wake tooling](sayso-training/README.md).
 
-Serving-only goal and constraints: maximum decode tok/s inside a fixed layout — 2 slots with per-slot (non-unified) KV, 2 x 81920 context, q8_0 KV,
+Serving-only goal and constraints: maximum decode tok/s inside a fixed layout — 1 slot with the full 163840 context, q8_0 KV,
 all layers on GPU. No CPU or RAM offload, and no host-side work added.
 
 ## Layout
