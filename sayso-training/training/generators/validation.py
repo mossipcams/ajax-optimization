@@ -14,6 +14,8 @@ from pathlib import Path
 
 import yaml
 
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
 from adapters.schema import tool_schema_map, validate_tool_arguments, v2_openai_tools
 from generators.context import STATIC_CONTEXT_HEADER
 from generators.tools import _OPERATION_TOOLS, HA_TOOL_NAMESPACES, namespaced_tool_name, script_tool_name
@@ -476,6 +478,7 @@ def _parsed_arguments(raw: Any) -> dict[str, Any] | None:
 
 
 @lru_cache(maxsize=512)
+@lru_cache(maxsize=256)
 def _static_entities(system_prompt: str) -> tuple[dict[str, Any], ...]:
     """Entities listed in the static context: names (aliases included), domain, areas."""
     _, header, rest = system_prompt.partition(STATIC_CONTEXT_HEADER)
@@ -487,8 +490,14 @@ def _static_entities(system_prompt: str) -> tuple[dict[str, Any], ...]:
             block.append(line)
         elif block:
             break
+    from generators.context import DUMPED_BLOCKS
+
+    text = "\n".join(block)
+    parsed = DUMPED_BLOCKS.get(text)
+    if parsed is None:
+        parsed = yaml.load(text, Loader=_YAML_LOADER)
     entities = []
-    for entry in yaml.safe_load("\n".join(block)) or []:
+    for entry in parsed or []:
         names = [name.strip() for name in str(entry.get("names") or "").split(", ") if name.strip()]
         areas = [area.strip() for area in str(entry.get("areas") or "").split(", ") if area.strip()]
         entities.append({"names": names, "domain": entry.get("domain"), "areas": areas})

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import bisect
 import random
 import shutil
 import tempfile
@@ -157,6 +158,85 @@ def _pick_family_slot(
     if stuck and not retriable:
         raise RuntimeError(f"dead generation slots: {_dead_slot_report(stuck, dead)}")
     return rng.choice(retriable or needed)
+
+
+class _SlotIndex:
+    """Open, still-needed plan slots in plan order, kept incrementally.
+
+    Draws match _pick_family_slot / _discrimination_recipe_slot exactly (same candidate list,
+    same order, same rng.choice), without rescanning every plan slot on every attempt.
+    """
+
+    def __init__(self, plan: AllocationPlan, tracker: FamilyTracker) -> None:
+        from generators.planning import SURPLUS_OPERATIONS
+
+        self.plan = plan
+        self.tracker = tracker
+        self._surplus = SURPLUS_OPERATIONS
+        self.closed: set[int] = set()
+        self._met: set[tuple[str, str | None]] = set()
+        self._pos = {slot.index: pos for pos, slot in enumerate(plan.slots)}
+        self._open = list(plan.slots)
+        self._pending_groups = {self._group(slot) for slot in plan.slots}
+        self._rebuild_disc()
+
+    @staticmethod
+    def _group(slot: GenerationSlot) -> tuple[str, str | None]:
+        if slot.family == "area" and slot.area_scenario:
+            return ("area", slot.area_scenario)
+        return (slot.family, None)
+
+    def _group_met(self, group: tuple[str, str | None]) -> bool:
+        family, scenario = group
+        if scenario is not None:
+            return self.tracker.accepted_area.get(scenario, 0) >= self.plan.area_required.get(scenario, 0)
+        return self.tracker.accepted_family.get(family, 0) >= self.plan.requested.get(family, 0)
+
+    def _disc_ok(self, slot: GenerationSlot) -> bool:
+        return (
+            slot.family != "area" and not slot.grounding
+            and (slot.capability, slot.operation) in self._surplus
+        )
+
+    def _rebuild_disc(self) -> None:
+        self._disc = [slot for slot in self._open if self._disc_ok(slot)]
+
+    def _refresh(self) -> None:
+        newly_met = {group for group in self._pending_groups if self._group_met(group)}
+        if newly_met:
+            self._pending_groups -= newly_met
+            self._met |= newly_met
+            self._open = [slot for slot in self._open if self._group(slot) not in newly_met]
+            self._rebuild_disc()
+
+    def close(self, index: int) -> None:
+        if index in self.closed:
+            return
+        self.closed.add(index)
+        self._drop(self._open, index)
+        self._drop(self._disc, index)
+
+    def _drop(self, slots: list[GenerationSlot], index: int) -> None:
+        pos = self._pos.get(index)
+        if pos is None:
+            return
+        at = bisect.bisect_left(slots, pos, key=lambda slot: self._pos[slot.index])
+        if at < len(slots) and slots[at].index == index:
+            del slots[at]
+
+    def slot_changed(self) -> None:
+        """Call after _reassign_slot mutates a slot's capability/operation."""
+        self._rebuild_disc()
+
+    def pick(self, rng: random.Random, dead: dict[int, Counter[str]]) -> GenerationSlot:
+        self._refresh()
+        if self._open:
+            return rng.choice(self._open)
+        return _pick_family_slot(self.plan, self.tracker, rng, self.closed, dead)
+
+    def pick_discrimination(self, rng: random.Random) -> dict[str, Any] | None:
+        self._refresh()
+        return _slot_to_dict(rng.choice(self._disc)) if self._disc else None
 
 
 def _reassign_slot(
@@ -506,7 +586,8 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
     unused_grounding_slots = (
         {slot.index for slot in plan.slots if slot.grounding} if plan is not None else set()
     )
-    closed_slots: set[int] = set()
+    slot_index = _SlotIndex(plan, tracker) if tracker is not None else None
+    closed_slots: set[int] = slot_index.closed if slot_index is not None else set()
     casing_counts: dict[str, Counter[str]] = {"call": Counter(), "no_call": Counter()}
     pair_targets = withheld_pair_targets() if config.pair_rates.get("withheld_tool") else []
     tool_floor = config.scaled_floor(config.min_positive_per_tool)
@@ -519,7 +600,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
     stale_variants: defaultdict[int, set[str]] = defaultdict(set)
     while not complete() and attempts < max_attempts:
         family_slot = (
-            _pick_family_slot(plan, tracker, rng, closed_slots, dead_slots)
+            slot_index.pick(rng, dead_slots)
             if tracker is not None else None
         )
         rows_remaining = max(1, config.count - accepted_total())
@@ -588,7 +669,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             forced = (
                 discrimination_capable_slot(quota, rng)
                 if quota is not None
-                else _discrimination_recipe_slot(plan, tracker, rng, closed_slots)
+                else slot_index.pick_discrimination(rng)
             )
             if forced is not None:
                 slot = forced
@@ -696,7 +777,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             stale_variants[slot["index"]].add(recipe_variant[0]["family"])
         if plan_index is not None and slot.get("index") == plan_index:
             if row is not None:
-                closed_slots.add(plan_index)
+                slot_index.close(plan_index)
                 if not want_grounding:
                     family_yield[slot["family"]][(slot["capability"], slot["operation"])] += 1
             else:
@@ -706,8 +787,9 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
                     planned = next(item for item in plan.slots if item.index == plan_index)
                     if _reassign_slot(planned, family_yield[planned.family], slot_tried[plan_index], rng):
                         slot_failures[plan_index] = 0
+                        slot_index.slot_changed()
                     else:
-                        closed_slots.add(plan_index)
+                        slot_index.close(plan_index)
                         if not planned.area_scenario:
                             dead_slots[plan_index] = slot_reasons[plan_index]
         if row is None:

@@ -7,6 +7,8 @@ from typing import Any
 
 import yaml
 
+_YAML_DUMPER = getattr(yaml, "CDumper", yaml.Dumper)
+
 _REPO_ROOT = str(Path(__file__).resolve().parents[2])
 if _REPO_ROOT not in sys.path:
     sys.path.append(_REPO_ROOT)
@@ -54,13 +56,24 @@ DEVICE_CONTROL_TOOL_USAGE_PROMPT = (
 OVERVIEW_EXCLUDED_DOMAINS = frozenset({"calendar", "script"})
 
 
+# Text emitted by _dump -> a copy of the data it came from. validation._static_entities parses
+# this same block back out of every system prompt several times per row; a hit skips the YAML parse.
+DUMPED_BLOCKS: dict[str, Any] = {}
+_DUMPED_BLOCKS_MAX = 512
+
+
 def _dump(data: list[dict[str, Any]]) -> str:
-    return yaml.dump(
+    text = yaml.dump(
         data,
+        Dumper=_YAML_DUMPER,
         default_flow_style=False,
         allow_unicode=True,
         sort_keys=False,
     ).replace(": null\n", ":\n")
+    if len(DUMPED_BLOCKS) >= _DUMPED_BLOCKS_MAX:
+        DUMPED_BLOCKS.pop(next(iter(DUMPED_BLOCKS)))
+    DUMPED_BLOCKS[text.rstrip("\n")] = [dict(entry) for entry in data]
+    return text
 
 
 def exposed_entities(home: dict[str, Any]) -> list[dict[str, Any]]:
