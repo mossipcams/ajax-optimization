@@ -62,14 +62,22 @@ DUMPED_BLOCKS: dict[str, Any] = {}
 _DUMPED_BLOCKS_MAX = 512
 
 
+try:  # optional Rust emitter (sayso-training/rust/sayso_fastgen); byte-identical to PyYAML below
+    from sayso_fastgen import dump_entities as _fast_dump
+except ImportError:
+    _fast_dump = None
+
+
 def _dump(data: list[dict[str, Any]]) -> str:
-    text = yaml.dump(
-        data,
-        Dumper=_YAML_DUMPER,
-        default_flow_style=False,
-        allow_unicode=True,
-        sort_keys=False,
-    ).replace(": null\n", ":\n")
+    text = _fast_dump(data) if _fast_dump is not None else None
+    if text is None:
+        text = yaml.dump(
+            data,
+            Dumper=_YAML_DUMPER,
+            default_flow_style=False,
+            allow_unicode=True,
+            sort_keys=False,
+        ).replace(": null\n", ":\n")
     if len(DUMPED_BLOCKS) >= _DUMPED_BLOCKS_MAX:
         DUMPED_BLOCKS.pop(next(iter(DUMPED_BLOCKS)))
     DUMPED_BLOCKS[text.rstrip("\n")] = [dict(entry) for entry in data]

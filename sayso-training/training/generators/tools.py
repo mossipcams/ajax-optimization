@@ -1,7 +1,9 @@
 
 from __future__ import annotations
 
+import json
 import random
+from functools import lru_cache
 from collections.abc import Callable
 from typing import Any
 
@@ -50,18 +52,48 @@ _ALWAYS_OFFERED_NAMESPACES = frozenset({"llm", "homeassistant", "intent"})
 
 
 def compile_catalog(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return list(
-        tool_schema.compile_source_tools(
-            [
-                {
-                    "name": namespaced_tool_name(tool["function"]["name"]),
-                    "description": tool["function"].get("description") or "",
-                    "parameters": tool["function"]["parameters"],
-                }
-                for tool in tools
-            ]
-        ).tools
-    )
+    # Same result as tool_schema.compile_source_tools(...).tools: each tool's envelope depends only
+    # on that tool, so envelopes are compiled once per distinct source entry and reused. The
+    # catalogue-level steps (sort by name, envelope validation) still run on every call.
+    compiled = [
+        _fresh_containers(
+            _compiled_envelope(
+                json.dumps(
+                    {
+                        "name": namespaced_tool_name(tool["function"]["name"]),
+                        "description": tool["function"].get("description") or "",
+                        "parameters": tool["function"]["parameters"],
+                    },
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
+            )
+        )
+        for tool in tools
+    ]
+    compiled.sort(key=lambda tool: tool["function"]["name"])
+    tool_schema.validate_compiled_tool_envelope(compiled)
+    return compiled
+
+
+@lru_cache(maxsize=4096)
+def _compiled_envelope(entry_json: str) -> dict[str, Any]:
+    entry = json.loads(entry_json)
+    return tool_schema.function_envelope(entry["name"], entry["parameters"], entry.get("description"))
+
+
+def _fresh_containers(node: Any) -> Any:
+    """New dicts/lists (callers may mutate them) sharing the cached immutable leaves.
+
+    Sharing leaf strings matters: every row keeps its catalogue, and a json round-trip per row
+    duplicates every description string and runs a 40k corpus out of memory.
+    """
+    if isinstance(node, dict):
+        return {key: _fresh_containers(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [_fresh_containers(item) for item in node]
+    return node
 
 
 def production_catalog(
