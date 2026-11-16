@@ -66,6 +66,7 @@ class GeneratorConfig:
     real_home_rate: float = 0.0
     real_home_entity_cap: int = 0
     synthetic_only: bool = False
+    wording_pile: dict[str, Any] | None = None
     pair_rates: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -92,6 +93,15 @@ class GeneratorConfig:
                 "grounding_rate + discrimination_rate must be <= 1, "
                 f"got {self.grounding_rate} + {self.discrimination_rate}"
             )
+        from generators.utterances import set_wording_pile
+
+        if self.wording_pile is None:
+            set_wording_pile(None)
+        else:
+            share = float(self.wording_pile.get("share", 0.0))
+            if not 0.0 <= share <= 1.0:
+                raise ValueError(f"wording_pile.share must be within [0, 1], got {share}")
+            set_wording_pile(self.wording_pile)
 
     def scaled_floor(self, floor: int) -> int:
         if floor > 0 and self.recipe_count and 0 < self.count < self.recipe_count:
@@ -138,6 +148,17 @@ class GeneratorConfig:
         if real_home_path and not real_home_path.is_absolute():
             real_home_path = root / real_home_path
         allocations = raw.get("allocations", {})
+        pile = raw.get("wording_pile") or {}
+        wording_pile = None
+        if pile.get("path"):
+            pile_path = Path(pile["path"])
+            if not pile_path.is_absolute():
+                pile_path = root / pile_path
+            wording_pile = {
+                "path": pile_path,
+                "sha256": str(pile.get("sha256", "")),
+                "share": float(pile.get("share", 0.0)),
+            }
         return cls(
             count=int(raw["count"]),
             seed=int(raw["seed"]),
@@ -170,6 +191,7 @@ class GeneratorConfig:
             real_home_rate=float(real.get("rate", 0.0)),
             real_home_entity_cap=int(real.get("entity_cap", 0)),
             synthetic_only=bool(gen.get("synthetic_only", True)),
+            wording_pile=wording_pile,
             pair_rates={str(k): float(v) for k, v in (raw.get("pairs") or {}).items()},
         )
 
@@ -210,6 +232,12 @@ class GeneratorConfig:
             "real_home_entity_cap": self.real_home_entity_cap,
             "synthetic_only": self.synthetic_only,
         }
+        if self.wording_pile is not None:
+            data["wording_pile"] = {
+                "path": str(self.wording_pile["path"]),
+                "sha256": self.wording_pile["sha256"],
+                "share": self.wording_pile["share"],
+            }
         if self.pair_rates:
             data["pair_rates"] = self.pair_rates
         return data
