@@ -29,8 +29,9 @@ def main() -> int:
     parser.add_argument("--max-steps", type=int, default=-1)
     parser.add_argument("--canary", action="store_true", help="Run 250 production-config optimizer steps")
     parser.add_argument("--promotion-record", help="Required promotion metadata for full training")
+    parser.add_argument("--resume", default=None)
     args = parser.parse_args()
-    print(f"argv={sys.argv} lr={args.lr} warmup_ratio={args.warmup_ratio}", flush=True)
+    print(f"argv={sys.argv} lr={args.lr} warmup_ratio={args.warmup_ratio} resume={args.resume}", flush=True)
     if args.canary:
         args.max_steps = 250
     elif not args.promotion_record:
@@ -118,7 +119,7 @@ def main() -> int:
             seed=20260922,
         ),
     )
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume)
     trainer.save_model(f"{args.out}/final")
     tokenizer.save_pretrained(f"{args.out}/final")
     return 0
