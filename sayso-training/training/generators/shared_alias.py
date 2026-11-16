@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import random
+from functools import lru_cache
 from typing import Any
 
 from generators.capability_registry import CAPABILITIES
 from generators.gold import expected_no_action
-from generators.homes import _eval_entity_names, generate_home, make_entity
+from generators.homes import _eval_cases_module, _eval_entity_names, generate_home, make_entity
 
 SHARED_ALIAS_RATE = 0.6
 SCRIPT_VARIANT_SHARE = 0.15
@@ -17,6 +18,15 @@ SHARED_ALIASES: tuple[str, ...] = (
     "ambient light", "porch light", "main light", "soft light", "counter light", "cove light",
     "strip light", "lounge light",
 )
+
+_GENERIC_PHRASE_TAILS: dict[str, tuple[str, ...]] = {
+    "lights": ("Floor Lamp", "Desk Lamp", "Table Lamp", "Ceiling Light", "Wall Light"),
+    "fans": ("Tower Fan", "Ceiling Fan", "Desk Fan"),
+}
+_GENERIC_OPERATIONS: dict[str, tuple[str, ...]] = {
+    "lights": ("turn_on", "turn_off", "set_brightness"),
+    "fans": ("turn_on", "turn_off"),
+}
 _LIGHT_NOUNS: tuple[str, ...] = ("Pendant", "Spot", "Strip", "Track", "Sconce", "Panel", "Lamp", "Fixture")
 _FIRST_NAMES: tuple[str, ...] = (
     "Priya", "Mateo", "Noor", "Ellis", "Hana", "Tomas", "Ivy", "Dev", "Leona", "Oscar", "Wren", "Yusuf",
@@ -71,6 +81,16 @@ _PERCENTS = (20, 25, 30, 40, 60, 75)
 _KELVIN = (2700, 3000, 4000, 5000, 6500)
 
 
+@lru_cache(maxsize=1)
+def _eval_ambiguity_utterances() -> tuple[str, ...]:
+    # Phrases the eval's ambiguity cases already use are off limits as generic tails, so a tail
+    # cannot make an eval utterance ambiguous by accident.
+    cases = _eval_cases_module()
+    if cases is None:
+        return ()
+    return tuple(case.utterance.casefold() for case in cases.load_all_cases() if case.category == "ambiguity")
+
+
 def _slug(text: str) -> str:
     return "_".join(text.casefold().split())
 
@@ -107,12 +127,13 @@ def _spec(
     alias: str,
     capability: str,
     operation: str,
+    id_prefix: str = "shared_alias",
 ) -> dict[str, Any]:
     return {
-        "candidate_id": f"shared_alias_{index:06d}",
+        "candidate_id": f"{id_prefix}_{index:06d}",
         "seed": index,
         "category": "ambiguity",
-        "subcategory": "shared_alias",
+        "subcategory": id_prefix,
         "family": "clarify",
         "home": home,
         "expected": expected_no_action("clarify", candidates=candidates),
@@ -128,7 +149,7 @@ def _spec(
         "capability": capability,
         "operation": operation,
         "tier": CAPABILITIES[capability].tier,
-        "semantic_id": f"shared_alias_{index:06d}_{_slug(alias)}",
+        "semantic_id": f"{id_prefix}_{index:06d}_{_slug(alias)}",
         "removed_tools": [],
         "full_tool_catalog": True,
         "shared_alias": alias,
@@ -172,6 +193,51 @@ def _light_spec(rng: random.Random, index: int, home: dict[str, Any], evals: fro
     return _spec(index, home, candidates, utterance, alias, "lights", operation)
 
 
+def _generic_phrase_spec(rng: random.Random, index: int, home: dict[str, Any], evals: frozenset[str]) -> dict[str, Any] | None:
+    taken = _texts(home)
+    capability = rng.choice(tuple(_GENERIC_PHRASE_TAILS))
+    ambiguous = _eval_ambiguity_utterances()
+    options = [
+        tail for tail in _GENERIC_PHRASE_TAILS[capability]
+        if tail.casefold() not in evals
+        and not any(tail.casefold() in text for text in taken)
+        and not any(tail.casefold() in text for text in ambiguous)
+    ]
+    if not options:
+        return None
+    tail = rng.choice(options)
+    area = rng.choice(home["areas"])
+    floor = home["area_floors"][area]
+    prefixes = [*home.get("owners", ()), *(f"{first}'s" for first in _FIRST_NAMES), area]
+    wanted = 3 if rng.random() < 0.3 else 2
+    names: list[str] = []
+    for _ in range(64):
+        if len(names) == wanted:
+            break
+        name = f"{rng.choice(prefixes)} {tail}"
+        if _claim(name, "", taken, evals):
+            names.append(name)
+    if len(names) < 2:
+        return None
+    home["entities"].extend(
+        make_entity(name=name, capability=capability, area=area, floor=floor, rng=rng,
+                    aliases=[name], state="off")
+        for name in names
+    )
+    home["size"] = len(home["entities"])
+    suffix = f" {tail.casefold()}"
+    candidates = [entity["name"] for entity in home["entities"]
+                  if entity.get("area") == area and entity["name"].casefold().endswith(suffix)]
+    rng.shuffle(candidates)
+    operation = rng.choice(_GENERIC_OPERATIONS[capability])
+    template = rng.choice(_TEMPLATES[operation])
+    utterance = template.format(
+        alias=tail.casefold(), room=area.casefold(), pct=rng.choice(_PERCENTS), kelvin=rng.choice(_KELVIN),
+    )
+    return _spec(index, home, candidates, utterance, tail.casefold(), capability, operation,
+                 id_prefix="generic_phrase")
+
+
 def _script_spec(rng: random.Random, index: int, home: dict[str, Any], evals: frozenset[str]) -> dict[str, Any] | None:
     taken = _texts(home)
     scripts = [item for item in home["entities"] if item["capability"] == "scripts"]
@@ -206,3 +272,9 @@ def build_shared_alias_spec(rng: random.Random, index: int, home_size: int = 16)
         if spec is not None:
             return spec
     return _light_spec(rng, index, home, evals)
+
+
+def build_generic_phrase_spec(rng: random.Random, index: int, home_size: int = 16) -> dict[str, Any] | None:
+    evals = _eval_entity_names()
+    home = generate_home(index, home_size, random.Random(f"shared_alias_home:{index}:{home_size}"), holdout=False)
+    return _generic_phrase_spec(rng, index, home, evals)

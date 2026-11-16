@@ -258,9 +258,11 @@ def build_get_datetime() -> dict[str, Any]:
     return {"name": "GetDateTime", "arguments": {}}
 
 
-def build_query(entity: dict[str, Any]) -> dict[str, Any]:
+def build_query(entity: dict[str, Any], *, area: str | None = None) -> dict[str, Any]:
     args: dict[str, Any] = {}
-    if entity.get("name"):
+    if area:
+        args["area"] = area
+    elif entity.get("name"):
         args["name"] = entity["name"]
     if entity.get("domain"):
         args["domain"] = entity["domain"]
@@ -275,42 +277,67 @@ def build_cancel_all_timers(area: str | None = None) -> dict[str, Any]:
 
 
 def build_start_timer(rng: random.Random, *, name: str | None = None) -> dict[str, Any]:
-    unit, low, high = rng.choices((("minutes", 1, 90), ("seconds", 10, 90), ("hours", 1, 3)), weights=(6, 2, 2))[0]
-    args: dict[str, Any] = {unit: rng.randint(low, high)}
+    shape = rng.choices(("single", "hours_minutes", "minutes_seconds"), weights=(60, 25, 15))[0]
+    if shape == "hours_minutes":
+        half = rng.random() < 0.3
+        args: dict[str, Any] = {
+            "hours": rng.choice((1, 1, 1, 2)) if half else rng.randint(1, 3),
+            "minutes": 30 if half else rng.randint(1, 59),
+        }
+    elif shape == "minutes_seconds":
+        half = rng.random() < 0.3
+        args = {
+            "minutes": 1 if half and rng.random() < 0.5 else rng.randint(1, 59),
+            "seconds": 30 if half else rng.randint(5, 55),
+        }
+    else:
+        unit, low, high = rng.choices((("minutes", 1, 90), ("seconds", 10, 90), ("hours", 1, 3)), weights=(6, 2, 2))[0]
+        value = 30 if unit == "minutes" and rng.random() < 0.1 else rng.randint(low, high)
+        args = {unit: value}
     if name:
         args["name"] = name
     return {"name": "HassStartTimer", "arguments": args}
 
 
-def build_pause_timer(*, name: str | None = None) -> dict[str, Any]:
+def build_pause_timer(*, name: str | None = None, area: str | None = None) -> dict[str, Any]:
     args: dict[str, Any] = {}
     if name:
         args["name"] = name
+    if area:
+        args["area"] = area
     return {"name": "HassPauseTimer", "arguments": args}
 
 
-def build_timer_status(*, name: str | None = None) -> dict[str, Any]:
+def build_timer_status(*, name: str | None = None, area: str | None = None) -> dict[str, Any]:
     args: dict[str, Any] = {}
     if name:
         args["name"] = name
+    if area:
+        args["area"] = area
     return {"name": "HassTimerStatus", "arguments": args}
 
 
-def build_unpause_timer(*, name: str | None = None) -> dict[str, Any]:
+def build_unpause_timer(*, name: str | None = None, area: str | None = None) -> dict[str, Any]:
     args: dict[str, Any] = {}
     if name:
         args["name"] = name
+    if area:
+        args["area"] = area
     return {"name": "HassUnpauseTimer", "arguments": args}
 
 
-def build_cancel_timer(*, name: str | None = None) -> dict[str, Any]:
+def build_cancel_timer(*, name: str | None = None, area: str | None = None) -> dict[str, Any]:
     args: dict[str, Any] = {}
     if name:
         args["name"] = name
+    if area:
+        args["area"] = area
     return {"name": "HassCancelTimer", "arguments": args}
 
 
-def build_adjust_timer(rng: random.Random, *, direction: str, name: str | None = None) -> dict[str, Any]:
+def build_adjust_timer(
+    rng: random.Random, *, direction: str, name: str | None = None, area: str | None = None
+) -> dict[str, Any]:
     roll = rng.random()
     if roll < 0.25:
         args: dict[str, Any] = {"seconds": rng.choice((10, 15, 30, 45))}
@@ -320,6 +347,8 @@ def build_adjust_timer(rng: random.Random, *, direction: str, name: str | None =
         args = {"hours": rng.choice((1, 2))}
     if name:
         args["name"] = name
+    if area:
+        args["area"] = area
     tool = "HassIncreaseTimer" if direction == "increase" else "HassDecreaseTimer"
     return {"name": tool, "arguments": args}
 
@@ -334,6 +363,11 @@ def build_area_call(
 ) -> dict[str, Any]:
     cap = CAPABILITIES[capability]
     domain = cap.domain
+    tool = _operation_tool(operation, capability)
+    if tool == "HassVacuumCleanArea":
+        if area:
+            return {"name": tool, "arguments": {"area": area}}
+        return {"name": "HassVacuumStart", "arguments": {"domain": ["vacuum"], "floor": floor}}
     args: dict[str, Any] = {"area": area} if area else {}
     if floor:
         args["floor"] = floor
@@ -343,7 +377,6 @@ def build_area_call(
         args["domain"] = ["lock"]
     elif cap.device_class:
         args["device_class"] = [cap.device_class]
-    tool = _operation_tool(operation, capability)
     if tool in {"HassMediaSearchAndPlay", "HassSetVolumeRelative", "HassClimateSetTemperature"}:
         args.pop("domain", None)
         args.pop("device_class", None)
@@ -436,15 +469,19 @@ _ENTITY_CALLS: dict[str, Callable[[dict[str, Any], random.Random], dict[str, Any
     "clean_area": lambda entity, _rng: build_vacuum_clean_area(entity),
 }
 
+def _timer_area(rng: random.Random, area: str | None) -> str | None:
+    return area if area and rng.random() < 0.35 else None
+
+
 _TIMER_CALLS: dict[str, Callable[[random.Random, str | None], dict[str, Any]]] = {
     "cancel_all": lambda _rng, area: build_cancel_all_timers(area),
     "start": lambda rng, _area: build_start_timer(rng),
-    "pause": lambda _rng, _area: build_pause_timer(),
-    "unpause": lambda _rng, _area: build_unpause_timer(),
-    "cancel": lambda _rng, _area: build_cancel_timer(),
-    "status": lambda _rng, _area: build_timer_status(),
-    "increase": lambda rng, _area: build_adjust_timer(rng, direction="increase"),
-    "decrease": lambda rng, _area: build_adjust_timer(rng, direction="decrease"),
+    "pause": lambda rng, area: build_pause_timer(area=_timer_area(rng, area)),
+    "unpause": lambda rng, area: build_unpause_timer(area=_timer_area(rng, area)),
+    "cancel": lambda rng, area: build_cancel_timer(area=_timer_area(rng, area)),
+    "status": lambda rng, area: build_timer_status(area=_timer_area(rng, area)),
+    "increase": lambda rng, area: build_adjust_timer(rng, direction="increase", area=_timer_area(rng, area)),
+    "decrease": lambda rng, area: build_adjust_timer(rng, direction="decrease", area=_timer_area(rng, area)),
 }
 
 
@@ -463,6 +500,9 @@ def build_call_for_operation(
     if operation == "query_state":
         if entity is not None:
             return build_query(entity)
+        if area:
+            domain_entity = {"domain": CAPABILITIES[capability].domain} if rng.random() < 0.6 else {}
+            return build_query(domain_entity, area=area)
         return {
             "name": "GetLiveContext",
             "arguments": {"domain": CAPABILITIES[capability].domain},

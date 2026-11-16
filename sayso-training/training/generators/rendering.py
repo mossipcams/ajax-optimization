@@ -95,19 +95,31 @@ def _did_you_mean(names: list[str]) -> str:
     return ""
 
 
+def _state_clause(name: str, state: str) -> str:
+    if re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d.*", state):
+        return f"{name} was last activated at {state[11:16]}"
+    if state.isdigit():
+        return f"{name} has {state} item{'' if state == '1' else 's'}"
+    return f"{name} is {state}"
+
+
 def _final_text(spec: dict[str, Any]) -> str:
     expected = spec["expected"]
     if expected["kind"] == "status":
         names = spec.get("target_names") or []
         from generators.gold import target_names_from_expected
 
+        if expected.get("area_states"):
+            area = str(expected["calls"][0]["arguments"]["area"]).casefold()
+            clauses = [_state_clause(name, str(state)) for name, state in expected["area_states"]]
+            if len(clauses) <= 2:
+                body = " and ".join(clauses)
+            else:
+                body = f"{', '.join(clauses[:-1])}, and {clauses[-1]}"
+            return f"In the {area}, {body}."
         names = names or target_names_from_expected(expected)
         state = str(expected.get("state", "unknown"))
-        if re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d.*", state):
-            return f"{names[0]} was last activated at {state[11:16]}."
-        if state.isdigit():
-            return f"{names[0]} has {state} item{'' if state == '1' else 's'}."
-        return f"{names[0]} is {state}."
+        return f"{_state_clause(names[0], state)}."
     if expected["kind"] == "action":
         return "Done."
     if expected.get("response") == "clarify":
@@ -209,7 +221,8 @@ def _home_entities_by_name(spec: dict[str, Any]) -> dict[str, dict[str, Any]]:
 def _live_context_entries(spec: dict[str, Any], call: dict[str, Any]) -> list[dict[str, Any]]:
     arguments = call.get("arguments") or {}
     by_name = _home_entities_by_name(spec)
-    wanted = [arguments.get("name"), *(spec.get("target_names") or [])]
+    area_names = [name for name, _ in spec["expected"].get("area_states") or []]
+    wanted = [arguments.get("name"), *area_names, *(spec.get("target_names") or [])]
     resolved: list[dict[str, Any]] = []
     for name in wanted:
         if not name:

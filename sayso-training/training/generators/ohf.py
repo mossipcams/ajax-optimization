@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import random
 import re
+import zlib
 
 from hassil.expression import Alternative, Group, ListReference, Permutation, RuleReference, TextChunk
 from hassil.parse_expression import parse_sentence
@@ -66,7 +67,14 @@ def _one(value):
     return value
 
 
-def render_call(call: dict, target: str, seed="", provenance: list | None = None) -> str | None:
+HALF_DURATION_FORMS = {
+    (("1", "hour"), ("30", "minute")): ("an hour and a half", "one and a half hours"),
+    (("30", "minute"),): ("half an hour",),
+    (("1", "minute"), ("30", "second")): ("a minute and a half",),
+}
+
+
+def render_call(call: dict, target: str, seed="", provenance: list | None = None, half_durations: bool = True) -> str | None:
     intent = call["name"]
     args = dict(call.get("arguments") or {})
     domain = _one(args.pop("domain", None))
@@ -121,7 +129,7 @@ def render_call(call: dict, target: str, seed="", provenance: list | None = None
                 value = {"blind": "blinds", "curtain": "curtains", "shade": "shades", "garage": "garage doors", "door": "doors", "window": "windows"}.get(value)
                 if value is None:
                     break
-            elif ref.list_name not in {ref.slot_name, "timer_name", "timer_hours", "timer_minutes", "timer_seconds", "color_temperature", "volume"}:
+            elif ref.list_name not in {ref.slot_name, "timer_name", "timer_hours", "timer_minutes", "timer_seconds", "color_temperature", "volume", "fan_speed"}:
                 break
             values[ref.list_name] = str(value)
         else:
@@ -177,11 +185,19 @@ def render_call(call: dict, target: str, seed="", provenance: list | None = None
                 r"^(next|skip|go)\b", text, re.I
             ):
                 continue
+            duration_rng = random.Random(zlib.crc32(f"duration:{seed}".encode()))
             def duration(match):
-                adjective = re.match(r"\s+timer\b", text[match.end():])
-                return match[1] + ("-" if adjective else " ") + match[3] + ("" if adjective or match[1] == "1" else "s")
+                parts = re.findall(r"(\d+)[ -](hour|minute|second)s?", match[0])
+                if re.match(r"\s+timer\b", text[match.end():]):
+                    joiner = "-" if duration_rng.random() < 0.5 else " "
+                    return " ".join(f"{number}{joiner}{unit}" for number, unit in parts)
+                if (half_durations and tuple(parts) in HALF_DURATION_FORMS and text[:match.start()].endswith("timer for ")
+                        and duration_rng.random() < 0.4):
+                    return duration_rng.choice(HALF_DURATION_FORMS[tuple(parts)])
+                return re.sub(r"(\d+)[ -](hour|minute|second)s?",
+                              lambda part: f"{part[1]} {part[2]}" + ("" if part[1] == "1" else "s"), match[0])
 
-            text = re.sub(r"\b(\d+)([ -])(hour|minute|second)s?\b", duration, text)
+            text = re.sub(r"\b\d+[ -](?:hour|minute|second)s?(?:(?: and | )\d+[ -](?:hour|minute|second)s?)*\b", duration, text)
             if re.search(r"\b(temperature|brightness|colou?r|speed|volume|level) (?:the |my |our )?SAYSOSLOT", text):
                 continue
             if intent == "HassStartTimer" and not re.search(r"\b(a|an)\b", text):

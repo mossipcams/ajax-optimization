@@ -19,9 +19,9 @@ each stage; host paths and the GPU lock are defined in `sayso`.
 - **Command:** `./sayso generate`. Internally runs
   `python -m generators.cli --config <generation-config> --output <dataset> --manifest <manifest>`
   with the working directory set to `training/` (see `cmd_generate` in `sayso`).
-- **Config it reads:** `training/configs/generation/full_sft_v13.yaml`, named by the
+- **Config it reads:** `training/configs/generation/full_sft_v15.yaml`, named by the
   `GENERATION_CONFIG` constant in `sayso`. The generator configs under
-  `training/configs/generation/` are versioned (`full_sft_v4.yaml` … `full_sft_v13.yaml`,
+  `training/configs/generation/` are versioned (`full_sft_v4.yaml`, `full_sft_v5.yaml`, `full_sft_v6.yaml`, `full_sft_v8.yaml`, `full_sft_v9.yaml`, `full_sft_v10.yaml`, `full_sft_v11.yaml`, `full_sft_v15.yaml`,
   plus `production.yaml` and `smoke.yaml`).
 - **Inputs:** the generation config; the pinned tool contract
   `schemas/sayso-tool-schema-v2.json` (referenced by the config's `schema.path`); the real-home

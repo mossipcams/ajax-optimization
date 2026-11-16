@@ -93,6 +93,7 @@ AMBIGUOUS_SETTINGS = (
     ("climate", "set_temperature"),
 )
 AMBIGUOUS_SETTINGS_SHARE = 0.5
+GENERIC_CONTRAST_RATE = 0.2
 
 SUBSTITUTION_PRONE_OPERATIONS = AMBIGUOUS_SETTINGS
 SUBSTITUTION_PRONE_SHARE = 0.5
@@ -507,7 +508,9 @@ def build_plan(
     return AllocationPlan(count=count, requested=requested, slots=slots, area_required=area_required)
 
 
-_FLOOR_HEADROOM = 1.05
+# Validation gates reject a few percent of reserved carriers (v16 regen ended
+# HassMediaSearchAndPlay at 198 of a 200 floor with 1.05), so over-reserve.
+_FLOOR_HEADROOM = 1.10
 _GROUNDING_HEADROOM = 1.25
 _DONORS = {"ordinary": frozenset({"HassTurnOn", "HassTurnOff"}), "settings": frozenset({"HassLightSet"})}
 

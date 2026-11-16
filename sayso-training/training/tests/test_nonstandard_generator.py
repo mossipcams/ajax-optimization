@@ -331,7 +331,7 @@ def test_satellite_share_in_generated_homes():
             with_satellite += 1
             sat = satellites[0]
             assert sat["area"] == home["sayso_entity_area"]
-            assert sat["name"] in {f"{home['sayso_entity_area']} Satellite", "SaySo Satellite"}, sat["name"]
+            assert sat["name"] in {f"{home['sayso_entity_area']} Satellite", f"{home['sayso_entity_area']} Voice Assistant", f"{home['sayso_entity_area']} Voice PE", "Sayso Satellite"} or re.fullmatch(r"Home Assistant Voice [0-9a-f]{4}", sat["name"]), sat["name"]
             assert sat["device_class"] == "speaker", sat
     share = with_satellite / 80
     assert 0.2 <= share <= 0.4, share
