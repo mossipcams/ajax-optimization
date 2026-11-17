@@ -47,8 +47,7 @@ jobs:
         run: echo "PYTHONPATH=$(python training_paths.py)" >> "$GITHUB_ENV"
 
       - name: Run fast tests
-        # test_lfm_python_parse.py imports Home Assistant, which needs Python 3.14 and is not installed here.
-        run: python -m pytest training/tests -m 'not slow' -q --continue-on-collection-errors
+        run: python -m pytest training/tests -m 'not slow' -q
 
   full-tests:
     name: full suite (nightly)
@@ -78,4 +77,4 @@ jobs:
         run: echo "PYTHONPATH=$(python training_paths.py)" >> "$GITHUB_ENV"
 
       - name: Run full suite
-        run: python -m pytest training/tests -q --continue-on-collection-errors
+        run: python -m pytest training/tests -q

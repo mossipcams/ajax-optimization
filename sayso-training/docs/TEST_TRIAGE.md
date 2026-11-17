@@ -126,7 +126,7 @@ Group key: (a) generator bug, (b) stale test, (c) environment. Status is from th
 
 ## CI split (step 2)
 
-The PR and push job runs `python -m pytest training/tests -m 'not slow' -q --continue-on-collection-errors`. The nightly job and `workflow_dispatch` run `python -m pytest training/tests -q --continue-on-collection-errors`. The `slow` marker is registered in `sayso-training/pytest.ini`.
+The PR and push job runs `python -m pytest training/tests -m 'not slow' -q`. The nightly job and `workflow_dispatch` run `python -m pytest training/tests -q`. Neither command passes `--continue-on-collection-errors`, so a new collection error fails the job. The `slow` marker is registered in `sayso-training/pytest.ini`.
 
 Threshold: a test is `slow` when it runs the corpus generator end to end and its own call or setup time is at least 5 s. Times come from `--durations=0` runs on the llm VM, which shares the host with the training job, so they vary between runs. The threshold uses the larger of two runs (`dur-full`, which lacked Jinja2, and `dur2-full`, on the final dependency set). Tests under 5 s stay in the fast set even when they generate, for example the 400-row tests at 3 to 5 s.
 
@@ -149,7 +149,7 @@ Import error (resolved in Step 2b (lfm import)): `test_lfm_python_parse.py` impo
 
 Step-1 status changes after the grep change: the 7 transformers and token-count tests in `test_defect_v4_corpus.py` and `test_llamafactory_view.py` now pass on the VM, using its cache. `test_pipeline_invariants.py::test_rendered_training_view_has_no_tool_call_tags` failed once Jinja2 was missing and passes with it. The 8 failures remaining in the table above are unchanged from step 1 (`test_canonical_generator`, `test_context_hard_negatives`, `test_nonstandard_generator`, and `test_real_home_mixing`).
 
-Still failing in the fast (PR) set, so both jobs stay red:
+Failing in the fast (PR) set at step 2, before Step 2b, so both jobs were red then:
 
 - `test_nonstandard_generator.py::test_satellite_rows_from_generated_scenarios_target_the_satellite` (resolved in Step 2b)
 - `test_nonstandard_generator.py::test_satellite_tv_exclusion_builds_contrast_rows_in_both_directions` (resolved in Step 2b)
@@ -158,6 +158,8 @@ Still failing in the fast (PR) set, so both jobs stay red:
 - `test_lfm_python_parse.py` (collection error, Home Assistant on Python 3.14; resolved in Step 2b (lfm import))
 
 None of the 18 slow tests fails in either run.
+
+Current state at `511c239`: the full suite on the VM is 969 passed, 0 failed, 0 errors (`full-lfm`, 530.67 s). The collection error above is gone, and the workflow no longer needs `--continue-on-collection-errors`. The fast-set count at `511c239` was not re-measured; the table above is from step 2.
 
 ## Step 2b: fa9083b unsupported slot and context tests
 
