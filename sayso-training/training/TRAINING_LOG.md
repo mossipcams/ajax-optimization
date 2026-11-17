@@ -788,5 +788,5 @@ Unsloth backend was dropped. The recipe is unchanged (`--lr 5e-5 --warmup-ratio 
 The A/B against the Unsloth trainer was skipped by decision, so there is no GPU
 run and no score for `sayso_trainer.py` yet. The first `./sayso canary` is its
 first run. `train_unsloth_full.py` stays as the rollback trainer for one full
-cycle; rollback points the two `run()` calls in `sayso` back at it. Plan:
+cycle; rollback is to revert PR #41 and then PR #40 (`git revert -m 1 <merge>` of each, newest first), which restores `train_unsloth_full.py` launched with the container's bare `python`; the unsloth container venv is untouched, so no host change is needed. Plan:
 [docs/PLAN_SAYSO_TRAINER_TRL.md](../docs/PLAN_SAYSO_TRAINER_TRL.md).

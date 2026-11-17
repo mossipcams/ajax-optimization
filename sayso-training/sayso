@@ -361,6 +361,8 @@ def cmd_canary(args: argparse.Namespace) -> None:
     record = current()
     if not record.get("validated") or record.get("validated_sha256") != digest(Path(record["dataset_path"])):
         raise SystemExit("Candidate must pass ./sayso validate after its last change")
+    if not args.reuse_checkpoint:
+        check_trainer_python()
     ensure_vm()
     record["canary_passed"] = False
     write_current(record)
@@ -372,7 +374,6 @@ def cmd_canary(args: argparse.Namespace) -> None:
         if not (EVAL_RESULTS / f"{run_id}-canary" / "final").is_dir():
             raise SystemExit(f"No canary checkpoint to reuse: {checkpoint}")
     else:
-        check_trainer_python()
         try:
             run([GPU_LOCK, "train", "lfm", TRAINER_PYTHON, f"{HOST_TRAINING}/training/scripts/sayso_trainer.py",
                  "--data", data, *eval_data_args(record), "--canary", "--out", out, *TRAIN_RECIPE])

@@ -83,8 +83,9 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
 
 ## Rollback
 
-Point the two `run()` calls in `sayso` (canary and train) back at
-`training/scripts/train_unsloth_full.py`.
+Revert PR #41 and then PR #40 (`git revert -m 1 <merge>` of each, newest first). That restores
+`training/scripts/train_unsloth_full.py` launched with the container's bare `python`; the unsloth
+container venv is untouched, so no host change is needed.
 
 ## Later work (separate plans)
 

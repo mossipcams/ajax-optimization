@@ -84,3 +84,47 @@ def test_train_refuses_a_missing_interpreter_before_writing_any_record(sayso, tm
     assert not (state / "train").exists()
     assert sayso.load(state / "A.json") == record
     assert sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*")) == before
+
+
+def _stub_canary(monkeypatch, sayso, tmp_path, record, interpreter_check):
+    calls = []
+
+    def fake_render(rec):
+        calls.append("render_and_stage")
+        return "/data/staged.jsonl"
+
+    monkeypatch.setattr(sayso, "current", lambda: record)
+    monkeypatch.setattr(sayso, "digest", lambda path: "abc")
+    monkeypatch.setattr(sayso, "ensure_vm", lambda: None)
+    monkeypatch.setattr(sayso, "render_and_stage", fake_render)
+    monkeypatch.setattr(sayso, "write_current", lambda rec: calls.append("write_current"))
+    monkeypatch.setattr(sayso, "check_trainer_python", lambda: interpreter_check(calls))
+    monkeypatch.setattr(sayso, "settle_gpu", lambda: None)
+    monkeypatch.setattr(sayso, "run", lambda command, **kwargs: calls.append("train"))
+    monkeypatch.setattr(sayso, "EVAL_RESULTS", tmp_path / "runs")
+    _stub_docker(monkeypatch, sayso, 0)
+    return calls
+
+
+def _canary_record(tmp_path):
+    return {"run_id": "r1", "validated": True, "validated_sha256": "abc",
+            "dataset_path": str(tmp_path / "d.jsonl"), "rendered_path": str(tmp_path / "r.jsonl")}
+
+
+def test_canary_refuses_a_missing_interpreter_before_staging_or_recording(sayso, monkeypatch, tmp_path):
+    def missing(calls):
+        calls.append("check_trainer_python")
+        raise SystemExit("Trainer interpreter is missing")
+
+    calls = _stub_canary(monkeypatch, sayso, tmp_path, _canary_record(tmp_path), missing)
+    with pytest.raises(SystemExit):
+        sayso.cmd_canary(argparse.Namespace(reuse_checkpoint=False))
+    assert calls == ["check_trainer_python"]
+
+
+def test_canary_reuse_does_not_check_the_trainer_interpreter(sayso, monkeypatch, tmp_path):
+    (tmp_path / "runs" / "r1-canary" / "final").mkdir(parents=True)
+    calls = _stub_canary(monkeypatch, sayso, tmp_path, _canary_record(tmp_path), lambda calls: calls.append("check_trainer_python"))
+    sayso.cmd_canary(argparse.Namespace(reuse_checkpoint=True))
+    assert "check_trainer_python" not in calls
+    assert "train" not in calls

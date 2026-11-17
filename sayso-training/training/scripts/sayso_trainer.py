@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import sys
 from datetime import datetime, timezone
-from importlib.metadata import version
 from pathlib import Path
 
 from packaging.version import Version
@@ -16,9 +15,9 @@ if str(SCRIPTS) not in sys.path:
 
 from train_common import (
     HOST,
-    encode,
     load_eval_rows,
     load_rows,
+    package_versions,
     preflight,
     recipe,
     sha256,
@@ -30,14 +29,13 @@ from train_common import parse_args as common_parse_args
 
 FLATTENING_KEYS = ("seq_idx", "cu_seq_lens_q", "cu_seq_lens_k", "max_length_q", "max_length_k", "position_ids")
 MINIMUM_STACK = {"trl": "1.18.1", "transformers": "5.23.0"}
-TRAINER_VENV = "/workspace/host/lfm/venvs/sayso-trainer"
 
 
 def check_stack(versions: dict[str, str | None]) -> None:
     found = {name: versions.get(name) for name in MINIMUM_STACK}
     if any(found[name] is None or Version(found[name]) < Version(minimum) for name, minimum in MINIMUM_STACK.items()):
-        sys.exit(f"sayso-trainer stack found {found}; need {MINIMUM_STACK}; "
-                 f"rebuild {TRAINER_VENV} with scripts/llm-host/sayso-trainer-venv.sh")
+        sys.exit(f"sayso-trainer stack found {found} under {sys.executable}; need {MINIMUM_STACK}; "
+                 f"rebuild {sys.prefix} with scripts/llm-host/sayso-trainer-venv.sh")
 
 
 def check_batch(batch, batch_size: int) -> None:
@@ -74,9 +72,8 @@ def parse_args(argv: list[str] | None = None):
 
 def main() -> int:
     args = parse_args()
-    check_stack({name: version(name) for name in MINIMUM_STACK})
-    print(f"sayso-trainer method={args.method} batch={args.batch} accum={args.accum} "
-          f"effective_batch={args.batch * args.accum}", flush=True)
+    check_stack(package_versions(tuple(MINIMUM_STACK)))
+    print(f"sayso-trainer method={args.method} batch={args.batch} accum={args.accum}", flush=True)
     import torch
 
     if not torch.version.hip or not torch.cuda.is_available():
@@ -86,7 +83,6 @@ def main() -> int:
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     model = AutoModelForCausalLM.from_pretrained(args.model, dtype=torch.bfloat16, attn_implementation="sdpa")
-    model.gradient_checkpointing_enable()
     model.config.use_cache = False
     tokenizer.padding_side = "right"
     if tokenizer.pad_token_id is None:
@@ -107,6 +103,7 @@ def main() -> int:
         processing_class=tokenizer,
         args=SFTConfig(
             bf16=True,
+            gradient_checkpointing=True,
             max_length=args.cutoff,
             packing=False,
             padding_free=False,
@@ -115,10 +112,8 @@ def main() -> int:
         ),
         callbacks=[stop_callback(args.stop_at_step)] if args.stop_at_step else None,
     )
-    rng_state = torch.random.get_rng_state()
-    probe = next(iter(trainer.get_train_dataloader()))
-    torch.random.set_rng_state(rng_state)
-    check_batch(probe, args.batch)
+    probe = trainer.data_collator([dataset[i] for i in range(min(args.batch, len(dataset)))])
+    check_batch(probe, min(args.batch, len(dataset)))
 
     manifest = build_manifest(args, trainer.args.to_dict(), sha256(args.data))
     Path(args.out).mkdir(parents=True, exist_ok=True)

@@ -86,8 +86,7 @@ def test_guard_rejects_position_ids_even_with_attention_mask() -> None:
         TRAIN.check_batch(batch, 8)
 
 
-def test_encode_is_the_train_common_encode() -> None:
-    assert TRAIN.encode is COMMON.encode
+def test_load_rows_is_the_train_common_load_rows() -> None:
     assert TRAIN.load_rows is COMMON.load_rows
     assert UNSLOTH.load_rows is COMMON.load_rows
 
@@ -160,6 +159,15 @@ def test_check_stack_accepts_pinned_trl_and_transformers() -> None:
     TRAIN.check_stack({"trl": "1.18.1", "transformers": "5.23.0"})
 
 
+def test_check_stack_exits_with_message_when_a_package_is_missing() -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        TRAIN.check_stack({"trl": None, "transformers": "5.23.0"})
+    message = str(excinfo.value)
+    assert "sayso-trainer stack found" in message
+    assert sys.executable in message
+    assert "scripts/llm-host/sayso-trainer-venv.sh" in message
+
+
 def test_sayso_trainer_config_sets_bf16_and_disables_packing_and_padding_free() -> None:
     tree = ast.parse((SCRIPTS / "sayso_trainer.py").read_text(encoding="utf-8"))
     configs = [node for node in ast.walk(tree)
@@ -169,3 +177,4 @@ def test_sayso_trainer_config_sets_bf16_and_disables_packing_and_padding_free() 
     assert isinstance(kwargs["bf16"], ast.Constant) and kwargs["bf16"].value is True
     assert isinstance(kwargs["packing"], ast.Constant) and kwargs["packing"].value is False
     assert isinstance(kwargs["padding_free"], ast.Constant) and kwargs["padding_free"].value is False
+    assert isinstance(kwargs["gradient_checkpointing"], ast.Constant) and kwargs["gradient_checkpointing"].value is True
