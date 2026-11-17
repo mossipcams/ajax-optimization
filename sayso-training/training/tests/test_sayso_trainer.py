@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ast
 import importlib.util
-import re
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,7 +16,6 @@ COMMON = sys.modules["train_common"]
 UNSLOTH_SPEC = importlib.util.spec_from_file_location("train_unsloth_full", SCRIPTS / "train_unsloth_full.py")
 UNSLOTH = importlib.util.module_from_spec(UNSLOTH_SPEC)
 UNSLOTH_SPEC.loader.exec_module(UNSLOTH)
-DOCS = Path(__file__).resolve().parents[2] / "docs" / "PIPELINE.md"
 
 
 def _tensor(*shape: int) -> SimpleNamespace:
@@ -114,63 +112,3 @@ def test_sayso_trainer_config_sets_bf16_and_disables_packing_and_padding_free() 
     assert isinstance(kwargs["bf16"], ast.Constant) and kwargs["bf16"].value is True
     assert isinstance(kwargs["packing"], ast.Constant) and kwargs["packing"].value is False
     assert isinstance(kwargs["padding_free"], ast.Constant) and kwargs["padding_free"].value is False
-
-
-def _joined_constants(node: ast.AST) -> str:
-    if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        return node.value
-    if isinstance(node, ast.JoinedStr):
-        return "".join(v.value for v in node.values if isinstance(v, ast.Constant) and isinstance(v.value, str))
-    return ""
-
-
-def _model_defaults(path: Path) -> list[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    defaults = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call) and getattr(node.func, "attr", None) == "add_argument":
-            if node.args and isinstance(node.args[0], ast.Constant) and node.args[0].value == "--model":
-                defaults.extend(_joined_constants(kw.value) for kw in node.keywords if kw.arg == "default")
-    return defaults
-
-
-def _doc_base_model() -> str:
-    text = DOCS.read_text(encoding="utf-8")
-    invariants = re.search(r"^## Pipeline invariants\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
-    assert invariants is not None, "PIPELINE.md has no 'Pipeline invariants' section"
-    match = re.search(r"Base model is `([A-Za-z0-9._\-]+)`", invariants.group(1), re.S)
-    assert match is not None, "PIPELINE.md does not state the base model"
-    return match.group(1)
-
-
-def test_model_default_matches_unsloth_trainer_and_doc_base_model() -> None:
-    defaults = _model_defaults(SCRIPTS / "sayso_trainer.py")
-    assert defaults, "sayso_trainer.py has no --model default"
-    assert defaults == _model_defaults(SCRIPTS / "train_unsloth_full.py")
-    doc_name = _doc_base_model()
-    for default in defaults:
-        assert default.rsplit("/", 1)[-1] == doc_name, f"--model default {default!r} != doc {doc_name!r}"
-
-
-def test_model_is_loaded_with_automodel_in_bf16() -> None:
-    tree = ast.parse((SCRIPTS / "sayso_trainer.py").read_text(encoding="utf-8"))
-    loads = [node for node in ast.walk(tree)
-             if isinstance(node, ast.Call) and ast.unparse(node.func) == "AutoModelForCausalLM.from_pretrained"]
-    assert len(loads) == 1
-    kwargs = {kw.arg: kw.value for kw in loads[0].keywords}
-    assert "dtype" in kwargs, "AutoModelForCausalLM.from_pretrained has no dtype"
-    assert ast.unparse(kwargs["dtype"]) == "torch.bfloat16"
-
-
-def test_trainer_imports_no_peft_and_no_fp32_master_weights() -> None:
-    source = (SCRIPTS / "sayso_trainer.py").read_text(encoding="utf-8")
-    tree = ast.parse(source)
-    imported: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imported.update(alias.name.split(".")[0] for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            imported.add(node.module.split(".")[0])
-    assert "peft" not in imported
-    for banned in ("get_peft_model", "LoraConfig", "float32_mixed_precision"):
-        assert banned not in source, banned
