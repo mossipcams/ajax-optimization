@@ -24,12 +24,14 @@ from generators.utterances import (
 )
 from generators.validation import (
     gate_areas,
+    gate_call_referents,
     gate_clarification,
     gate_hidden_capability_refusal,
     gate_named_device_calls,
     gate_offered_tools,
     gate_on_off_polarity,
     gate_scripts,
+    gate_unjustified_refusal,
     validate_serialized_row,
 )
 
@@ -1084,3 +1086,34 @@ def test_routine_phrasing_skips_turn_on_for_polarity_names():
         for seed in range(200)
     ]
     assert any(phrase is not None and phrase.casefold().startswith("turn on my") for phrase in turned_on)
+
+
+def test_label_gate_correct_den_light_call_passes():
+    row = _row([TURN_ON_LIGHT])
+    assert gate_call_referents(row) is None
+    assert gate_unjustified_refusal(row) is None
+    assert _serialized(row) is None
+
+
+def test_label_gate_call_to_different_real_device_is_rejected():
+    row = _row([("intent__HassTurnOn", {"name": "Living Room TV", "domain": ["media_player"]})])
+    assert gate_call_referents(row) == "unreferenced_call_target"
+    assert _serialized(row) == "unreferenced_call_target"
+
+
+def test_label_gate_call_to_wrong_area_is_rejected():
+    row = _row([("intent__HassTurnOn", {"area": "Living Room", "domain": ["light"]})])
+    assert gate_call_referents(row) == "unreferenced_call_target"
+    assert _serialized(row) == "unreferenced_call_target"
+
+
+def test_label_gate_unjustified_refusal_is_rejected():
+    row = _refusal_row("I can't help with that request.", UTTERANCE, home=HOME)
+    assert gate_unjustified_refusal(row) == "unjustified_refusal_or_clarify"
+    assert _serialized(row) == "unjustified_refusal_or_clarify"
+
+
+def test_label_gate_needless_clarification_is_rejected():
+    row = _refusal_row("Did you mean the Den Ceiling Lights or the Living Room TV?", UTTERANCE, home=HOME)
+    assert gate_unjustified_refusal(row) == "unjustified_refusal_or_clarify"
+    assert _serialized(row) == "unjustified_refusal_or_clarify"

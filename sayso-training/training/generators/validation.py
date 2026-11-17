@@ -20,7 +20,7 @@ from generators.tools import _OPERATION_TOOLS, HA_TOOL_NAMESPACES, namespaced_to
 from generators.capability_registry import CAPABILITIES, SupportLevel, entity_supports, is_satellite_name
 from generators.config import DEFAULT_TOKEN_BUDGET
 from generators.gold import _type_label, refers_to
-from generators.stt_noise import _int_to_words, utterance_contains_target
+from generators.stt_noise import _int_to_words, fold_stt_text, utterance_contains_target
 
 _BANNED = re.compile(r"<tool_call>|evals/cases/|tool_call_start", re.I)
 _PLACEHOLDER_AREA = "unassigned"
@@ -428,9 +428,11 @@ def validate_serialized_row(
         or gate_scripts(row)
         or gate_areas(row)
         or gate_named_device_calls(row)
+        or gate_unjustified_refusal(row)
         or gate_clarification(row)
         or gate_on_off_polarity(row)
         or gate_hidden_capability_refusal(row)
+        or gate_call_referents(row)
     )
     if reason:
         return reason
@@ -1015,6 +1017,148 @@ def gate_hidden_capability_refusal(row: dict[str, Any]) -> str | None:
             continue
         if _domain_supports(next(iter(domains)), tool) is True and namespaced_tool_name(tool) in offered:
             return "hidden_capability_refusal"
+    return None
+
+
+_TARGET_AREA_LINE = re.compile(r"^target_area: (.+)$", re.MULTILINE)
+_REFUSAL_REPLY = re.compile(
+    r"I can't help with that request\.|I can't do that with the available Home Assistant tools\."
+    r"|Sorry, I didn't catch that\.|There is no .+ in the .+\.|The .+ has no .+ available\."
+)
+_ABSENCE_REPLY = re.compile(r"There is no .+ in the .+\.|The .+ has no .+ available\.")
+_OPEN_OR_CLOSE = re.compile(r"\b(?:open|close)\b")
+
+
+def _context_target_area(system: str) -> str | None:
+    match = _TARGET_AREA_LINE.search(system)
+    if match is None or match.group(1) == "none":
+        return None
+    return match.group(1).casefold()
+
+
+def _user_turns_before(messages: list[dict[str, Any]], index: int) -> list[str]:
+    return [str(message.get("content") or "") for message in messages[:index] if message.get("role") == "user"]
+
+
+def _area_scope(system: str, said: list[str]) -> set[str]:
+    scope = {area for area in _visible_areas(system) if any(utterance_contains_target(text, area) for text in said)}
+    if (target := _context_target_area(system)) is not None:
+        scope.add(target)
+    return scope
+
+
+def _type_in_area_referred(entries: tuple[dict[str, Any], ...], said: list[str], scope: set[str]) -> bool:
+    for entry in entries:
+        pattern = _CLARIFY_TYPES.get(entry["domain"])
+        if pattern is None or not {area.casefold() for area in entry["areas"]} & scope:
+            continue
+        if any(pattern.search(fold_stt_text(text)) for text in said):
+            return True
+    return False
+
+
+def _outside_area_name_referred(entries: tuple[dict[str, Any], ...], said: list[str], scope: set[str]) -> bool:
+    for entry in entries:
+        if not {area.casefold() for area in entry["areas"]} & scope:
+            continue
+        for name in entry["names"]:
+            rest = name
+            for area in entry["areas"]:
+                rest = re.sub(rf"\b{re.escape(area)}\b", " ", rest, flags=re.IGNORECASE)
+            rest = " ".join(rest.split())
+            if rest and any(utterance_contains_target(text, rest) for text in said):
+                return True
+    return False
+
+
+def gate_call_referents(row: dict[str, Any]) -> str | None:
+    system = _system_prompt(row)
+    entities = _static_entities(system)
+    messages = row.get("messages") or []
+    for index, message in enumerate(messages):
+        if message.get("role") != "assistant" or not message.get("train_on_turn"):
+            continue
+        said = _user_turns_before(messages, index)
+        scope = _area_scope(system, said)
+        for call in message.get("tool_calls") or []:
+            function = call.get("function") or {}
+            bare = _BARE_TOOL.get(function.get("name"), function.get("name"))
+            if bare in _NON_TARGET_TOOLS or bare in _TIMER_NAME_TOOLS:
+                continue
+            arguments = _parsed_arguments(function.get("arguments"))
+            if arguments is None:
+                continue
+            target = arguments.get("name")
+            area = arguments.get("area")
+            if isinstance(target, str):
+                named = tuple(entry for entry in entities if target in entry["names"])
+                names = [name for entry in named for name in entry["names"]]
+                referred = any(utterance_contains_target(text, name) for text in said for name in names)
+                if not (
+                    referred
+                    or _type_in_area_referred(named, said, scope)
+                    or _outside_area_name_referred(named, said, scope)
+                ):
+                    return "unreferenced_call_target"
+            if isinstance(area, str):
+                named_in_target = isinstance(target, str) and utterance_contains_target(target, area)
+                if area.casefold() not in scope and not named_in_target:
+                    return "unreferenced_call_target"
+    return None
+
+
+def _utterance_matches_entity(entry: dict[str, Any], utterance: str, scope: set[str], typed: bool) -> bool:
+    if scope and not {area.casefold() for area in entry["areas"]} & scope:
+        return False
+    if any(utterance_contains_target(utterance, name) for name in entry["names"]):
+        return True
+    pattern = _CLARIFY_TYPES.get(entry["domain"])
+    return typed and bool(scope) and pattern is not None and pattern.search(fold_stt_text(utterance)) is not None
+
+
+def _matching_operation_entities(
+    entities: tuple[dict[str, Any], ...], utterance: str, tool: str, scope: set[str], typed: bool
+) -> int:
+    return sum(
+        1
+        for entry in entities
+        if _domain_supports(entry["domain"], tool) is True and _utterance_matches_entity(entry, utterance, scope, typed)
+    )
+
+
+def _candidates_are_distinct_exposed(candidates: list[tuple[str, str | None]], row: dict[str, Any]) -> bool:
+    entries = _clarification_entities(row)
+    identities = [_resolve_candidate(text, area, entries) for text, area in candidates]
+    return None not in identities and len(set(identities)) == len(identities)
+
+
+def gate_unjustified_refusal(row: dict[str, Any]) -> str | None:
+    messages = row.get("messages") or []
+    system = _system_prompt(row)
+    entities = _static_entities(system)
+    offered = _offered_schemas(row)
+    for index, message in enumerate(messages):
+        if message.get("role") != "assistant" or not message.get("train_on_turn") or message.get("tool_calls"):
+            continue
+        reply = str(message.get("content") or "")
+        if _named_refusal(reply) is not None:
+            continue
+        candidates = _clarify_candidates(reply)
+        if candidates is None and _REFUSAL_REPLY.fullmatch(reply) is None:
+            continue
+        absence = _ABSENCE_REPLY.fullmatch(reply) is not None
+        if candidates is not None and (
+            len(candidates) < 2 or not _candidates_are_distinct_exposed(candidates, {**row, "messages": messages[:index]})
+        ):
+            continue
+        said = _user_turns_before(messages, index)
+        utterance = said[-1] if said else ""
+        tool = _requested_tool(utterance)
+        if tool is None or namespaced_tool_name(tool) not in offered or _OPEN_OR_CLOSE.search(utterance.casefold()):
+            continue
+        matches = _matching_operation_entities(entities, utterance, tool, _area_scope(system, said), not absence)
+        if matches == 1:
+            return "unjustified_refusal_or_clarify"
     return None
 
 

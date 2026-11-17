@@ -270,3 +270,102 @@ Evidence from the VM (Python 3.12.3, CI pins):
 - Targeted run `lfm1` (`training/tests/test_lfm_python_parse.py -q`): 3 passed in 0.20 s.
 - Full run `full-lfm` (`training/tests -q --continue-on-collection-errors`): 969 passed, 0 failed, 0 errors in 530.67 s. Against `ef263f9` (8 failed, 3 errors), the collection error is gone and no new failure appears. The `step2c-final` error on this module no longer occurs.
 
+
+## Step 3: semantic label gates (referents and needless refusals)
+
+Two gates in `training/generators/validation.py`, both run by `validate_serialized_row` on trained turns only:
+
+- `gate_call_referents` → `unreferenced_call_target`. A trained call's `name` must be referred to by a user turn before it (directly, by alias, or by the entity's device type in a referred area), or its `area` must be referred to (named by a user turn, the context's `target_area`, or contained in the call's `name`).
+- `gate_unjustified_refusal` → `unjustified_refusal_or_clarify`. A trained refusal reply (`I can't help…`, `Sorry, I didn't catch that.`, absence replies) or a clarification whose candidates resolve to two or more distinct exposed entities is rejected when exactly one exposed entity matches the requested operation and utterance. Matching is name/alias, or (for non-absence replies) area and device type within the utterance's area scope.
+
+The gates run after the existing gates, except `gate_unjustified_refusal`, which runs before `gate_clarification` so that a needless clarification is reported under the new reason. No existing gate was loosened.
+
+### Measurement corpus
+
+- Config: `training/configs/generation/full_sft_v13.yaml` with `count: 2000`, seed `20261028` unchanged. Scratch copy on the VM at `out/full_sft_v13_smoke2000.yaml`.
+- The full coverage floors cannot be reserved at 2000 rows (`planning._reserve_tool_floors` raises), so the scratch copy scales them by 1/20: `min_positive_per_tool` 200→10, `min_positive_per_operation` 40→2, `get_datetime_positive_min` 400→20. The allocation shares are unchanged.
+- Pre-gate corpus: generated from a pristine copy of HEAD `93aadc7` (the two edited files restored): `out/v13_smoke2000_pre.jsonl`, 2000 rows accepted.
+- Both gate functions were run over every row by `out/measure_v13.py`. The sample is `random.Random(20261028).sample` over the rejected rows.
+
+### Pre-tuning counts (first gate version, 2000 rows)
+
+Total rows 2000. Rejected 131 (6.6%).
+
+| Reason | Total | exclusion | ordinary | aliases | area | follow_up | clarify | absence | unsupported | unavailable |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `unreferenced_call_target` | 100 | 24 | 55 | 7 | 14 | | | | | |
+| `unjustified_refusal_or_clarify` | 31 | | | | | 7 | 11 | 4 | 8 | 1 |
+
+Sampled classification (20 rejected rows, seed `20261028`). Verdicts use the first gate version's rule (name/alias match, no area scope), with entity areas and domains read from the row's static context:
+
+| Row | Family | Reason | Utterance | Offending label | Verdict | Why |
+|---|---|---|---|---|---|---|
+| 55 | aliases | call | turn off smart tvs in my master bedroom | off, "Master Bedroom Smart TV" | FP | Same room and device type; name not spoken (plural "tvs") |
+| 626 | ordinary | call | Turn down the master bedroom tv volume | volume down, "Smart TV" (Master Bedroom) | FP | Same room and type |
+| 42 | ordinary | call | switch off the loft tv | off, "Television" (Loft) | FP | Same room and type |
+| 370 | ordinary | call | mute the living room tv | mute, "Living Room QLED TV" | FP | Same room and type |
+| 823 | ordinary | call | could you skip to the next track on the living room speaker? | next, "Echo Dot" (Living Room) | FP | Same room and type |
+| 4 | ordinary | call | Please switch on the Den tv | on, "Beamer" (Den) | FP | Same room and type |
+| 1791 | ordinary | call | Resume hallway speaker | unpause, "SaySo Satellite" (Hallway) | FP | Same room and type |
+| 694 | area | call | could you switch off the lights in the lounge? | off, area "Living Room" | FP | "Lounge" is an area alias; `target_area` is "Living Room" |
+| 31 | ordinary | call | Can you switch on the Craft Room light for me? | on, "Bench Lamp" (Craft Room) | FP | Same room and type |
+| 3 | exclusion | call | switch off the kitchen lights, but leave kitchen downlights unchanged | off, "Kitchen Plinth Lights", "Kitchen lutron light" | FP | Same room and type |
+| 1520 | area | call | turn off the dining room lights but leave the Dining Room Accent Light on | off, "Dining Room Ceiling Light", "Lamp" | FP | Same room and type |
+| 598 | ordinary | call | Can you pause the Master Bedroom speaker for me? | pause, "Master Bedroom Sonos Speaker" | FP | Same room and type |
+| 185 | ordinary | call | please pause nursery speaker | pause, "SaySo Satellite" (Nursery) | FP | Same room and type |
+| 551 | area | call | leave the living room accent light on and switch off the other living room lights | off, "Living Room Downlight", "Lamp" | FP | Same room and type |
+| 1947 | clarify | clarify | kda please switch on the hallway tv | "Did you mean the Hallway Fire TV or the Hallway TCL TV?" | FP | Matched only the "TV" entity, which is outside the hallway |
+| 675 | unavailable | refusal | kda Mute SaySo Satellite | "I can't do that with the available Home Assistant tools." | FP | Requested tool withheld; the gate did not check the tool was offered |
+| 1322 | unsupported | refusal | could you turn Foyer Lamp Power on? | "Foyer Lamp Power does not support that." | FP | Named refusal; loose substring match to "Foyer Lamp" |
+| 585 | clarify | clarify | Switch off the Bathroom out let | "Did you mean the Bathroom Fountain Plug or the Bathroom Outlet?" | TP | Only "Bathroom Outlet" matches by name after STT folding |
+| 1792 | unsupported | refusal | switch Spotlights Power off | "Spotlights Power does not support that." | FP | Named refusal; loose substring match to "Spotlights" |
+| 195 | clarify | clarify | Please switch on the Entryway fan | "Did you mean the Entryway Table Fan or the Entryway Table Fan 2?" | TP | Only "Entryway Table Fan" matches (alias "Entryway fan") |
+
+Pre-tuning totals in the sample: TP 2, FP 18. The FPs are the lesson: the first version judged referents by exact name only, and it judged refusals without an area scope or a tool-offered check.
+
+### Tuning (new gates only)
+
+Each change is a narrow exemption for a legitimate referent or a judgment the gate could not make, documented here:
+
+1. **Area and type referent (call).** A name is referred when its area is in the utterance's area scope and its domain's type word appears in a user turn (`_CLARIFY_TYPES`, folded with `fold_stt_text`). Fixes the 14 call FPs above.
+2. **Context area (call and refusal).** The scope is the areas the utterance names plus the context's `target_area` (the context's own resolution, which covers aliases like "lounge").
+3. **Name outside the area (call).** A name minus its area words is referred (e.g. "homepod mini" for "Living Room HomePod Mini"). Found in the suite's contrast families.
+4. **Scoped matching (refusal and clarification).** An entity only matches when it is in the scope. Fixes the "TV" entity outside the hallway (1947).
+5. **STT-folded type (refusal and clarification).** Type words match on `fold_stt_text`.
+6. **Offered tool (refusal).** The requested tool must be offered, as the existing hidden-capability gate already requires.
+7. **Named refusals skipped (refusal).** "X does not support that." is judged by `gate_hidden_capability_refusal`, which already checks the named entity's domain. Loose matches to other entities no longer count.
+8. **Absence replies match by name only (refusal).** "There is no X in the Y" cannot be justified by a type-only match in the room. This drops the "tv" type matches on non-TV media players.
+9. **"open"/"close" utterances skipped (refusal).** `_requested_tool` maps "open" to `HassTurnOn` (cover open), so "Open YouTube on the TV" looked like an unjustified refusal. Conservative: some real refusals on open/close requests are no longer judged.
+10. **Clarification candidates must be distinct and exposed.** Otherwise the existing `gate_clarification` reasons (`clarify_unexposed_candidate`, `clarify_duplicate_candidate`) are preserved.
+
+Earlier cuts were run through the full suite before these exemptions were final: `full_suite_step3` had 13 failures, all from the new gates. Dead contrast slots (`contrast/lights/turn_on` #12, `turn_off` #16, `media_players/next_track` #4: 350–400 `unreferenced_call_target` each); `launch_app` refusals (2 tests); counterfactual group tests (8: seven fail at row index 22 with `unjustified_refusal_or_clarify`, one allocation shortfall); withheld-pair and hygiene tests (3, dead contrast slots). The first cut's 2000-row generation also failed allocation (1844/2000 after 40000 attempts, 37694 `unreferenced_call_target`). Each cause above maps to one of the exemptions, and the final suite is green.
+
+### Post-tuning counts (2000 rows, final gates)
+
+Total rows 2000. Rejected 6 (0.3%), all `unjustified_refusal_or_clarify`:
+
+| Reason | Pre-tuning | Post-tuning |
+|---|---|---|
+| `unreferenced_call_target` | 100 | 0 |
+| `unjustified_refusal_or_clarify` | 31 | 6 (clarify 6) |
+
+Post-tuning verdicts for all six (same rule as tuned: area scope, STT folding, type match):
+
+- TP: 1748 "could you switch the cove light off?" (Bathroom), 1640 "Could you switch on the cove light?" (Bathroom), 478 "Can you switch the work light off for me?" (Garage), 734 "could you switch on the soft light?" (Hallway). Each offers two candidates outside the room while exactly one in-room device matches the type. The unmatched qualifier ("cove", "soft", "work") makes these borderline.
+- FP: 1933 "Please switch on the Boiler Room out let" and 585 "Switch off the Bathroom out let". STT splits "outlet" into "out let", so the type word is lost and the second outlet/plug candidate is not counted.
+
+### Generator true positives (listed, not fixed)
+
+- **Clarify, candidates outside the room (4 of 158 clarify rows in the 2000-row corpus).** The candidate pair is drawn from another room, while exactly one device in the utterance's room matches. Examples: 1748, 1640, 478, 734 above. The fix is in clarify candidate selection (`_ambiguous_gold`/`shared_alias`), which is not a small change, so these rows stay listed. The gate rejects them at generation time; the rate does not starve any slot (the final generation accepted all 2000 rows).
+- **Referent gate true positives: none found** in the 2000-row corpus. The generator emitted no call to a different device or wrong-area call beyond what the existing gates already reject. The gate's first two classes are covered by the unit tests instead.
+
+### Known false positives left (not tuned)
+
+- STT-split type words (1933, 585 above): the type word "outlet" is split by STT ("out let") and cannot be folded to a type match.
+- Qualifier words are not checked. "cove light" counts a non-cove light in the same room as the type match (borderline TPs above). A stricter rule would require every content word to be accounted for.
+
+### Final generation and verification
+
+- Final gates, full 2000-row generation (`out/v13_smoke2000_post.jsonl`): accepted 2000, no dead slots. Post-hoc `measure_v13.py` over that corpus: 0 rejections, consistent with generation-time gates.
+- VM targeted run `tests_gate4` (`training/tests/test_label_gates.py -q`): 171 passed (5 new tests: correct den-light call passes, different device, wrong area, unjustified refusal, needless clarification).
+- VM full run `full_suite_final` (`training/tests -q`): 974 passed, 0 failed, 0 errors in 549.09 s. Baseline before Step 3: 969 passed (`full-lfm`); the 5 new tests account for the increase. No existing test was edited.
