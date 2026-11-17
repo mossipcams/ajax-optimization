@@ -1041,10 +1041,12 @@ def _user_turns_before(messages: list[dict[str, Any]], index: int) -> list[str]:
 
 
 def _area_scope(system: str, said: list[str]) -> set[str]:
-    scope = {area for area in _visible_areas(system) if any(utterance_contains_target(text, area) for text in said)}
+    spoken = {area for area in _visible_areas(system) if any(utterance_contains_target(text, area) for text in said)}
+    if spoken:
+        return spoken
     if (target := _context_target_area(system)) is not None:
-        scope.add(target)
-    return scope
+        return {target}
+    return set()
 
 
 def _type_in_area_referred(entries: tuple[dict[str, Any], ...], said: list[str], scope: set[str]) -> bool:

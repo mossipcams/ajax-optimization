@@ -275,8 +275,8 @@ Evidence from the VM (Python 3.12.3, CI pins):
 
 Two gates in `training/generators/validation.py`, both run by `validate_serialized_row` on trained turns only:
 
-- `gate_call_referents` → `unreferenced_call_target`. A trained call's `name` must be referred to by a user turn before it (directly, by alias, or by the entity's device type in a referred area), or its `area` must be referred to (named by a user turn, the context's `target_area`, or contained in the call's `name`).
-- `gate_unjustified_refusal` → `unjustified_refusal_or_clarify`. A trained refusal reply (`I can't help…`, `Sorry, I didn't catch that.`, absence replies) or a clarification whose candidates resolve to two or more distinct exposed entities is rejected when exactly one exposed entity matches the requested operation and utterance. Matching is name/alias, or (for non-absence replies) area and device type within the utterance's area scope.
+- `gate_call_referents` → `unreferenced_call_target`. A trained call's `name` must be referred to by a user turn before it (directly, by alias, or by the entity's device type in a referred area), or its `area` must be referred to (named by a user turn, the context's `target_area` when no visible area is named, or contained in the call's `name`).
+- `gate_unjustified_refusal` → `unjustified_refusal_or_clarify`. A trained refusal reply (`I can't help…`, `Sorry, I didn't catch that.`, absence replies) or a clarification whose candidates resolve to two or more distinct exposed entities is rejected when exactly one exposed entity matches the requested operation and utterance. Matching is name/alias, or (for non-absence replies) area and device type within the utterance's area scope (the spoken areas, or the context's `target_area` when no visible area is spoken).
 
 The gates run after the existing gates, except `gate_unjustified_refusal`, which runs before `gate_clarification` so that a needless clarification is reported under the new reason. No existing gate was loosened.
 
@@ -328,7 +328,7 @@ Pre-tuning totals in the sample: TP 2, FP 18. The FPs are the lesson: the first 
 Each change is a narrow exemption for a legitimate referent or a judgment the gate could not make, documented here:
 
 1. **Area and type referent (call).** A name is referred when its area is in the utterance's area scope and its domain's type word appears in a user turn (`_CLARIFY_TYPES`, folded with `fold_stt_text`). Fixes the 14 call FPs above.
-2. **Context area (call and refusal).** The scope is the areas the utterance names plus the context's `target_area` (the context's own resolution, which covers aliases like "lounge").
+2. **Context area (call and refusal).** The scope is the visible areas the user turns name. The context's `target_area` (its own resolution, which covers aliases like "lounge") supplies the scope only for area-less requests. Fixed in the scope-fix round below.
 3. **Name outside the area (call).** A name minus its area words is referred (e.g. "homepod mini" for "Living Room HomePod Mini"). Found in the suite's contrast families.
 4. **Scoped matching (refusal and clarification).** An entity only matches when it is in the scope. Fixes the "TV" entity outside the hallway (1947).
 5. **STT-folded type (refusal and clarification).** Type words match on `fold_stt_text`.
@@ -369,3 +369,23 @@ Post-tuning verdicts for all six (same rule as tuned: area scope, STT folding, t
 - Final gates, full 2000-row generation (`out/v13_smoke2000_post.jsonl`): accepted 2000, no dead slots. Post-hoc `measure_v13.py` over that corpus: 0 rejections, consistent with generation-time gates.
 - VM targeted run `tests_gate4` (`training/tests/test_label_gates.py -q`): 171 passed (5 new tests: correct den-light call passes, different device, wrong area, unjustified refusal, needless clarification).
 - VM full run `full_suite_final` (`training/tests -q`): 974 passed, 0 failed, 0 errors in 549.09 s. Baseline before Step 3: 969 passed (`full-lfm`); the 5 new tests account for the increase. No existing test was edited.
+
+### Scope fix (second review round)
+
+The review probe (`out/probe_scope.py`) found a hole in `_area_scope`: it always added the context's `target_area`. With utterance "turn on the den lights" and `target_area: Living Room`, `HassTurnOn {area: "Living Room", domain: ["light"]}` passed `gate_call_referents`. The same scope fed the type and outside-area referents, and `_utterance_matches_entity` in the refusal gate.
+
+- Change: the context `target_area` supplies the scope only when no visible area is named by a user turn. If one is spoken, the scope is the spoken areas only. Nothing else was loosened.
+- Tests (`test_label_gates.py`, 173 passed): `test_label_gate_spoken_area_beats_context_target_area` (den utterance, `target_area: Living Room`, call to Living Room area → `unreferenced_call_target`) and `test_label_gate_area_less_request_uses_context_target_area` (utterance "turn on the lights", `target_area: Den`, call to Den area passes `gate_call_referents` and `validate_serialized_row`).
+
+Measurement with the fixed gates, same seed and config:
+
+| Reason | Pre-tuning (first gate version) | Post-tuning (`fde19cf`) | Post-fix (this commit) |
+|---|---|---|---|
+| `unreferenced_call_target` | 100 | 0 | 0 |
+| `unjustified_refusal_or_clarify` | 31 | 6 | 6 (clarify 6) |
+| Rejected rows of 2000 | 131 | 6 | 6 |
+
+- Pre-gate corpus `out/v13_smoke2000_pre.jsonl` (generated from `93aadc7`), `measure_v13.py` with the fixed gates: rejected 6, all `clarify`. The same 6 rows as the post-tuning verdicts above (TP 4, FP 2: 1933 and 585). All rejected rows are printed, since the sample of 20 exceeds the 6 rejections.
+- The scope change does not change any count on this corpus. The wrong-area and spoken-area cases are covered by the unit tests above, not by a generated row.
+- Regenerated corpus `out/v13_smoke2000_post_fix.jsonl` at the fixed gates: accepted 2000, no dead slots. `measure_v13.py` over it: 0 rejected.
+- Full VM suite `full_suite_fix` (`training/tests -q`): 976 passed, 0 failed, 0 errors in 548.14 s. Baseline before this round: 974 passed (`full_suite_final`); the 2 new tests account for the increase.
