@@ -73,6 +73,12 @@ def test_guard_accepts_padded_batches() -> None:
     TRAIN.check_batch(batch, 8)
 
 
+def test_guard_rejects_padded_batch_without_attention_mask() -> None:
+    batch = {"input_ids": _tensor(8, 16), "labels": _tensor(8, 16)}
+    with pytest.raises(ValueError):
+        TRAIN.check_batch(batch, 8)
+
+
 def test_guard_rejects_position_ids_without_attention_mask() -> None:
     batch = {"input_ids": _tensor(8, 16), "labels": _tensor(8, 16), "position_ids": _tensor(8, 16)}
     with pytest.raises(ValueError):
@@ -121,6 +127,27 @@ def test_recipe_gives_micro_batch_group_by_length_and_no_bf16() -> None:
     assert training["train_sampling_strategy"] == "group_by_length"
     assert training["eval_strategy"] == "steps"
     assert "bf16" not in training
+
+
+def test_sft_recipe_maps_warmup_ratio_to_warmup_steps() -> None:
+    args = TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary", "--warmup-ratio", "0.1"])
+    training = TRAIN.sft_recipe(args, evaluating=True)
+    assert training["warmup_steps"] == 0.1
+    assert "warmup_ratio" not in training
+
+
+def test_sft_recipe_keeps_columns_eval_batch_and_group_by_length() -> None:
+    args = TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary"])
+    training = TRAIN.sft_recipe(args, evaluating=True)
+    assert training["remove_unused_columns"] is False
+    assert training["per_device_eval_batch_size"] == 1
+    assert training["train_sampling_strategy"] == "group_by_length"
+
+
+def test_sft_recipe_rejects_warmup_ratio_of_one() -> None:
+    args = TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary", "--warmup-ratio", "1.0"])
+    with pytest.raises(ValueError):
+        TRAIN.sft_recipe(args, evaluating=True)
 
 
 def test_sayso_trainer_config_sets_bf16_and_disables_packing_and_padding_free() -> None:
