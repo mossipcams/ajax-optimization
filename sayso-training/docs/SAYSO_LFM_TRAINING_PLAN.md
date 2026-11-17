@@ -18,7 +18,7 @@ llama.cpp only hosts inference.
 XTX, ROCm 7.2.4 ([host facts](../training/README.md#training-host-observed-2026-09-23)).
 LLaMA-Factory ran the HIP smoke there, then was replaced: **the LFM trainer is
 Unsloth** (`unsloth` container on the host). **Since 2026-11-17 the LFM trainer is the
-SaySo Trainer** (TRL SFTTrainer on transformers, still run in the `unsloth` container);
+SaySo Trainer** (TRL 1.18.1 SFTTrainer on transformers 5.23.0, in its own venv inside the `unsloth` container);
 see [PLAN_SAYSO_TRAINER_TRL.md](PLAN_SAYSO_TRAINER_TRL.md). Every LLaMA-Factory reference below
 is the plan as reviewed, not the tool in use. The data contract (derived
 Base-template view, completion-only loss, full SFT from Base) is

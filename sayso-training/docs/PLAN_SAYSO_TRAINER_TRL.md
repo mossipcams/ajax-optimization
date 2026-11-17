@@ -21,8 +21,13 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
 ## Status (2026-11-17)
 
 - **0. Environment check.** Done. The `unsloth` container
-  (`unsloth/unsloth-rocm:studio`, pulled image, no build in this repo) has
-  trl 0.24.0, transformers 5.5.0, torch 2.14.0+rocm7.2, and unsloth 2026.9.7.
+  (`unsloth/unsloth-rocm:studio`, pulled image, no build in this repo) keeps
+  trl 0.24.0, transformers 5.5.0, torch 2.14.0+rocm7.2, and unsloth 2026.9.7
+  for the rollback trainer. The SaySo Trainer runs on trl 1.18.1 in its own
+  venv inside that container (host `/srv/llm/lfm/venvs/sayso-trainer`, created
+  by `sayso-training/scripts/llm-host/sayso-trainer-venv.sh`) with transformers
+  5.23.0, datasets 5.2.0, and tokenizers 0.23.3. A `.pth` reuses the
+  container's torch 2.14.0+rocm7.2 and accelerate 1.15.0.
 - **1. Shared code.** Done. `training/scripts/train_common.py` holds hashing,
   package versions (now with trl), the manifest (now with `backend` and
   `train_common_sha256`), the stop callback, the parser and promotion gate
@@ -47,10 +52,10 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
   eval_loss@200 within 2%, identical smoke gates, dev within 2 cases, and
   throughput no more than 10% worse. Estimated cost had it run: ~1.5-2.2 h GPU.
 - **5. Wire into `sayso`.** Done. `sayso canary` and `sayso train` call
-  `sayso_trainer.py`. `train_unsloth_full.py` stays as the rollback trainer until
-  the first full run on `sayso_trainer.py` passes `./sayso eval` against the
-  champion. `test_pipeline_invariants.py` still targets
-  `train_unsloth_full.py`; existing tests were not edited.
+  `sayso_trainer.py` through `TRAINER_PYTHON` (env `SAYSO_TRAINER_PYTHON`).
+  `train_unsloth_full.py` stays as the rollback trainer until the first full run
+  on `sayso_trainer.py` passes `./sayso eval` against the champion.
+  `test_pipeline_invariants.py` checks the active trainer, `sayso_trainer.py`.
 - **6. First full run vs champion.** Pending. The next promoted dataset trains
   through `./sayso train` and is compared with the champion.
 
@@ -60,12 +65,21 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
   Unsloth; `train_unsloth_full.py` is kept only for rollback.
 - **GPU A/B skipped.** User decision ("not worth comparing"). The first
   `./sayso canary` is the first real run.
-- **TRL 0.24 target.** The container ships trl 0.24.0 with transformers 5.5.0.
-  TRL is below 1.0 and there is no container build to pin it in, so the trainer
-  targets 0.24, where `SFTConfig` `max_length`, `packing`, `padding_free`, and
-  `dataset_kwargs` `skip_prepare_dataset` exist. transformers 5.x removed
+- **TRL 1.18.1 in its own venv.** The container's trl 0.24.0 / transformers 5.5.0
+  stay for the rollback trainer. Unsloth 2026.9.x caps trl at 1.13 and
+  transformers at 5.17, so the SaySo Trainer gets a separate venv rather than
+  the container's Python. `sayso` launches it through `TRAINER_PYTHON`, which
+  defaults to that venv's `bin/python`. transformers 5.x removed
   `TrainingArguments.group_by_length`, so the recipe uses
-  `train_sampling_strategy="group_by_length"`.
+  `train_sampling_strategy="group_by_length"`. Two compatibility changes:
+  - transformers 5.23 removed `TrainingArguments.warmup_ratio`, so `sft_recipe`
+    maps `--warmup-ratio` to a float `warmup_steps` in [0, 1). The result is the
+    same `ceil(total * ratio)`.
+  - TRL 1.18's SFTTrainer keeps only `input_ids`, `labels`, and `seq_lengths` by
+    default, so the trainer passes `remove_unused_columns=False` to keep
+    `attention_mask`, which the batch guard requires.
+  TRL 1.18's `SFTConfig` defaults `gradient_checkpointing=True`, which matches
+  the trainer.
 
 ## Rollback
 

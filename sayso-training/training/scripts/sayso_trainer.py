@@ -25,7 +25,7 @@ from train_common import build_manifest as common_build_manifest
 from train_common import build_parser as common_build_parser
 from train_common import parse_args as common_parse_args
 
-FLATTENING_KEYS = ("seq_idx", "cu_seq_lens_q", "cu_seq_lens_k", "max_length_q", "max_length_k")
+FLATTENING_KEYS = ("seq_idx", "cu_seq_lens_q", "cu_seq_lens_k", "max_length_q", "max_length_k", "position_ids")
 
 
 def check_batch(batch, batch_size: int) -> None:
@@ -35,8 +35,6 @@ def check_batch(batch, batch_size: int) -> None:
     if "attention_mask" not in batch:
         raise ValueError("batch lacks attention_mask; a padded batch must carry its mask")
     flattening = [key for key in FLATTENING_KEYS if key in batch]
-    if "position_ids" in batch and "attention_mask" not in batch:
-        flattening.append("position_ids")
     if flattening:
         raise ValueError(f"batch carries flattening keys {flattening}; padded batches only")
 

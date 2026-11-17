@@ -80,7 +80,8 @@ def test_guard_rejects_padded_batch_without_attention_mask() -> None:
 
 
 def test_guard_rejects_position_ids_without_attention_mask() -> None:
-    batch = {"input_ids": _tensor(8, 16), "labels": _tensor(8, 16), "position_ids": _tensor(8, 16)}
+    batch = {"input_ids": _tensor(8, 16), "attention_mask": _tensor(8, 16), "labels": _tensor(8, 16),
+             "position_ids": _tensor(8, 16)}
     with pytest.raises(ValueError):
         TRAIN.check_batch(batch, 8)
 
