@@ -106,7 +106,7 @@ Group key: (a) generator bug, (b) stale test, (c) environment. Status is from th
 | `training/tests/test_withheld_pairs.py::test_pairs_exist_and_each_has_a_same_target_positive` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
 | `training/tests/test_withheld_pairs.py::test_sibling_withholds_exactly_the_parent_tool` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
 | `training/tests/test_withheld_pairs.py::test_v10_400_row_generation_passes_hygiene_gate` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
-| `training/tests/test_lfm_python_parse.py` (error) | c | voluptuous is not in the CI pin set; collection fails on import | remaining: install voluptuous on the CI image (not installed; not a repo change); status: remains erroring | base-full.log ERROR; fix3-full.log: remains erroring |
+| `training/tests/test_lfm_python_parse.py` (error) | c | the package `custom_components/sayso/__init__.py` imports `homeassistant` at module level (lines 11, 19), and Home Assistant needs Python 3.14; `lfm_parse.py` itself imports only `re` and `typing` | fixed in step 2b (lfm import): the test loads `lfm_parse.py` by file path from `training_paths.SAYSO`, without importing the package; test functions and assertions unchanged | base-full.log ERROR; fix3-full.log: remains erroring; step2b-lfm: see Step 2b (lfm import) |
 | `training/tests/test_context_hard_negatives.py::test_context_hard_negative_share_and_labels` (error) | b | same fa9083b fixture: the hidden-gap reject aborted the helper's single-attempt setup | fixed in step 2b: the helper retries each slot as the pipeline does (`pipeline.py:645-650`), and the share is measured over attempts (`len(negatives) / attempts` ~ `CONTEXT_HARD_NEGATIVE_RATE`), since accepted rows are all context refusals for this pair | base-full.log ERROR; fix3-full.log: remains failing; step2b: see Step 2b |
 | `training/tests/test_context_hard_negatives.py::test_context_hard_negatives_are_deterministic` (error) | b | same fa9083b fixture: `_sample` raised `entity_lacks_capability` in setup | fixed in step 2b: `_sample` returns rows and attempt count, and the determinism check compares both | base-full.log ERROR; fix3-full.log: remains failing; step2b: see Step 2b |
 | `training/tests/test_v6_eval_fixes.py::test_enforce_hygiene_raises_on_duplicated_rows` (error) | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log ERROR; fix3-full.log: passes after fix |
@@ -120,7 +120,7 @@ Group key: (a) generator bug, (b) stale test, (c) environment. Status is from th
 
 ## Remaining work (not fixed here)
 
-- Environment (group c): done in step 2 (see CI split). `voluptuous`, `transformers`, `tokenizers`, and `Jinja2` are in the CI grep. `test_lfm_python_parse.py` still errors on Python 3.12 (needs Home Assistant, which requires Python 3.14).
+- Environment (group c): done in step 2 (see CI split). `voluptuous`, `transformers`, `tokenizers`, and `Jinja2` are in the CI grep. `test_lfm_python_parse.py` is resolved in Step 2b (lfm import): it loads `lfm_parse.py` by file path, so Home Assistant is not needed.
 - Group b, satellite premise: resolved in Step 2b (the satellite/TV volume contrast family is retired; see Step 2b (satellite)). The decoy-withhold answer-independence check is not satellite-related; it was resolved in Step 2c (decision A).
 - Generator (group a): `test_the_manifest_records_requested_and_achieved_mixing` is fixed in Step 2c (the forced real-home check ignored the excluded datetime tail).
 
@@ -145,7 +145,7 @@ Dependencies in the CI grep: `voluptuous==0.15.2` matches the `voluptuous==0.15.
 
 Network: the tokenizer tests load `LiquidAI/LFM2.5-230M-Base` from the Hugging Face Hub (`test_defect_v4_corpus.py` token tests, `test_llamafactory_view.py`, and the render test in `test_pipeline_invariants.py`). `training/artifacts/` is gitignored, so CI fetches the tokenizer on every run. The VM serves it from its local cache, so the VM runs do not prove the CI fetch. CI has no Hub cache step.
 
-Import error that remains: `test_lfm_python_parse.py` imports `custom_components.sayso.lfm_parse`, and the package `__init__.py` imports `homeassistant` at module level. Home Assistant 2026.8.3 requires Python 3.14.2 or later, so it cannot be installed on the Python 3.12 CI or VM. The module is a collection error in both jobs. `--continue-on-collection-errors` lets the rest of each run proceed, and the job stays red. This is not a skip. Fixing it needs a decision: a Python 3.14 environment for this module, or a different test home for it.
+Import error (resolved in Step 2b (lfm import)): `test_lfm_python_parse.py` imported `custom_components.sayso.lfm_parse`, and the package `__init__.py` imports `homeassistant` at module level. Home Assistant 2026.8.3 requires Python 3.14.2 or later, so it cannot be installed on the Python 3.12 CI or VM. The module was a collection error in both jobs.
 
 Step-1 status changes after the grep change: the 7 transformers and token-count tests in `test_defect_v4_corpus.py` and `test_llamafactory_view.py` now pass on the VM, using its cache. `test_pipeline_invariants.py::test_rendered_training_view_has_no_tool_call_tags` failed once Jinja2 was missing and passes with it. The 8 failures remaining in the table above are unchanged from step 1 (`test_canonical_generator`, `test_context_hard_negatives`, `test_nonstandard_generator`, and `test_real_home_mixing`).
 
@@ -155,7 +155,7 @@ Still failing in the fast (PR) set, so both jobs stay red:
 - `test_nonstandard_generator.py::test_satellite_tv_exclusion_builds_contrast_rows_in_both_directions` (resolved in Step 2b)
 - `test_nonstandard_generator.py::test_satellite_tv_contrast_rows_pass_validate_row` (resolved in Step 2b)
 - `test_nonstandard_generator.py::test_exclusion_row_missing_excluded_device_fails_validation` (resolved in Step 2b)
-- `test_lfm_python_parse.py` (collection error, Home Assistant on Python 3.14)
+- `test_lfm_python_parse.py` (collection error, Home Assistant on Python 3.14; resolved in Step 2b (lfm import))
 
 None of the 18 slow tests fails in either run.
 
@@ -253,3 +253,18 @@ Test change under decision A (`training/tests/test_canonical_generator.py::test_
 - VM targeted run `tgt-step2c` (`test_canonical_generator.py`, `test_real_home_mixing.py`): 33 passed in 67.34 s, including both target tests.
 - VM full run `step2c-final` (`training/tests -q --continue-on-collection-errors`, after the decoy test rewrite): 966 passed, 0 failed, 1 error in 528.09 s. The error is the `test_lfm_python_parse.py` collection error (Home Assistant on Python 3.12), unchanged.
 - Against the `Step 2b` baseline (`step2b-full`: 961 passed, 6 failed, 1 error): the two Step 2c targets now pass and no new failure appears. An earlier run with the unchanged decoy test (`step2c-full`: 965 passed, 1 failed, 1 error) showed only the decoy assertion failing, which is the premise that decision A replaces.
+
+## Step 2b (lfm import): load `lfm_parse` by file path
+
+Evidence:
+
+- `vendor/SaySo/custom_components/sayso/__init__.py` imports `homeassistant` at module level (lines 11 and 19). Importing `custom_components.sayso.lfm_parse` runs that `__init__.py` first, so the test could not collect on Python 3.12.
+- `vendor/SaySo/custom_components/sayso/lfm_parse.py` imports only `from __future__ import annotations`, `re`, and `typing` (lines 2-5). The module does not need `homeassistant`, so loading it directly is safe.
+
+Change (`training/tests/test_lfm_python_parse.py`, import block only): the package import is replaced by `importlib.util.spec_from_file_location` on `training_paths.SAYSO / "custom_components" / "sayso" / "lfm_parse.py"`, registered as `sayso_lfm_parse` in `sys.modules` before `exec_module`. The two names the tests use, `parse_lfm_python_tool_call` and `parse_lfm_python_tool_calls`, are bound from that module. The three test functions and every assertion are unchanged. No vendor file, generator, or validation gate was edited.
+
+Evidence from the VM (Python 3.12.3, CI pins):
+
+- Targeted run `lfm1` (`training/tests/test_lfm_python_parse.py -q`): 3 passed in 0.20 s.
+- Full run `full-lfm` (`training/tests -q --continue-on-collection-errors`): 969 passed, 0 failed, 0 errors in 530.67 s. Against `ef263f9` (8 failed, 3 errors), the collection error is gone and no new failure appears. The `step2c-final` error on this module no longer occurs.
+
