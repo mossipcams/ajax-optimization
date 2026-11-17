@@ -79,7 +79,7 @@ def test_guard_rejects_padded_batch_without_attention_mask() -> None:
         TRAIN.check_batch(batch, 8)
 
 
-def test_guard_rejects_position_ids_without_attention_mask() -> None:
+def test_guard_rejects_position_ids_even_with_attention_mask() -> None:
     batch = {"input_ids": _tensor(8, 16), "attention_mask": _tensor(8, 16), "labels": _tensor(8, 16),
              "position_ids": _tensor(8, 16)}
     with pytest.raises(ValueError):
@@ -145,10 +145,19 @@ def test_sft_recipe_keeps_columns_eval_batch_and_group_by_length() -> None:
     assert training["train_sampling_strategy"] == "group_by_length"
 
 
-def test_sft_recipe_rejects_warmup_ratio_of_one() -> None:
-    args = TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary", "--warmup-ratio", "1.0"])
-    with pytest.raises(ValueError):
-        TRAIN.sft_recipe(args, evaluating=True)
+@pytest.mark.parametrize("ratio", ["1.0", "-0.1"])
+def test_parse_args_rejects_warmup_ratio_outside_unit_interval(ratio: str) -> None:
+    with pytest.raises(SystemExit):
+        TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary", "--warmup-ratio", ratio])
+
+
+def test_check_stack_rejects_old_trl_and_transformers() -> None:
+    with pytest.raises(SystemExit):
+        TRAIN.check_stack({"trl": "0.24.0", "transformers": "5.5.0"})
+
+
+def test_check_stack_accepts_pinned_trl_and_transformers() -> None:
+    TRAIN.check_stack({"trl": "1.18.1", "transformers": "5.23.0"})
 
 
 def test_sayso_trainer_config_sets_bf16_and_disables_packing_and_padding_free() -> None:

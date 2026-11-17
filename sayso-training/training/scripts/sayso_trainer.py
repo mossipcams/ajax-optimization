@@ -5,7 +5,10 @@ from __future__ import annotations
 import json
 import sys
 from datetime import datetime, timezone
+from importlib.metadata import version
 from pathlib import Path
+
+from packaging.version import Version
 
 SCRIPTS = Path(__file__).resolve().parent
 if str(SCRIPTS) not in sys.path:
@@ -26,6 +29,15 @@ from train_common import build_parser as common_build_parser
 from train_common import parse_args as common_parse_args
 
 FLATTENING_KEYS = ("seq_idx", "cu_seq_lens_q", "cu_seq_lens_k", "max_length_q", "max_length_k", "position_ids")
+MINIMUM_STACK = {"trl": "1.18.1", "transformers": "5.23.0"}
+TRAINER_VENV = "/workspace/host/lfm/venvs/sayso-trainer"
+
+
+def check_stack(versions: dict[str, str | None]) -> None:
+    found = {name: versions.get(name) for name in MINIMUM_STACK}
+    if any(found[name] is None or Version(found[name]) < Version(minimum) for name, minimum in MINIMUM_STACK.items()):
+        sys.exit(f"sayso-trainer stack found {found}; need {MINIMUM_STACK}; "
+                 f"rebuild {TRAINER_VENV} with scripts/llm-host/sayso-trainer-venv.sh")
 
 
 def check_batch(batch, batch_size: int) -> None:
@@ -41,10 +53,7 @@ def check_batch(batch, batch_size: int) -> None:
 
 def sft_recipe(args, evaluating: bool) -> dict:
     training = recipe(args, evaluating=evaluating)
-    ratio = training.pop("warmup_ratio")
-    if not 0 <= ratio < 1:
-        raise ValueError(f"warmup_ratio {ratio} must be in [0, 1)")
-    training["warmup_steps"] = ratio
+    training["warmup_steps"] = training.pop("warmup_ratio")
     training["remove_unused_columns"] = False
     return training
 
@@ -65,6 +74,7 @@ def parse_args(argv: list[str] | None = None):
 
 def main() -> int:
     args = parse_args()
+    check_stack({name: version(name) for name in MINIMUM_STACK})
     print(f"sayso-trainer method={args.method} batch={args.batch} accum={args.accum} "
           f"effective_batch={args.batch * args.accum}", flush=True)
     import torch

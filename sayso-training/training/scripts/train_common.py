@@ -28,7 +28,7 @@ def tree_sha256(root: str | Path) -> dict[str, str]:
     return {path.relative_to(root).as_posix(): sha256(path) for path in sorted(root.rglob("*")) if path.is_file()}
 
 
-def package_versions(names=("torch", "transformers", "unsloth", "datasets", "accelerate", "trl")) -> dict[str, str | None]:
+def package_versions(names=("torch", "transformers", "unsloth", "datasets", "accelerate", "trl", "tokenizers")) -> dict[str, str | None]:
     versions: dict[str, str | None] = {}
     for name in names:
         try:
@@ -120,6 +120,8 @@ def parse_args(argv: list[str] | None = None, parser: argparse.ArgumentParser | 
     if parser is None:
         parser = build_parser()
     args = parser.parse_args(argv)
+    if not 0 <= args.warmup_ratio < 1:
+        parser.error(f"--warmup-ratio {args.warmup_ratio} must be in [0, 1)")
     print(f"argv={sys.argv} lr={args.lr} warmup_ratio={args.warmup_ratio}", flush=True)
     print(f"effective_batch = batch * accum = {args.batch} * {args.accum} = {args.batch * args.accum}", flush=True)
     if args.canary:
