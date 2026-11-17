@@ -104,6 +104,14 @@ Serving-only hard constraints unless the user says otherwise:
 - Prefer reusing existing code over writing a new equivalent. Search before you
   write.
 
+## Code search
+
+- `rg` for text: strings, config keys, errors, comments.
+- `ast-grep` (see skill) when structure matters: calls/definitions where rg hits
+  comments or strings, and ALL multi-file rewrites. Never sed/regex rewrites on
+  code.
+- `ast-grep outline` before reading an unfamiliar file in full.
+
 ## Delegation
 
 The local agent does the work; the frontier agent orchestrates. All
