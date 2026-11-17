@@ -10,12 +10,12 @@ and generator design/history.
 This directory holds dataset preparation and historical training assets for
 `LFM2.5-230M-Base`. The active v5 path is a **full-parameter** fine-tune on the 24 GB AMD
 host (`ssh llm`, see [Training host](#training-host-observed-2026-09-23)).
-The active trainer is [Unsloth](scripts/train_unsloth_full.py), invoked by the
-local promotion command. Canonical JSONL stays OpenAI-shaped on disk; training
+The active trainer is the SaySo Trainer ([scripts/sayso_trainer.py](scripts/sayso_trainer.py): TRL
+SFTTrainer on transformers), invoked by the local promotion command. Canonical JSONL stays OpenAI-shaped on disk; training
 consumes a derived prompt/completion view rendered with the Base chat template.
 Older trainer recipes and smoke results are historical, not the v5 path.
 
-SaySo has two models with separate pipelines: this one (LFM, Unsloth) and the
+SaySo has two models with separate pipelines: this one (LFM, TRL) and the
 wake word (LiveKit), which has its own guide:
 [training/wake/README.md](wake/README.md).
 
@@ -335,7 +335,7 @@ scorer; its smoke and promotion gates are part of the lifecycle guide.
 - **Rendered training view**: prompt/completion pairs (`instruction` /
   `output`), one per `train_on_turn: true` assistant message; built by
   `adapters/lfm.py` and consumed by
-  the Unsloth trainer
+  the SaySo Trainer
 
 ## Layout
 
@@ -353,12 +353,15 @@ training/
 
 ## Active trainer safeguards
 
-The current Unsloth entry point starts from Base with full-parameter training,
-an 8,192-token limit, BF16, batch size 1, gradient accumulation 32, and
-completion-only labels. It checks ROCm availability, rejects rows beyond the
-context limit or with no supervised completion, and requires promotion metadata
-plus a matching rendered-data hash for full training. Static dataset checks and
-the guarded promotion sequence are documented in the
+The current entry point, [`sayso_trainer.py`](scripts/sayso_trainer.py), starts from Base with
+full-parameter training via `AutoModelForCausalLM`, an 8,192-token limit, BF16,
+micro-batch 8 with gradient accumulation 4 (effective 32) and length-grouped
+sampling, completion-only labels, and right padding. It runs a batch-shape guard
+and preflight, checks ROCm availability, rejects rows beyond the context limit or
+with no supervised completion, and requires promotion metadata plus a matching
+rendered-data hash for full training. `train_unsloth_full.py` is the one-cycle
+rollback trainer. Static dataset checks and the guarded promotion sequence are
+documented in the
 [training lifecycle guide](../docs/SAYSO_TRAINING_LIFECYCLE.md).
 
 ### GPU reservation and cancellation

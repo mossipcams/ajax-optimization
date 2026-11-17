@@ -2,7 +2,7 @@
 
 Run training from the SaySo checkout on the `llm` VM. The local `./sayso`
 command wraps the existing v5 generator, static preflight, rendered-view
-exporter, Unsloth trainer, and production SaySo scorer. It does not commit code,
+exporter, SaySo Trainer, and production SaySo scorer. It does not commit code,
 publish weights, or deploy a model. See [training/README.md](../training/README.md)
 for the observed host layout, [the model training plan](SAYSO_LFM_TRAINING_PLAN.md)
 for design constraints, and [TRAINING_LOG.md](../training/TRAINING_LOG.md) for
@@ -65,9 +65,10 @@ newer candidate exists, this command still trains the latest explicitly promoted
 dataset and leaves the newer candidate current. It refuses to start on tracked
 uncommitted changes or a `vendor/SaySo` commit that is not on the SaySo remote.
 Each run gets its own `train_id` and record under `training/runs/promotion/train/`.
-The trainer writes `manifest.json` into the run directory (trainer, base-model
-file, and data hashes, resolved training arguments, seed, package versions) and
-the record embeds it. Every 200-step checkpoint is kept, weights only.
+The trainer writes `manifest.json` into the run directory (backend, trainer and
+`train_common.py` hashes, base-model file, and data hashes, resolved training
+arguments, seed, package versions, train metrics such as runtime and samples/s,
+and peak VRAM) and the record embeds it. Every 200-step checkpoint is kept, weights only.
 
 `./sayso select` scores every checkpoint of the run on the dev suite (CPU FP32)
 and records the one with the fewest safety flags, then the highest dev pass
