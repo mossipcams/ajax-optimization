@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,15 +29,20 @@ from train_common import parse_args as common_parse_args
 FLATTENING_KEYS = ("seq_idx", "cu_seq_lens_q", "cu_seq_lens_k", "max_length_q", "max_length_k", "position_ids")
 
 
-def load_pins() -> dict[str, str]:
+REQUIREMENTS = Path(__file__).resolve().parents[1] / "requirements-sayso-trainer.txt"
+
+
+def load_pins(path: Path = REQUIREMENTS) -> dict[str, str]:
     pins = {}
-    for line in REQUIREMENTS.read_text(encoding="utf-8").splitlines():
-        name, _, pinned = line.strip().partition("==")
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        name, _, pinned = re.split(r"\s+#", line, maxsplit=1)[0].partition("==")
         pins[name] = pinned
     return pins
 
 
-REQUIREMENTS = Path(__file__).resolve().parents[1] / "requirements-sayso-trainer.txt"
 PINS = load_pins()
 
 

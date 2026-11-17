@@ -153,6 +153,13 @@ def test_pins_parse_to_the_four_packages() -> None:
     assert TRAIN.PINS == {"trl": "1.18.1", "transformers": "5.23.0", "datasets": "5.2.0", "tokenizers": "0.23.3"}
 
 
+def test_load_pins_skips_blank_and_comment_lines_and_inline_comments(tmp_path: Path) -> None:
+    reqs = tmp_path / "requirements-sayso-trainer.txt"
+    reqs.write_text("# renovate header\n\ntrl==1.18.1  # pinned by renovate\n\n"
+                    "   # indented comment\ntransformers==5.23.0\n")
+    assert TRAIN.load_pins(reqs) == {"trl": "1.18.1", "transformers": "5.23.0"}
+
+
 def test_check_stack_accepts_exact_pins() -> None:
     TRAIN.check_stack(dict(TRAIN.PINS))
 

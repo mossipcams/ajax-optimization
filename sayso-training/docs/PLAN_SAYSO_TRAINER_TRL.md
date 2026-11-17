@@ -41,8 +41,9 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
   Trainer): TRL SFTTrainer on transformers, with the Unsloth backend dropped.
   It loads `AutoModelForCausalLM` in bf16 with sdpa, gradient checkpointing on,
   `use_cache` off, and right padding. The manifest records backend `hf`. The
-  batch-shape guard stays: it pulls one batch before training and restores the
-  torch RNG state, so sample order is unchanged.
+  batch-shape guard stays: before training it runs the trainer's collator on the first
+  rows and requires 2-D input_ids, an attention_mask, and no flattening keys
+  (seq_idx, cu_seq_lens_*, max_length_*, position_ids).
 - **3. CPU tests.** Done. `training/tests/test_sayso_trainer.py` covers the CLI,
   the guard, shared encode/load_rows/recipe identity, the manifest, and AST
   invariants (the `--model` default, `AutoModelForCausalLM` in bf16,
