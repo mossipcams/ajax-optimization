@@ -15,7 +15,8 @@ TESTS = Path(__file__).resolve().parent
 TRAINING = TESTS.parent
 SAYSO_TRAINING = TRAINING.parent
 DOCS = SAYSO_TRAINING / "docs" / "PIPELINE.md"
-TRAINER = TRAINING / "scripts" / "train_unsloth_full.py"
+ACTIVE_TRAINER = TRAINING / "scripts" / "sayso_trainer.py"
+ROLLBACK_TRAINER = TRAINING / "scripts" / "train_unsloth_full.py"
 SPLIT_SCRIPT = TRAINING / "scripts" / "split_dataset.py"
 SMOKE_FIXTURE = TRAINING / "fixtures" / "sayso_lfm_smoke.jsonl"
 BASELINE = TRAINING / "configs" / "training_baseline.json"
@@ -93,27 +94,47 @@ def _load_jsonl(path: Path) -> list[dict]:
         return [json.loads(line) for line in handle if line.strip()]
 
 
-def test_base_model_matches_doc_in_sayso_and_trainer() -> None:
-    doc_name = _doc_base_model()
-    assert doc_name == "LFM2.5-230M-Base"
-    assert Path(SAYSO.BASE_MODEL).name == doc_name, f"sayso BASE_MODEL {SAYSO.BASE_MODEL!r} != doc {doc_name!r}"
-    tree = ast.parse(TRAINER.read_text(encoding="utf-8"))
+def _model_defaults(path: Path) -> list[str]:
     defaults = []
-    for node in ast.walk(tree):
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(node, ast.Call) and getattr(node.func, "attr", None) == "add_argument":
             if node.args and isinstance(node.args[0], ast.Constant) and node.args[0].value == "--model":
                 defaults.extend(_joined_constants(kw.value) for kw in node.keywords if kw.arg == "default")
-    assert defaults, "train_unsloth_full.py has no --model default"
-    for default in defaults:
-        assert default.rsplit("/", 1)[-1] == doc_name, f"--model default {default!r} != doc {doc_name!r}"
+    return defaults
 
 
 def _is_true(node: ast.AST | None) -> bool:
     return isinstance(node, ast.Constant) and node.value is True
 
 
-def test_trainer_kwargs_full_finetuning_bf16() -> None:
-    tree = ast.parse(TRAINER.read_text(encoding="utf-8"))
+def test_canary_and_train_run_the_active_trainer() -> None:
+    source = (SAYSO_TRAINING / "sayso").read_text(encoding="utf-8")
+    assert "training/scripts/sayso_trainer.py" in source
+    assert "train_unsloth_full.py" not in source
+    tree = ast.parse(source)
+    for name in ("cmd_canary", "cmd_train"):
+        runs = [
+            call for call in ast.walk(_function(tree, name))
+            if isinstance(call, ast.Call) and getattr(call.func, "id", None) == "run"
+        ]
+        assert any("training/scripts/sayso_trainer.py" in ast.unparse(call) for call in runs), (
+            f"{name} does not run training/scripts/sayso_trainer.py"
+        )
+
+
+@pytest.mark.parametrize("trainer", [ACTIVE_TRAINER, ROLLBACK_TRAINER], ids=["active", "rollback"])
+def test_base_model_matches_doc_in_sayso_and_trainer(trainer: Path) -> None:
+    doc_name = _doc_base_model()
+    assert doc_name == "LFM2.5-230M-Base"
+    assert Path(SAYSO.BASE_MODEL).name == doc_name, f"sayso BASE_MODEL {SAYSO.BASE_MODEL!r} != doc {doc_name!r}"
+    defaults = _model_defaults(trainer)
+    assert defaults, f"{trainer.name} has no --model default"
+    for default in defaults:
+        assert default.rsplit("/", 1)[-1] == doc_name, f"--model default {default!r} != doc {doc_name!r}"
+
+
+def test_rollback_trainer_kwargs_full_finetuning_bf16() -> None:
+    tree = ast.parse(ROLLBACK_TRAINER.read_text(encoding="utf-8"))
     calls = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
@@ -131,8 +152,32 @@ def test_trainer_kwargs_full_finetuning_bf16() -> None:
     assert any(_is_true(kwargs.get("bf16")) for kwargs in training_args), "TrainingArguments(bf16=True) missing"
 
 
-def test_trainer_has_no_adapter_path() -> None:
-    tree = ast.parse(TRAINER.read_text(encoding="utf-8"))
+def test_active_trainer_loads_bf16_without_fp32_master_weights() -> None:
+    tree = ast.parse(ACTIVE_TRAINER.read_text(encoding="utf-8"))
+    imported: set[str] = set()
+    calls = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module.split(".")[0])
+        if isinstance(node, ast.Call):
+            calls.append((ast.unparse(node.func), {kw.arg: kw.value for kw in node.keywords if kw.arg is not None}))
+    loads = [kwargs for name, kwargs in calls if name == "AutoModelForCausalLM.from_pretrained"]
+    configs = [kwargs for name, kwargs in calls if name == "SFTConfig"]
+    assert any("dtype" in kwargs and ast.unparse(kwargs["dtype"]) == "torch.bfloat16" for kwargs in loads), (
+        "AutoModelForCausalLM.from_pretrained(dtype=torch.bfloat16) missing"
+    )
+    assert not any(_is_true(kwargs.get("float32_mixed_precision")) for _, kwargs in calls), (
+        "float32_mixed_precision=True must not be passed"
+    )
+    assert any(_is_true(kwargs.get("bf16")) for kwargs in configs), "SFTConfig(bf16=True) missing"
+    assert "peft" not in imported, "active trainer imports peft"
+
+
+@pytest.mark.parametrize("trainer", [ACTIVE_TRAINER, ROLLBACK_TRAINER], ids=["active", "rollback"])
+def test_trainer_has_no_adapter_path(trainer: Path) -> None:
+    tree = ast.parse(trainer.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             callee = ast.unparse(node.func).lower()
