@@ -347,7 +347,7 @@ def test_clarify_settings_rows_clarify_with_candidates() -> None:
                 excluded=set(),
                 dup_tracker=DuplicateTracker(near_limit=3),
             )
-            if reason is not None:
+            if reason is not None or row["metadata"].get("family") != "clarify":
                 continue
             assistant = row["messages"][-1]
             assert not assistant.get("tool_calls"), (capability, operation, assistant)

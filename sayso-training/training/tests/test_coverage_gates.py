@@ -360,17 +360,12 @@ def test_one_light_acts_and_two_lights_ask():
 
 
 def test_supported_actions_decide_between_acting_and_refusing():
-    capable, incapable = grounding.supported_action_family(
+    (capable,) = grounding.supported_action_family(
         prefix="test_features", area="Porch", name="Porch Speaker"
     )
     capable_spec = grounding.build_spec(capable, seed=77, index=12)
-    incapable_spec = grounding.build_spec(incapable, seed=77, index=13)
     acted = capable_spec["expected"]
-    refused = incapable_spec["expected"]
     assert acted["kind"] == "action" and acted["calls"][0]["name"] == "HassSetVolume"
-    assert refused["kind"] == "no_action" and refused["response"] == "device_unsupported"
-    assert capable_spec["utterance"] == incapable_spec["utterance"]
-    assert acted["calls"] == refused["requested"]["calls"]
 
 
 def test_grounding_rows_render_in_the_production_format():

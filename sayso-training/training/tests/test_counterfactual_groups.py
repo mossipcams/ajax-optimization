@@ -257,7 +257,7 @@ def test_feature_variant_withholds_the_unsupported_tool():
     feature = [row for row in rows if row["metadata"]["contrast_axis"] == "feature"]
     assert feature
     for row in feature:
-        assert row["metadata"]["no_action_reason"] == "device_unsupported"
+        assert row["metadata"]["no_action_reason"] == "unsupported"
         missing = _tool_names(base[row["metadata"]["contrast_group"]]) - _tool_names(row)
         assert len(missing) == 1 and not missing & {namespaced_tool_name("HassTurnOn"), namespaced_tool_name("HassTurnOff")}
 

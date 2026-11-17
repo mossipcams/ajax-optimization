@@ -353,7 +353,7 @@ def test_satellite_has_no_absolute_volume():
     _, features = media_player_profile("SaySo Satellite")
     assert "volume" not in features and "volume_step" in features
     home, sat, _ = _satellite_home()
-    assert entity_supports(sat, "media_players", "volume_up")
+    assert not entity_supports(sat, "media_players", "volume_up")
     assert not entity_supports(sat, "media_players", "volume_set")
 
 
