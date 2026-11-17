@@ -7,8 +7,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from packaging.version import Version
-
 SCRIPTS = Path(__file__).resolve().parent
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
@@ -28,20 +26,35 @@ from train_common import build_parser as common_build_parser
 from train_common import parse_args as common_parse_args
 
 FLATTENING_KEYS = ("seq_idx", "cu_seq_lens_q", "cu_seq_lens_k", "max_length_q", "max_length_k", "position_ids")
-MINIMUM_STACK = {"trl": "1.18.1", "transformers": "5.23.0"}
+
+
+def load_pins() -> dict[str, str]:
+    pins = {}
+    for line in REQUIREMENTS.read_text(encoding="utf-8").splitlines():
+        name, _, pinned = line.strip().partition("==")
+        pins[name] = pinned
+    return pins
+
+
+REQUIREMENTS = Path(__file__).resolve().parents[1] / "requirements-sayso-trainer.txt"
+PINS = load_pins()
 
 
 def check_stack(versions: dict[str, str | None]) -> None:
-    found = {name: versions.get(name) for name in MINIMUM_STACK}
-    if any(found[name] is None or Version(found[name]) < Version(minimum) for name, minimum in MINIMUM_STACK.items()):
-        sys.exit(f"sayso-trainer stack found {found} under {sys.executable}; need {MINIMUM_STACK}; "
+    found = {name: versions.get(name) for name in PINS}
+    if found != PINS:
+        sys.exit(f"sayso-trainer stack found {found} under {sys.executable}; pinned {PINS}; "
                  f"rebuild {sys.prefix} with scripts/llm-host/sayso-trainer-venv.sh")
 
 
-def check_batch(batch, batch_size: int) -> None:
+def check_installed_stack() -> None:
+    check_stack(package_versions(tuple(PINS)))
+
+
+def check_batch(batch) -> None:
     shape = tuple(batch["input_ids"].shape)
-    if len(shape) != 2 or shape[0] != batch_size:
-        raise ValueError(f"batch input_ids shape {shape} is not ({batch_size}, L)")
+    if len(shape) != 2:
+        raise ValueError(f"batch input_ids shape {shape} is not 2-D")
     if "attention_mask" not in batch:
         raise ValueError("batch lacks attention_mask; a padded batch must carry its mask")
     flattening = [key for key in FLATTENING_KEYS if key in batch]
@@ -72,7 +85,7 @@ def parse_args(argv: list[str] | None = None):
 
 def main() -> int:
     args = parse_args()
-    check_stack(package_versions(tuple(MINIMUM_STACK)))
+    check_installed_stack()
     print(f"sayso-trainer method={args.method} batch={args.batch} accum={args.accum}", flush=True)
     import torch
 
@@ -113,7 +126,7 @@ def main() -> int:
         callbacks=[stop_callback(args.stop_at_step)] if args.stop_at_step else None,
     )
     probe = trainer.data_collator([dataset[i] for i in range(min(args.batch, len(dataset)))])
-    check_batch(probe, min(args.batch, len(dataset)))
+    check_batch(probe)
 
     manifest = build_manifest(args, trainer.args.to_dict(), sha256(args.data))
     Path(args.out).mkdir(parents=True, exist_ok=True)

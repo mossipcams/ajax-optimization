@@ -24,22 +24,25 @@ def sayso(monkeypatch):
     return load_sayso()
 
 
-def _stub_docker(monkeypatch, sayso, returncode):
+def _stub_docker(monkeypatch, sayso, returncode, stderr=""):
     commands = []
 
     def fake_run(command, *args, **kwargs):
         commands.append((command, kwargs))
-        return subprocess.CompletedProcess(command, returncode)
+        return subprocess.CompletedProcess(command, returncode, stdout="", stderr=stderr)
 
     monkeypatch.setattr(sayso.subprocess, "run", fake_run)
     return commands
 
 
-def test_check_trainer_python_probes_the_interpreter_in_the_container(sayso, monkeypatch):
+def test_check_trainer_python_runs_the_stack_check_in_the_container(sayso, monkeypatch):
     commands = _stub_docker(monkeypatch, sayso, 0)
     sayso.check_trainer_python()
-    assert commands == [(["docker", "exec", "unsloth", "test", "-x", sayso.TRAINER_PYTHON],
-                         {"check": False})]
+    [(command, kwargs)] = commands
+    assert command[:5] == ["docker", "exec", "unsloth", sayso.TRAINER_PYTHON, "-c"]
+    assert "check_installed_stack" in command[5]
+    assert f"{sayso.HOST_TRAINING}/training/scripts" in command[5]
+    assert kwargs == {"check": False, "capture_output": True, "text": True}
 
 
 def test_check_trainer_python_passes_when_interpreter_exists(sayso, monkeypatch):
@@ -47,12 +50,13 @@ def test_check_trainer_python_passes_when_interpreter_exists(sayso, monkeypatch)
     sayso.check_trainer_python()
 
 
-def test_check_trainer_python_exits_naming_interpreter_when_missing(sayso, monkeypatch):
-    _stub_docker(monkeypatch, sayso, 1)
+def test_check_trainer_python_exits_naming_interpreter_with_captured_output(sayso, monkeypatch):
+    _stub_docker(monkeypatch, sayso, 1, stderr="boom")
     with pytest.raises(SystemExit) as excinfo:
         sayso.check_trainer_python()
     message = str(excinfo.value)
     assert sayso.TRAINER_PYTHON in message
+    assert "boom" in message
     assert "scripts/llm-host/sayso-trainer-venv.sh" in message
 
 
@@ -80,7 +84,7 @@ def test_train_refuses_a_missing_interpreter_before_writing_any_record(sayso, tm
     with pytest.raises(SystemExit) as excinfo:
         sayso.cmd_train(argparse.Namespace())
     assert sayso.TRAINER_PYTHON in str(excinfo.value)
-    assert commands[0][0] == ["docker", "exec", "unsloth", "test", "-x", sayso.TRAINER_PYTHON]
+    assert commands[0][0][:5] == ["docker", "exec", "unsloth", sayso.TRAINER_PYTHON, "-c"]
     assert not (state / "train").exists()
     assert sayso.load(state / "A.json") == record
     assert sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*")) == before

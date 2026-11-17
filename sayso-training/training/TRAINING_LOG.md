@@ -781,12 +781,13 @@ The LFM trainer moved from `training/scripts/train_unsloth_full.py` to
 `training/scripts/sayso_trainer.py` (TRL 1.18.1 SFTTrainer on transformers 5.23.0,
 datasets 5.2.0, tokenizers 0.23.3). It runs in its own venv at
 `/srv/llm/lfm/venvs/sayso-trainer` inside the `unsloth` container, created by
-`sayso-training/scripts/llm-host/sayso-trainer-venv.sh`, which reuses the
+`sayso-training/scripts/llm-host/sayso-trainer-venv.sh` from the exact pins in
+`sayso-training/training/requirements-sayso-trainer.txt` (Renovate-managed), which reuses the
 container's torch 2.14.0+rocm7.2 and accelerate 1.15.0. The container's own
 trl 0.24.0 / transformers 5.5.0 are unchanged for the rollback trainer. The
 Unsloth backend was dropped. The recipe is unchanged (`--lr 5e-5 --warmup-ratio 0.1`, micro-batch 8 x accumulation 4).
 The A/B against the Unsloth trainer was skipped by decision, so there is no GPU
 run and no score for `sayso_trainer.py` yet. The first `./sayso canary` is its
 first run. `train_unsloth_full.py` stays as the rollback trainer for one full
-cycle; rollback is to revert PR #41 and then PR #40 (`git revert -m 1 <merge>` of each, newest first), which restores `train_unsloth_full.py` launched with the container's bare `python`; the unsloth container venv is untouched, so no host change is needed. Plan:
+cycle; rollback steps are in the [Rollback section](../docs/PLAN_SAYSO_TRAINER_TRL.md#rollback) of the plan,
 [docs/PLAN_SAYSO_TRAINER_TRL.md](../docs/PLAN_SAYSO_TRAINER_TRL.md).

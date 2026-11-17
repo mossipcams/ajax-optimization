@@ -62,8 +62,8 @@ explicitly promoted dataset. Both run the same trainer through the GPU lock.
 
 Both canary and full invoke, via the GPU lock,
 `gpu train lfm <TRAINER_PYTHON> <host>/training/scripts/sayso_trainer.py --data <staged> [--eval-data <staged-val>] …`
-(`TRAINER_PYTHON` is env `SAYSO_TRAINER_PYTHON`, default the SaySo Trainer venv's `bin/python`) with the recipe `--lr 5e-5 --warmup-ratio 0.1` (`TRAIN_RECIPE` in `sayso`) plus `--batch 8 --accum 4`. The full run also
-passes `--promotion-record`. `training/scripts/train_unsloth_full.py` is kept only as the rollback trainer until the first full run on `sayso_trainer.py` passes `./sayso eval` against the champion; rollback is to revert PR #41 and then PR #40 (`git revert -m 1 <merge>` of each, newest first), which restores `train_unsloth_full.py` launched with the container's bare `python`; the unsloth container venv is untouched, so no host change is needed. Every GPU job runs inside a lock turn: `gpu run <label> -- <cmd>`
+(`TRAINER_PYTHON` is env `SAYSO_TRAINER_PYTHON`, default the SaySo Trainer venv's `bin/python`; its exact pins live in `training/requirements-sayso-trainer.txt`) with the recipe `--lr 5e-5 --warmup-ratio 0.1` (`TRAIN_RECIPE` in `sayso`) plus `--batch 8 --accum 4`. The full run also
+passes `--promotion-record`. `training/scripts/train_unsloth_full.py` is kept only as the rollback trainer until the first full run on `sayso_trainer.py` passes `./sayso eval` against the champion; rollback steps are in the [Rollback section](PLAN_SAYSO_TRAINER_TRL.md#rollback). Every GPU job runs inside a lock turn: `gpu run <label> -- <cmd>`
 (the CLI calls the `gpu` binary at `/srv/llm/bin/gpu`, overridable with `GPU_LOCK`).
 
 - **Config it reads / recipe:** base model `LFM2.5-230M-Base` (`BASE_MODEL` in `sayso`;

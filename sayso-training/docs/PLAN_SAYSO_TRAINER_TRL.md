@@ -25,8 +25,10 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
   trl 0.24.0, transformers 5.5.0, torch 2.14.0+rocm7.2, and unsloth 2026.9.7
   for the rollback trainer. The SaySo Trainer runs on trl 1.18.1 in its own
   venv inside that container (host `/srv/llm/lfm/venvs/sayso-trainer`, created
-  by `sayso-training/scripts/llm-host/sayso-trainer-venv.sh`) with transformers
-  5.23.0, datasets 5.2.0, and tokenizers 0.23.3. A `.pth` reuses the
+  by `sayso-training/scripts/llm-host/sayso-trainer-venv.sh`) with the exact
+  pins in `sayso-training/training/requirements-sayso-trainer.txt` (trl 1.18.1,
+  transformers 5.23.0, datasets 5.2.0, tokenizers 0.23.3; Renovate-managed).
+  `sayso_trainer.check_installed_stack()` requires those exact versions. A `.pth` reuses the
   container's torch 2.14.0+rocm7.2 and accelerate 1.15.0.
 - **1. Shared code.** Done. `training/scripts/train_common.py` holds hashing,
   package versions (now with trl), the manifest (now with `backend` and
@@ -83,9 +85,10 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
 
 ## Rollback
 
-Revert PR #41 and then PR #40 (`git revert -m 1 <merge>` of each, newest first). That restores
-`training/scripts/train_unsloth_full.py` launched with the container's bare `python`; the unsloth
-container venv is untouched, so no host change is needed.
+Revert PR #49, then PR #41, then PR #40 (`git revert -m 1 <merge commit>` of each, newest first).
+That restores `training/scripts/train_unsloth_full.py` launched with the container's bare `python`.
+The unsloth container venv is untouched. The trainer venv can stay, or be deleted with
+`docker exec unsloth rm -rf /workspace/host/lfm/venvs/sayso-trainer`.
 
 ## Later work (separate plans)
 

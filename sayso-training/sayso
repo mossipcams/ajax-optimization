@@ -48,9 +48,15 @@ def run(command: list[str], *, cwd: Path = ROOT) -> None:
 
 
 def check_trainer_python() -> None:
-    if subprocess.run(["docker", "exec", "unsloth", "test", "-x", TRAINER_PYTHON], check=False).returncode != 0:
-        raise SystemExit(f"Trainer interpreter {TRAINER_PYTHON} is missing in the unsloth container; "
-                         "build it with scripts/llm-host/sayso-trainer-venv.sh")
+    probe = (f"import sys; sys.path.insert(0, '{HOST_TRAINING}/training/scripts'); "
+             "import sayso_trainer; sayso_trainer.check_installed_stack()")
+    result = subprocess.run(["docker", "exec", "unsloth", TRAINER_PYTHON, "-c", probe],
+                            check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        tail = "\n".join((result.stdout + result.stderr).strip().splitlines()[-12:])
+        raise SystemExit(f"Trainer interpreter {TRAINER_PYTHON} failed the stack check in the unsloth container "
+                         f"(exit {result.returncode}):\n{tail}\n"
+                         "rebuild it with scripts/llm-host/sayso-trainer-venv.sh")
 
 
 def digest(path: Path) -> str:
@@ -361,9 +367,9 @@ def cmd_canary(args: argparse.Namespace) -> None:
     record = current()
     if not record.get("validated") or record.get("validated_sha256") != digest(Path(record["dataset_path"])):
         raise SystemExit("Candidate must pass ./sayso validate after its last change")
+    ensure_vm()
     if not args.reuse_checkpoint:
         check_trainer_python()
-    ensure_vm()
     record["canary_passed"] = False
     write_current(record)
     data = render_and_stage(record)
