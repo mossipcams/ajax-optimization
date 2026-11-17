@@ -389,3 +389,55 @@ Measurement with the fixed gates, same seed and config:
 - The scope change does not change any count on this corpus. The wrong-area and spoken-area cases are covered by the unit tests above, not by a generated row.
 - Regenerated corpus `out/v13_smoke2000_post_fix.jsonl` at the fixed gates: accepted 2000, no dead slots. `measure_v13.py` over it: 0 rejected.
 - Full VM suite `full_suite_fix` (`training/tests -q`): 976 passed, 0 failed, 0 errors in 548.14 s. Baseline before this round: 974 passed (`full_suite_final`); the 2 new tests account for the increase.
+
+## Step 4: gold oracle tests
+
+Scope: `training/tests/test_gold_oracle.py` (new: 34 parametrized hand-labeled cases plus one person-refusal test, 35 tests) and `training/generators/gold.py`.
+
+Method: every expectation was typed by hand from Home Assistant semantics and the contract (`docs/PIPELINE.md`, `docs/SAYSO_LFM_TRAINING_PLAN.md`, the pinned tool schema) before the run that first exercised it. Each case has a literal home. The only calls are `gold_from_scenario` and `expected_unexposed_domain`. No expected value was computed by gold.py or a helper that calls it. No hand label was corrected in this step; every disagreement was a gold bug.
+
+### Hand label vs gold disagreements
+
+Runs: `gold-oracle-1` (first run, 30 passed, 4 failed, against the step-4 gold.py as first committed); `gold-oracle-3` (the two-TV case added in the revision, run against the same gold.py before the revision fix: 34 passed, 1 failed).
+
+| case id | hand label | gold output | verdict | evidence |
+|---|---|---|---|---|
+| `capability-light-without-brightness-rejects` | `reject`, `entity_lacks_capability` | `no_action` / `clarify` ("Which device did you mean?") | gold bug, fixed | Named device "Desk Lamp" lacks `brightness`, so `set_brightness` is not supported. Asking which device is wrong, since the device is unambiguous. The area and ambiguity branches already reject a present-but-unsupported entity. |
+| `capability-named-light-without-brightness-no-fallback` | `reject`, `entity_lacks_capability` | `action` HassLightSet on "Kitchen Lamp", brightness 59 | gold bug, fixed | `_pick_entity` fell back to another light with `brightness` when the named target lacked it. That acts on a device the user did not name. |
+| `capability-tv-without-volume-volume-up-rejects` | `reject`, `entity_lacks_capability` | `action` HassSetVolumeRelative on "Living Room TV", volume_step 30 | gold bug, fixed | `volume_up` requires the `volume` feature (`capability_registry`). The TV branch of `_ambiguous_gold` (added in 9d34ee6) skipped the feature filter for `tv` requests, so a single TV without volume got a call. The revision keeps the reject for one visible TV and keeps the two-TV exemption (row 5). |
+| `capability-named-tv-without-pause-no-fallback` | `reject`, `entity_lacks_capability` | `action` HassMediaPause on "Bedroom Speaker" | gold bug, fixed | Same fallback as row 2. The named TV lacked `pause`, so `_pick_entity` picked a speaker in another room. |
+| `ambiguity-two-visible-tvs-one-capable-clarifies` | `no_action`, `clarify`, candidates "Living Room TV", "Living Room Roku TV" | `action` HassSetVolumeRelative on "Living Room TV", volume_step 30 (`gold-oracle-3`, gold.py before the revision fix) | gold bug, fixed | Both TVs are visible in the area (name, domain and area are in the prompt; `volume` is not). Acting on the one capable TV makes the label depend on a feature the model cannot see (fa9083b). The two-visible-TV clarify rule from 9d34ee6 is restored. |
+
+No hand label was corrected: 0 of 35 expectations changed.
+
+### gold.py changes (revision)
+
+1. Individual branch of `gold_from_scenario` (kept from the first commit): a named `target_entity` that lacks the operation's features returns `reject` / `entity_lacks_capability` before `_pick_entity`. The fallback to another entity no longer runs for a named target. This matches the area and ambiguity branches.
+2. `_ambiguous_gold` (revised): for a `tv` intent on `media_players`, two or more visible TVs in the requested area are all candidates, as in 9d34ee6, so the label clarifies with both. The feature filter (`entities_supporting`) applies only when there is one visible TV, so one TV lacking the operation's features rejects with `entity_lacks_capability` (`capability-tv-without-volume-volume-up-rejects`). The first commit removed the exemption for every case, which made the two-TV label depend on a hidden feature (row 5).
+
+Diff against 5078dc2 (the pre-step-4 gold.py), by behaviour:
+
+- Two or more visible TVs in tv-intent ambiguity: unchanged (clarify with the visible TVs).
+- One visible TV that lacks the operation: now rejects (5078dc2 acted on it).
+- Named target lacking the operation's features: now rejects (5078dc2 fell back to another entity).
+
+### Output identity (measured)
+
+- Corpus: `training/configs/generation/full_sft_v13.yaml` copy `out/full_sft_v13_smoke2000.yaml` (count 2000, seed 20261028), `python -m generators.cli --config`.
+- 5078dc2 tree (gold.py from `5078dc2`, everything else from the final tree): `out/v13_smoke2000_5078dc2.jsonl`, sha256 `5db5cfe95a7dae740df93f37dafb6f62f5315ab96f5ca21e4ee6b752c5c69421`, 2000 rows.
+- Final code: `out/v13_smoke2000_final.jsonl`, sha256 `5db5cfe95a7dae740df93f37dafb6f62f5315ab96f5ca21e4ee6b752c5c69421`, 2000 rows.
+- Byte-identical: 0 differing rows, same row count (`out/cmp_corpus.py`).
+- This is one 2000-row corpus at one seed and config. It does not show that the two changed branches never fire on other seeds or on the full corpus.
+
+### Verification
+
+- `gold-oracle-1` (first run, first-commit gold.py): 30 passed, 4 failed (rows 1 to 4).
+- `gold-oracle-3` (revision, two-TV case, gold.py before the revision fix): 34 passed, 1 failed (row 5).
+- `gold-oracle-4` (`training/tests/test_gold_oracle.py -q`, final code): 35 passed.
+- `full-step4-rev` (`training/tests -q`, final code): 1011 passed, 0 failed, 0 errors (4 hypothesis `.example()` warnings, not failures). Baseline at `5078dc2` was 976; step 4 adds 35 tests.
+- Output identity: `gen-base` and `gen-final` (see above).
+
+### Not covered
+
+- Step-only satellite (`volume_up` without `volume_set`): the registry requires the `volume` feature for both, so the case cannot be expressed in the current gold. No case was written.
+- Same-name entities in different areas: the contract forbids invented area-plus-name strings (issue #94), so no label was written.
