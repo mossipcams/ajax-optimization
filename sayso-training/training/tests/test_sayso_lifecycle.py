@@ -21,7 +21,7 @@ def sayso(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "STATE", tmp_path / "state")
     monkeypatch.setattr(module, "TRAINS", tmp_path / "state" / "train")
     monkeypatch.setattr(module, "EVAL_RESULTS", tmp_path / "runs")
-    for name in ("ensure_vm", "gpu", "settle_gpu"):
+    for name in ("ensure_vm", "gpu", "settle_gpu", "check_trainer_python"):
         monkeypatch.setattr(module, name, lambda *args: None)
     monkeypatch.setattr(module, "ensure_pinned", lambda: {"git_commit": "c0de", "sayso_commit": "5a75"})
     monkeypatch.setattr(module, "render_and_stage", lambda record: "/staged.jsonl")

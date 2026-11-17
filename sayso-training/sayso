@@ -421,6 +421,7 @@ def cmd_train(_: argparse.Namespace) -> None:
     if promotion["dataset_sha256"] != digest(Path(record["dataset_path"])):
         raise SystemExit("Full training blocked: promoted dataset changed after promotion")
     ensure_vm()
+    check_trainer_python()
     pins = ensure_pinned()
     data = render_and_stage(record)
     if digest(Path(record["rendered_path"])) != promotion["rendered_sha256"]:
@@ -435,7 +436,6 @@ def cmd_train(_: argparse.Namespace) -> None:
     # The candidate pointer is left alone: a newer candidate stays current while this trains.
     record["trained"] = False
     save(STATE / f"{record['run_id']}.json", record)
-    check_trainer_python()
     try:
         run([GPU_LOCK, "train", "lfm", TRAINER_PYTHON, f"{HOST_TRAINING}/training/scripts/sayso_trainer.py",
              "--data", data, *eval_data_args(record), "--out", training["output"],
