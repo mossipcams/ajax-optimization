@@ -40,19 +40,22 @@ def check_batch(batch, batch_size: int) -> None:
 
 
 def build_manifest(args, training_args: dict, data_sha256: str) -> dict:
-    return common_build_manifest(args, training_args, data_sha256, backend="hf",
-                                 trainer_sha256=sha256(__file__))
+    manifest = common_build_manifest(args, training_args, data_sha256, backend="hf",
+                                     trainer_sha256=sha256(__file__))
+    manifest["method"] = getattr(args, "method", "sft")
+    return manifest
 
 
 def parse_args(argv: list[str] | None = None):
     parser = common_build_parser()
     parser.add_argument("--model", default=f"{HOST}/lfm/models/LFM2.5-230M-Base")
+    parser.add_argument("--method", choices=("sft",), default="sft")
     return common_parse_args(argv, parser=parser, run_name="sayso-trainer")
 
 
 def main() -> int:
     args = parse_args()
-    print(f"sayso-trainer batch={args.batch} accum={args.accum} "
+    print(f"sayso-trainer method={args.method} batch={args.batch} accum={args.accum} "
           f"effective_batch={args.batch * args.accum}", flush=True)
     import torch
 

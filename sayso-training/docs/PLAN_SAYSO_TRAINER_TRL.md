@@ -76,5 +76,5 @@ Point the two `run()` calls in `sayso` (canary and train) back at
 
 - TRL native prompt/completion format, with a token-parity check.
 - Packing or padding-free on LFM2, once a `seq_idx` conv reset is verified on ROCm.
-- DPOTrainer / GRPOTrainer behind the same contract.
+- DPOTrainer / GRPOTrainer behind the same contract. `--method` (default `sft`) is the slot for them.
 - `trl sft --config` YAML recipes.

@@ -33,6 +33,16 @@ def test_defaults_give_batch_8_and_accum_4() -> None:
     assert args.accum == 4
 
 
+def test_method_defaults_to_sft() -> None:
+    args = TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary"])
+    assert args.method == "sft"
+
+
+def test_method_rejects_dpo() -> None:
+    with pytest.raises(SystemExit):
+        TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary", "--method", "dpo"])
+
+
 def test_canary_keeps_the_full_run_schedule_and_stops_early() -> None:
     args = TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary"])
     assert args.max_steps == -1
@@ -86,6 +96,16 @@ def test_manifest_records_backend_and_train_common_hash(tmp_path: Path) -> None:
     assert manifest["train_common_sha256"] == TRAIN.sha256(SCRIPTS / "train_common.py")
     assert manifest["trainer_sha256"] == TRAIN.sha256(SCRIPTS / "sayso_trainer.py")
     assert "trl" in manifest["packages"]
+
+
+def test_manifest_records_method_sft(tmp_path: Path) -> None:
+    model = tmp_path / "model"
+    model.mkdir()
+    (model / "config.json").write_text("{}")
+    args = SimpleNamespace(method="sft", canary=True, stop_at_step=250, model=str(model),
+                           data="/data.jsonl", eval_data=None)
+    manifest = TRAIN.build_manifest(args, {"seed": 1}, "data-sha")
+    assert manifest["method"] == "sft"
 
 
 def test_sayso_trainer_uses_the_shared_recipe() -> None:
