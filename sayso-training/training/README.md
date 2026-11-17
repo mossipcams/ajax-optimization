@@ -10,8 +10,10 @@ and generator design/history.
 This directory holds dataset preparation and historical training assets for
 `LFM2.5-230M-Base`. The active v5 path is a **full-parameter** fine-tune on the 24 GB AMD
 host (`ssh llm`, see [Training host](#training-host-observed-2026-09-23)).
-The active trainer is the SaySo Trainer ([scripts/sayso_trainer.py](scripts/sayso_trainer.py): TRL
-SFTTrainer on transformers), invoked by the local promotion command. Canonical JSONL stays OpenAI-shaped on disk; training
+The active trainer is the SaySo Trainer ([scripts/sayso_trainer.py](scripts/sayso_trainer.py): TRL 1.18.1
+SFTTrainer on transformers 5.23.0), invoked by the local promotion command. It runs in its own venv inside the
+`unsloth` container (`/srv/llm/lfm/venvs/sayso-trainer`), created by
+[scripts/llm-host/sayso-trainer-venv.sh](../scripts/llm-host/sayso-trainer-venv.sh). Canonical JSONL stays OpenAI-shaped on disk; training
 consumes a derived prompt/completion view rendered with the Base chat template.
 Older trainer recipes and smoke results are historical, not the v5 path.
 

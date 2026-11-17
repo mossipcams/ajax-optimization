@@ -30,6 +30,7 @@ DATASET_DIR = Path(os.environ.get("DATASET_DIR", "/srv/llm/data/lfm/datasets"))
 EVAL_RESULTS = Path(os.environ.get("EVAL_RESULTS", "/srv/llm/lfm/runs/sayso-promotion"))
 HOST = "/workspace/host"
 HOST_TRAINING = os.environ.get("SAYSO_TRAINING_HOST_ROOT", f"{HOST}/lfm/ajax-optimization/sayso-training")
+TRAINER_PYTHON = os.environ.get("SAYSO_TRAINER_PYTHON", f"{HOST}/lfm/venvs/sayso-trainer/bin/python")
 os.environ.setdefault("HF_HOME", "/srv/llm/hf-cache")
 TRAINS = STATE / "train"
 SAYSO = ROOT / "vendor/SaySo"
@@ -366,7 +367,7 @@ def cmd_canary(args: argparse.Namespace) -> None:
             raise SystemExit(f"No canary checkpoint to reuse: {checkpoint}")
     else:
         try:
-            run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/sayso_trainer.py",
+            run([GPU_LOCK, "train", "lfm", TRAINER_PYTHON, f"{HOST_TRAINING}/training/scripts/sayso_trainer.py",
                  "--data", data, *eval_data_args(record), "--canary", "--out", out, *TRAIN_RECIPE])
         finally:
             settle_gpu()
@@ -428,7 +429,7 @@ def cmd_train(_: argparse.Namespace) -> None:
     record["trained"] = False
     save(STATE / f"{record['run_id']}.json", record)
     try:
-        run([GPU_LOCK, "train", "lfm", "python", f"{HOST_TRAINING}/training/scripts/sayso_trainer.py",
+        run([GPU_LOCK, "train", "lfm", TRAINER_PYTHON, f"{HOST_TRAINING}/training/scripts/sayso_trainer.py",
              "--data", data, *eval_data_args(record), "--out", training["output"],
              "--promotion-record", f"{HOST_TRAINING}/training/runs/promotion/promoted_dataset.json", *TRAIN_RECIPE])
     except BaseException:

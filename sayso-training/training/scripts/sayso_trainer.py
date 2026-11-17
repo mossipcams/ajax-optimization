@@ -25,18 +25,28 @@ from train_common import build_manifest as common_build_manifest
 from train_common import build_parser as common_build_parser
 from train_common import parse_args as common_parse_args
 
-FLATTENING_KEYS = ("seq_idx", "cu_seq_lens_q", "cu_seq_lens_k", "max_length_q", "max_length_k")
+FLATTENING_KEYS = ("seq_idx", "cu_seq_lens_q", "cu_seq_lens_k", "max_length_q", "max_length_k", "position_ids")
 
 
 def check_batch(batch, batch_size: int) -> None:
     shape = tuple(batch["input_ids"].shape)
     if len(shape) != 2 or shape[0] != batch_size:
         raise ValueError(f"batch input_ids shape {shape} is not ({batch_size}, L)")
+    if "attention_mask" not in batch:
+        raise ValueError("batch lacks attention_mask; a padded batch must carry its mask")
     flattening = [key for key in FLATTENING_KEYS if key in batch]
-    if "position_ids" in batch and "attention_mask" not in batch:
-        flattening.append("position_ids")
     if flattening:
         raise ValueError(f"batch carries flattening keys {flattening}; padded batches only")
+
+
+def sft_recipe(args, evaluating: bool) -> dict:
+    training = recipe(args, evaluating=evaluating)
+    ratio = training.pop("warmup_ratio")
+    if not 0 <= ratio < 1:
+        raise ValueError(f"warmup_ratio {ratio} must be in [0, 1)")
+    training["warmup_steps"] = ratio
+    training["remove_unused_columns"] = False
+    return training
 
 
 def build_manifest(args, training_args: dict, data_sha256: str) -> dict:
@@ -91,7 +101,7 @@ def main() -> int:
             packing=False,
             padding_free=False,
             dataset_kwargs={"skip_prepare_dataset": True},
-            **recipe(args, evaluating=eval_dataset is not None),
+            **sft_recipe(args, evaluating=eval_dataset is not None),
         ),
         callbacks=[stop_callback(args.stop_at_step)] if args.stop_at_step else None,
     )
