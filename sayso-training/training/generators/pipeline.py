@@ -539,8 +539,9 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             if slot_family in REAL_HOME_EXCLUDED_FAMILIES:
                 real_home_selected = False
             else:
-                real_home_forced = real_home_remaining >= rows_remaining
-                real_home_selected = real_home_forced or rng.random() < real_home_remaining / rows_remaining
+                eligible_remaining = max(1, rows_remaining - max(0, datetime_deficit))
+                real_home_forced = real_home_remaining >= eligible_remaining
+                real_home_selected = real_home_forced or rng.random() < real_home_remaining / eligible_remaining
 
         grounding_deficit = grounding_target - sum(grounding_rows.values())
         discrimination_deficit = discrimination_target - discrimination_rows

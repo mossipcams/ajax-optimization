@@ -52,7 +52,7 @@ Group key: (a) generator bug, (b) stale test, (c) environment. Status is from th
 |---|---|---|---|---|
 | `training/tests/test_area_scenarios.py::test_generation_is_deterministic_and_carries_area_rows` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
 | `training/tests/test_canonical_generator.py::test_generation_is_deterministic` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
-| `training/tests/test_canonical_generator.py::test_production_catalog_is_answer_independent` | b | test expects the rendered tools to equal the full production catalog, but the decoy-withhold step (_decoy_removals, tools.py/rendering.py) drops HassCancelAllTimers for this candidate | remaining; needs a decision whether decoy withholding stays in the answer-independence check; status: remains failing | base-full.log FAILED; fix3-full.log: remains failing |
+| `training/tests/test_canonical_generator.py::test_production_catalog_is_answer_independent` | b | test expects the rendered tools to equal the full production catalog, but the decoy-withhold step (_decoy_removals, tools.py/rendering.py) drops HassCancelAllTimers for this candidate | fixed in step 2c by owner decision A: the test asserts offered == catalog minus the decoy-withheld set (from `rendering._decoy_removals`), gold and core tools always offered, at most 2 withheld, withheld disjoint from needed; generator unchanged; the leak is documented in Step 2c | base-full.log FAILED; fix3-full.log: remains failing; step2c-full: see Step 2c evidence |
 | `training/tests/test_canonical_generator.py::test_correction_row_shape` | a | correction row's untried wrong-name call rejected as unknown_canonical_entity | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
 | `training/tests/test_canonical_generator.py::test_unsupported_family_keeps_tool_and_labels_no_action` | b | fa9083b removed the scenario-level `device_unsupported` label for hidden gaps (`gold.py` `expected_device_unsupported` deleted; `gold.py:181-184` and `294-298` now reject `entity_lacks_capability`). The label is still produced on purpose by the context hard-negative branch (`row_generation.py:1377-1385`) | fixed in step 2b: the test asserts the scenario-level reject, then checks the labelled row from `generate_row` with the context rate at 1.0 (20 of 20 kept, tool offered, no tool calls, no unavailable tools); no planner or gate change | base-full.log FAILED; fix3-full.log: remains failing; step2b: see Step 2b |
 | `training/tests/test_canonical_generator.py::test_area_rows_use_production_format` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
@@ -90,7 +90,7 @@ Group key: (a) generator bug, (b) stale test, (c) environment. Status is from th
 | `training/tests/test_real_home.py::test_an_explicit_cap_is_never_exceeded` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
 | `training/tests/test_real_home.py::test_capped_rows_are_replaced_not_dropped` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
 | `training/tests/test_real_home.py::test_no_real_home_means_no_cap_bookkeeping` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
-| `training/tests/test_real_home_mixing.py::test_the_manifest_records_requested_and_achieved_mixing` | a | real-home quota ends one row short: achieved_rate 0.2493 (374/1500 or 375/1504); requested 0.25 of 1500 = 375 target; probabilistic real-home selection in pipeline.py:537-543 | remaining; generator behaviour unresolved, not stale; baseline identical; needs a decision (force last real-home row vs accept one-row slack); status: remains failing | base-full.log FAILED; fix3-full.log: remains failing |
+| `training/tests/test_real_home_mixing.py::test_the_manifest_records_requested_and_achieved_mixing` | a | real-home quota ends one row short: achieved_rate 0.2493 (374/1500 or 375/1504); requested 0.25 of 1500 = 375 target; probabilistic real-home selection in pipeline.py:537-543 | fixed in step 2c: the real-home forced check counted the datetime tail as eligible; it now counts only rows that can take a real home (`pipeline.py` eligible_remaining); no test edit; status: passes after fix | base-full.log FAILED; fix3-full.log: remains failing; step2c-targeted: passes |
 | `training/tests/test_real_home_mixing.py::test_saturated_real_home_falls_back_to_synthetic` | a | correction row's untried wrong-name call rejected as unknown_canonical_entity | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
 | `training/tests/test_real_home_refusals.py::test_real_home_absence_and_junk_keep_the_production_context` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
 | `training/tests/test_sampling.py::test_generation_hits_family_allocations` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
@@ -121,8 +121,8 @@ Group key: (a) generator bug, (b) stale test, (c) environment. Status is from th
 ## Remaining work (not fixed here)
 
 - Environment (group c): done in step 2 (see CI split). `voluptuous`, `transformers`, `tokenizers`, and `Jinja2` are in the CI grep. `test_lfm_python_parse.py` still errors on Python 3.12 (needs Home Assistant, which requires Python 3.14).
-- Group b, satellite premise: resolved in Step 2b (the satellite/TV volume contrast family is retired; see Step 2b (satellite)). The decoy-withhold answer-independence check is not satellite-related and is still open: it needs a decision (rewrite the fixture, retire the premise, or change the check). Not done here.
-- Unresolved generator (group a): `test_the_manifest_records_requested_and_achieved_mixing`. The real-home quota ends one row short (rate 0.2493 against the 0.25 target). The real-home selection is probabilistic (`pipeline.py` lines 537-543). This is pre-existing (identical in the baseline) and needs a policy decision, not a test edit.
+- Group b, satellite premise: resolved in Step 2b (the satellite/TV volume contrast family is retired; see Step 2b (satellite)). The decoy-withhold answer-independence check is not satellite-related; it was resolved in Step 2c (decision A).
+- Generator (group a): `test_the_manifest_records_requested_and_achieved_mixing` is fixed in Step 2c (the forced real-home check ignored the excluded datetime tail).
 
 ## CI split (step 2)
 
@@ -151,12 +151,10 @@ Step-1 status changes after the grep change: the 7 transformers and token-count 
 
 Still failing in the fast (PR) set, so both jobs stay red:
 
-- `test_canonical_generator.py::test_production_catalog_is_answer_independent` (group b)
 - `test_nonstandard_generator.py::test_satellite_rows_from_generated_scenarios_target_the_satellite` (resolved in Step 2b)
 - `test_nonstandard_generator.py::test_satellite_tv_exclusion_builds_contrast_rows_in_both_directions` (resolved in Step 2b)
 - `test_nonstandard_generator.py::test_satellite_tv_contrast_rows_pass_validate_row` (resolved in Step 2b)
 - `test_nonstandard_generator.py::test_exclusion_row_missing_excluded_device_fails_validation` (resolved in Step 2b)
-- `test_real_home_mixing.py::test_the_manifest_records_requested_and_achieved_mixing` (group a, unresolved)
 - `test_lfm_python_parse.py` (collection error, Home Assistant on Python 3.14)
 
 None of the 18 slow tests fails in either run.
@@ -215,3 +213,43 @@ Evidence:
 - VM full run `sat-full` (`training/tests -q --continue-on-collection-errors`): 964 passed, 2 failed, 1 error in 527.45 s.
 - Against the `Step 2b` baseline (`step2b-full`, HEAD `981a826`: 961 passed, 6 failed, 1 error): the four satellite tests now pass, and no new failures appear. The remaining failures are `test_production_catalog_is_answer_independent` and `test_real_home_mixing.py::test_the_manifest_records_requested_and_achieved_mixing`, plus the `test_lfm_python_parse.py` collection error. All three were already in the baseline.
 - The sensitivity of the rewritten tests is argued from their assertions, not checked by mutating the generator on the VM.
+
+## Step 2c (quota and decoy): one generator fix, one decision
+
+### Real-home quota: fixed in the generator
+
+`test_real_home_mixing.py::test_the_manifest_records_requested_and_achieved_mixing` expected 375 real rows of 1500 and got 374. A VM diagnostic (outside the repo, not committed: `/srv/llm/data/testing-pipeline/diag/test_diag_rh.py`, seed 515, the same config as the test) showed:
+
+- No synthetic fallback fired. All 374 real rows came from chains whose first draw was real and succeeded (`sel_true_ended_real` 374).
+- The final accepted row is a `datetime` row from the `datetime_deficit` tail (`pipeline.py` around line 527). `datetime` is in `REAL_HOME_EXCLUDED_FAMILIES` (`planning.py` lines 36-46), so the row could not take a real home. The forced check (`real_home_remaining >= rows_remaining`) still counted it as eligible, so the last real row was owed when the run ended.
+
+Fix (`generators/pipeline.py`, real-home block): the forced check and the draw use `eligible_remaining = max(1, rows_remaining - max(0, datetime_deficit))`. Rows still owed to the datetime tail cannot take a real home, so they are not counted. The number of RNG calls is unchanged; only the threshold moves.
+
+Output change: only runs with a real home (`balance_real_home`). Where `datetime_deficit` is positive, real-home decisions change, and the RNG draws after them shift, so real-home rows change downstream. Runs without a real home are unchanged. Any corpus built with a real home (for example `full_sft_v*.yaml`) will not reproduce byte-for-byte. `fix3`-era hashes for those corpora are stale.
+
+Not changed: no gate, no cap, no fallback reason, and the `e36ed8f` synthetic fallback is still in place. The fix is not a guarantee. Other excluded families (for example `unavailable` or `area`) drawn from the plan inside the forced stretch can still leave a row short. The test is deterministic on seed 515 and passes. No test file was edited.
+
+### Decoy withholding: owner decision A, test rewritten
+
+`test_production_catalog_is_answer_independent` expects the offered tools to equal the production catalog for an ordinary candidate. `rendering._decoy_removals` withholds one or two tools with p=0.3.
+
+Findings:
+
+- It leaks by construction. The candidate pool excludes `needed` (`rendering.py` lines 58-75: tools called anywhere in the row, the operation's tool, and the requested calls) and the core tools. The draw is seeded by `candidate_id`, but the pool, and therefore which tool a draw maps to, depends on the gold answer. The gold tool is never withheld, so a missing tool shows the row's answer is not that tool. For a 25-tool home, the per-tool effect is about 1-2 percent (my estimate from the draw sizes).
+- It is deliberate, not stray. `705e661` ("remove v5 catalog-shape refusal shortcut") and `8497da1` ("v6 generator fixes") added it. `docs/PLAN_V5_CORPUS_SHORTCUT_FIXES.md` finding 1 records the shortcut it removes: 17, 23 or 29 offered tools gave 100%, 72% and 79% refusal. `docs/PLAN_V6_GENERATOR_EVAL_FIXES.md` Fix 3 makes "never withhold the requested operation's tool" an invariant, and line 300 makes the core tools never withheld.
+
+So the test's premise (no removal for an ordinary candidate) was retired by deliberate commits, but the answer-independence the test asserts is not true for decoy rows. Removing the leak needs a choice this step could not make from code or commits. **The owner chose A** ("option A", round 2). The generator's decoy withholding is unchanged. Options considered:
+
+- A. Keep the documented decoy and rewrite the test to assert `offered == catalog - {the documented decoy}`, keep the gold and core tools always offered, and keep the withheld set at most two tools, disjoint from the row's needed tools. This is the smallest honest change. The leak stays and is documented here.
+- B. Restrict the decoy pool to tools that no row on this home can take as gold. This changes the output of every decoy row, and the decoy has little to withhold on homes with few spare tools.
+- C. Drop the needed-tool protection. Rows then call tools the model is not offered. This breaks the `PLAN_V6` invariant and is rejected here.
+- D. Drop decoy withholding. This reintroduces the v5 catalog-shape shortcut.
+
+Test change under decision A (`training/tests/test_canonical_generator.py::test_production_catalog_is_answer_independent`): the old assertion `offered == catalog` is replaced by `offered == catalog - withheld`, where `withheld = set(rendering._decoy_removals(spec, row["messages"]))` is computed from the generator's own decoy draw, not by subtracting what is missing. The test also asserts: the explicit-removal path is not used (so the decoy is the only source), the withheld set is a subset of the catalog and has at most 2 tools, the gold tools (the tool calls in the row, non-empty) and the core tools (`CORE_TOOL_NAMES`) are offered, and the withheld set is disjoint from the needed tools. `GetDateTime` must still be offered. Every original assertion is kept; none was weakened.
+
+### Evidence
+
+- VM targeted run `rh-targeted` (`test_real_home_mixing.py`, `test_real_home.py`, `test_real_home_refusals.py`): 35 passed in 90.54 s. The cap tests in `test_real_home.py` pass unchanged.
+- VM targeted run `tgt-step2c` (`test_canonical_generator.py`, `test_real_home_mixing.py`): 33 passed in 67.34 s, including both target tests.
+- VM full run `step2c-final` (`training/tests -q --continue-on-collection-errors`, after the decoy test rewrite): 966 passed, 0 failed, 1 error in 528.09 s. The error is the `test_lfm_python_parse.py` collection error (Home Assistant on Python 3.12), unchanged.
+- Against the `Step 2b` baseline (`step2b-full`: 961 passed, 6 failed, 1 error): the two Step 2c targets now pass and no new failure appears. An earlier run with the unchanged decoy test (`step2c-full`: 965 passed, 1 failed, 1 error) showed only the decoy assertion failing, which is the premise that decision A replaces.

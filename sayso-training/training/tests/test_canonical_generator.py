@@ -14,12 +14,12 @@ REPO = ROOT.parent
 sys.path.insert(0, str(ROOT))
 
 from adapters.schema import v2_openai_tools
-from generators import row_generation
+from generators import rendering, row_generation
 from generators.pipeline import generate_row
 from generators.config import GeneratorConfig
 from generators.deduplication import DuplicateTracker
 from generators.manifest import build_manifest, dataset_hash
-from generators.planning import build_plan, verify_feasible
+from generators.planning import CORE_TOOL_NAMES, build_plan, verify_feasible
 from generators.pipeline import run_generation
 from generators.gold import gold_matches_family
 from generators.scenarios import area as area_scenarios
@@ -79,7 +79,17 @@ def test_production_catalog_is_answer_independent() -> None:
     row = render_example(spec)
     offered = {t["function"]["name"] for t in row["tools"]}
     catalog = {t["function"]["name"] for t in production_catalog(spec["home"])}
-    assert offered == catalog
+    assert not (spec["expected"].get("unavailable_tools") or spec.get("removed_tools"))
+    withheld = set(rendering._decoy_removals(spec, row["messages"]))
+    assert withheld <= catalog
+    assert offered == catalog - withheld
+    assert len(withheld) <= 2
+    needed = {call["function"]["name"] for m in row["messages"] for call in m.get("tool_calls") or []}
+    assert needed
+    assert needed <= offered
+    assert not withheld & needed
+    core = {namespaced_tool_name(name) for name in CORE_TOOL_NAMES}
+    assert core <= offered
     assert namespaced_tool_name("GetDateTime") in offered
 
 
