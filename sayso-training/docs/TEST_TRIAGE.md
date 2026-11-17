@@ -441,3 +441,45 @@ Diff against 5078dc2 (the pre-step-4 gold.py), by behaviour:
 
 - Step-only satellite (`volume_up` without `volume_set`): the registry requires the `volume` feature for both, so the case cannot be expressed in the current gold. No case was written.
 - Same-name entities in different areas: the contract forbids invented area-plus-name strings (issue #94), so no label was written.
+
+## Step 5: hypothesis property tests
+
+Scope: `generators/hypothesis_strategies.py` (strategy), `tests/test_hypothesis_strategies.py` (rewritten), `tests/test_gold_properties.py` (new), `tests/conftest.py` (Hypothesis profile). `generators/gold.py` was not changed: no property failed.
+
+### Counterexamples
+
+None. No property failed on any run, so no strategy or gold fix was needed and no counterexample was shrunk. The alias property was first written with a one-entity home, which could not fail if gold ignored names; a same-area distractor was added in the revision, and the property still passes (`s5-hyp2`, 13 passed).
+
+Two development-time failures were test-harness problems, not generator or strategy bugs:
+
+- A coverage test built on `hypothesis.find` (400 draws per pair) reported 3 of 42 pairs not found (`covers/close`, `scripts/run`, `media_players/pause`). A probe with `@given` over the same strategy counted all 42 pairs at 400 draws. The sampler is not uniform, so a fixed small budget can miss pairs. `find` was dropped.
+- A nested `@given` collector at 400 examples then missed 3 different pairs (`timers/decrease`, `media_players/play`, `climate/set_temperature`). At 2000 examples all 42 were drawn. The profile is derandomized, so the run is repeatable.
+
+### Strategy
+
+- `valid_spec_strategy()` samples `(capability, operation)` from `trainable_pairs()`, which is built from `CAPABILITIES` and `trainable_operations()`, the same source the generator uses. It covers 42 pairs. It previously covered `lights/turn_on` only.
+- `build_scenario` already injects a capable entity with the operation's required features when the home has none. The new `test_valid_spec_target_supports_operation` checks the target named in each call supports the operation, and the expected kind is `action`.
+- `corrupted_spec_strategy` stays on `lights/turn_on`. `corrupt_spec` rewrites the first call's `name`, which the wrong-entity assertion (`unknown_canonical_entity`) assumes is an entity name. Timer calls skip the entity check in `validate_spec`, and script calls take no arguments, so the same corruption gives a different reason there. Widening it would change what the existing assertion tests, so it stays narrow.
+
+### Hypothesis settings
+
+`tests/conftest.py` registers and loads a `sayso` profile: `derandomize=True`, `deadline=None`, `database=None`. Both CI jobs run pytest on `training/tests`, so both use it. Per-test `max_examples` are set on each test. The coverage test sets 2000 examples; every other property uses 20 to 60.
+
+### Property tests (gold)
+
+All use `gold_from_scenario` with `random.Random(0)` on both sides.
+
+| test | input transformation | property |
+|---|---|---|
+| `test_renaming_entity_renames_call_target` | rename the drawn target entity to `Renamed <token>` | after == before with the old name replaced by the new name, and the call names are exactly `[new]` |
+| `test_unrelated_entity_leaves_label_unchanged` | add an entity in another area with another domain | label unchanged |
+| `test_alias_request_resolves_to_canonical_entity` | home with the aliased entity plus a same-area, same-capability distractor (`Pantry Shelf`, operation features present) that matches neither the alias nor the canonical word; request by alias vs by canonical name | alias label == canonical label, kind `action`, call name is the canonical name (never the distractor) |
+
+Scope limits: the rename and unrelated properties skip timers (the gold label has no entity target) and scripts (the script tool name is derived from the entity name, so a rename also renames the call name). The alias property has a distractor in the same area with the same capability, so a gold that ignored names would clarify over two candidates and fail `kind == action`. Ambiguity between two entities that share the requested name is not covered by this property.
+
+### Measurements (llm VM)
+
+- Property files (`test_hypothesis_strategies.py` and `test_gold_properties.py`, 13 tests): 13 passed, 3.8 s (`s5-hyp2`, after the alias distractor).
+- Coverage test: 2.9 s, below the 5 s threshold, so not marked `slow`. No Step 5 test reached 5 s, so no `slow` mark was added.
+- Fast set (`-m 'not slow'`): 999 passed, 18 deselected, 138.8 s (`s5-fast2`) at this commit. The Step 2 figure of 127.6 s was for a set with 939 passing tests, so the growth is not isolated here; the property files account for about 4 s of it.
+- Full suite (`training/tests -q`): 1017 passed, 0 failed, 0 errors, 552.7 s (`s5-full2`).
