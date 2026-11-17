@@ -79,10 +79,10 @@ Group key: (a) generator bug, (b) stale test, (c) environment. Status is from th
 | `training/tests/test_llamafactory_view.py::test_render_supervised_turn_includes_native_end_marker` | c | transformers is not in the CI pin set; render and export import fail | remaining: install transformers on the CI image (not installed); status: remains failing | base-full.log FAILED; fix3-full.log: remains failing |
 | `training/tests/test_llamafactory_view.py::test_export_cli_writes_rendered_jsonl_and_dataset_info` | c | transformers is not in the CI pin set; render and export import fail | remaining: install transformers on the CI image (not installed); status: remains failing | base-full.log FAILED; fix3-full.log: remains failing |
 | `training/tests/test_nonstandard_generator.py::test_satellite_has_no_absolute_volume` | b | a73730b: satellite (volume_step only) no longer supports volume_up through HassSetVolumeRelative | edited: volume_up assertion flipped to 'not supported'; no-absolute-volume assertions kept; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
-| `training/tests/test_nonstandard_generator.py::test_satellite_rows_from_generated_scenarios_target_the_satellite` | b | a73730b makes volume_up/volume_down require VOLUME_SET, so step-only satellites are never volume_down targets; 400 scenarios yield 0 satellite rows | remaining; test premise (satellite self-volume rows) is gone; needs a decision to rewrite or retire; status: remains failing | base-full.log FAILED; fix3-full.log: remains failing |
-| `training/tests/test_nonstandard_generator.py::test_satellite_tv_exclusion_builds_contrast_rows_in_both_directions` | b | a73730b: satellite cannot be a volume target, so no satellite/TV exclusion pairs are built (counts satellite 0, tv 0) | remaining; same premise as satellite rows; status: remains failing | base-full.log FAILED; fix3-full.log: remains failing |
-| `training/tests/test_nonstandard_generator.py::test_satellite_tv_contrast_rows_pass_validate_row` | b | a73730b: no satellite contrast scenarios exist (0 of 80 indices), so checked stays 0 | remaining; same premise as satellite rows; status: remains failing | base-full.log FAILED; fix3-full.log: remains failing |
-| `training/tests/test_nonstandard_generator.py::test_exclusion_row_missing_excluded_device_fails_validation` | b | a73730b: the satellite fixture now fails validate_spec with entity_lacks_capability (step-only satellite has no VOLUME_SET) | remaining; same premise as satellite rows; status: remains failing | base-full.log FAILED; fix3-full.log: remains failing |
+| `training/tests/test_nonstandard_generator.py::test_satellite_rows_from_generated_scenarios_target_the_satellite` | b | a73730b: volume_up/volume_down require `volume` (`capability_registry.py:131-132`), so the step-only satellite is never a volume target; the satellite self-volume premise is gone | rewritten in step 2b: checks pause/mute satellite rows (satellite profile supports both, `homes.py:617-620`), the tool name, `validate_row` passing, and `seen >= 50` (observed 114) | base-full.log FAILED; fix3-full.log: remains failing; sat-full: passes (see Step 2b) |
+| `training/tests/test_nonstandard_generator.py::test_satellite_tv_exclusion_builds_contrast_rows_in_both_directions` | b | same a73730b premise: no satellite/TV volume contrast pairs exist | retired in step 2b (user decision): the satellite/TV volume contrast family is removed; replaced by `test_no_volume_call_targets_the_satellite` | base-full.log FAILED; fix3-full.log: remains failing; sat-full: test removed |
+| `training/tests/test_nonstandard_generator.py::test_satellite_tv_contrast_rows_pass_validate_row` | b | same a73730b premise: no satellite contrast scenarios exist | retired in step 2b (user decision); replaced by `test_no_volume_call_targets_the_satellite`; `validation.py` satellite-contrast gates are unchanged | base-full.log FAILED; fix3-full.log: remains failing; sat-full: test removed |
+| `training/tests/test_nonstandard_generator.py::test_exclusion_row_missing_excluded_device_fails_validation` | b | a73730b: the satellite fixture fails `validate_spec` with `entity_lacks_capability` (step-only satellite has no VOLUME_SET) | rewritten in step 2b: TV volume_down with the satellite excluded; the missing ', not you' clause still gives `missing_exclusion` (the same reason as before); ', not you' passes | base-full.log FAILED; fix3-full.log: remains failing; sat-full: passes |
 | `training/tests/test_pipeline_linguistics.py::test_generated_requests_are_grammatical_english` | b | 9d34ee6 deliberately phrases timer pause as 'hold'/'freeze' (utterances.py:44 area); the verb allow-list predates it | edited: added hold and freeze to the allow-list in test_pipeline_linguistics.py; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
 | `training/tests/test_preflight.py::test_valid_dataset_passes` | b | fixture utterance 'Pause the TV' is verbatim eval case nonstandard_13_pause (PIPELINE invariant 6) | edited: fixture utterance -> 'Pause the Living Room TV' (not in any eval case; fuzzy overlap below 0.8); status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
 | `training/tests/test_real_home.py::test_generated_rows_never_mention_unassigned` | a | dead correction slots: untried first call (wrong name) rejected by gates as unknown_canonical_entity; family_mismatch also drops rows | fixed: generate_row validates the labelled view of correction rows (row_generation.py _labelled_gate_row); no gate changed; status: passes after fix | base-full.log FAILED; fix3-full.log: passes after fix |
@@ -121,7 +121,7 @@ Group key: (a) generator bug, (b) stale test, (c) environment. Status is from th
 ## Remaining work (not fixed here)
 
 - Environment (group c): done in step 2 (see CI split). `voluptuous`, `transformers`, `tokenizers`, and `Jinja2` are in the CI grep. `test_lfm_python_parse.py` still errors on Python 3.12 (needs Home Assistant, which requires Python 3.14).
-- Stale (group b, unchanged): the satellite self-volume premise (`a73730b`), the decoy-withhold answer-independence check. Each needs a decision (rewrite the fixture, retire the premise, or change the check). Not done here.
+- Group b, satellite premise: resolved in Step 2b (the satellite/TV volume contrast family is retired; see Step 2b (satellite)). The decoy-withhold answer-independence check is not satellite-related and is still open: it needs a decision (rewrite the fixture, retire the premise, or change the check). Not done here.
 - Unresolved generator (group a): `test_the_manifest_records_requested_and_achieved_mixing`. The real-home quota ends one row short (rate 0.2493 against the 0.25 target). The real-home selection is probabilistic (`pipeline.py` lines 537-543). This is pre-existing (identical in the baseline) and needs a policy decision, not a test edit.
 
 ## CI split (step 2)
@@ -152,10 +152,10 @@ Step-1 status changes after the grep change: the 7 transformers and token-count 
 Still failing in the fast (PR) set, so both jobs stay red:
 
 - `test_canonical_generator.py::test_production_catalog_is_answer_independent` (group b)
-- `test_nonstandard_generator.py::test_satellite_rows_from_generated_scenarios_target_the_satellite` (group b)
-- `test_nonstandard_generator.py::test_satellite_tv_exclusion_builds_contrast_rows_in_both_directions` (group b)
-- `test_nonstandard_generator.py::test_satellite_tv_contrast_rows_pass_validate_row` (group b)
-- `test_nonstandard_generator.py::test_exclusion_row_missing_excluded_device_fails_validation` (group b)
+- `test_nonstandard_generator.py::test_satellite_rows_from_generated_scenarios_target_the_satellite` (resolved in Step 2b)
+- `test_nonstandard_generator.py::test_satellite_tv_exclusion_builds_contrast_rows_in_both_directions` (resolved in Step 2b)
+- `test_nonstandard_generator.py::test_satellite_tv_contrast_rows_pass_validate_row` (resolved in Step 2b)
+- `test_nonstandard_generator.py::test_exclusion_row_missing_excluded_device_fails_validation` (resolved in Step 2b)
 - `test_real_home_mixing.py::test_the_manifest_records_requested_and_achieved_mixing` (group a, unresolved)
 - `test_lfm_python_parse.py` (collection error, Home Assistant on Python 3.14)
 
@@ -184,3 +184,34 @@ Evidence:
 
 - VM targeted run `step2b-targeted` (the canonical test and the context file): 10 passed in 7.82 s; the longest test is 3.03 s (`test_other_families_and_rng_are_unchanged`, unchanged).
 - VM full run `step2b-full` (`training/tests -q --continue-on-collection-errors`): 961 passed, 6 failed, 1 error in 532.19 s. Compared with `ef263f9` (8 failed, 3 errors), the two rewritten failures and the two setup errors are gone. No new failures. The remaining failures are the same as before: `test_production_catalog_is_answer_independent`, the four `test_nonstandard_generator.py` satellite tests, and `test_real_home_mixing.py::test_the_manifest_records_requested_and_achieved_mixing`. The remaining error is the `test_lfm_python_parse.py` collection error.
+
+## Step 2b (satellite): retire the satellite/TV volume contrast family
+
+Decision (user, explicit approval): retire the satellite/TV volume contrast row family and rewrite the four `test_nonstandard_generator.py` tests that depended on it. The `Step 2b` section above covers the fa9083b tests and is separate.
+
+Premise gone (cited): `a73730b` changed `capability_registry.py:131-132` so `volume_up`/`volume_down` require the `volume` feature (`volume_set` has required it since `71e9c643`, line 130). The step-only satellite profile (`homes.py:617-620`, from `d0cef744`) has `volume_step` and no `volume`. `entities_supporting` therefore drops the satellite from `cap_entities` for every volume op, and `_satellite_contrast_pair` (`scenarios/core.py`, from `d0cef744`) never returned a pair.
+
+Generator removal (`generators/scenarios/core.py`): removed `_satellite_contrast_pair`, the constant `_SATELLITE_CONTRAST_OPERATIONS` (used only by that helper), and the now-unused `is_satellite` import. The `if pair ... elif` became `if`. The pair branch was reachable only when a pair existed, and its `rng.random()` draw was short-circuited when none did, so the RNG sequence is unchanged.
+
+Output identity, checked on the llm VM with `hash_gen.py` (outside the repo, not committed): for each of 400 scenarios at seed 20261020, the script serialises the scenario, the rendered utterance, and the `validate_row` reason as canonical JSON and takes sha256.
+
+| Sample | sha256 before | sha256 after |
+|---|---|---|
+| exclusion, generated homes | `ab4e3fa4a743e1ccee7b5cd6c41c7fd90afc71b6765cb04fd3c4649f85b269c6` | identical |
+| ordinary, generated homes | `e6bbced43848237ae810ceeae197a8e4b706a07406157c2a57ea4f4ef5ed0ea2` | identical |
+| exclusion, fixed satellite plus TV home | `b5e25a8f665be8378b6039bf9bb46a60dcff10b1a4e2c5c99e497a6b69e5e14c` | identical |
+
+The "before" run counted calls to the pair helper: 171 calls, every one with two entities and a non-volume op, and 0 non-None pairs. The "before" and "after" hashes were produced on the same sample by the same script. The gates in `validation.py` (`satellite_contrast_spoken`, `is_satellite_contrast`) and the phrasing in `utterances.py` are untouched.
+
+Test changes (`training/tests/test_nonstandard_generator.py`; no slow marks existed on these tests):
+
+- `test_satellite_tv_exclusion_builds_contrast_rows_in_both_directions` and `test_satellite_tv_contrast_rows_pass_validate_row` are replaced by `test_no_volume_call_targets_the_satellite`. It builds 300 fixed-seed scenarios (half with a fixed satellite plus TV home, half generated; both robustness modes) and asserts that no `HassSetVolume`/`HassSetVolumeRelative` call names a satellite. It asserts at least 100 satellite-bearing scenarios and at least 250 volume calls checked (observed 196 and 300). The test is a regression guard for the premise: if a satellite ever gained volume support, it would be picked as a volume target and fail here.
+- `test_satellite_rows_from_generated_scenarios_target_the_satellite` now uses pause and mute, which the satellite supports (`homes.py:620`). It asserts the tool name (`HassMediaPause` or `HassMediaPlayerMute`), that `validate_row` returns None for each satellite row, and at least 50 satellite rows (observed 114: 63 pause, 51 mute).
+- `test_exclusion_row_missing_excluded_device_fails_validation` uses a TV `volume_down` spec with the satellite excluded. Without the ", not you" clause, `validate_utterance` returns `missing_exclusion`, the same reason the original test expected. Wrong-device clauses also return `missing_exclusion`, and the ", not you" clause passes.
+
+Evidence:
+
+- VM targeted run `sat-targeted` (`training/tests/test_nonstandard_generator.py -q`): 87 passed in 8.71 s.
+- VM full run `sat-full` (`training/tests -q --continue-on-collection-errors`): 964 passed, 2 failed, 1 error in 527.45 s.
+- Against the `Step 2b` baseline (`step2b-full`, HEAD `981a826`: 961 passed, 6 failed, 1 error): the four satellite tests now pass, and no new failures appear. The remaining failures are `test_production_catalog_is_answer_independent` and `test_real_home_mixing.py::test_the_manifest_records_requested_and_achieved_mixing`, plus the `test_lfm_python_parse.py` collection error. All three were already in the baseline.
+- The sensitivity of the rewritten tests is argued from their assertions, not checked by mutating the generator on the VM.
