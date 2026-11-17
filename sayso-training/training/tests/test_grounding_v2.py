@@ -43,6 +43,7 @@ def _run(**overrides):
     )
 
 
+@pytest.mark.slow
 def test_grounding_reaches_its_ceiling_and_all_families():
     report = _run(grounding_rate=0.028)["stats"]["grounding"]
     assert report["achieved_rate"] >= 0.020, report
@@ -221,6 +222,7 @@ def test_config_rejects_unrepresentable_rates():
         GeneratorConfig(grounding_rate=0.6, discrimination_rate=0.6)
 
 
+@pytest.mark.slow
 def test_discrimination_rows_are_produced_and_describe_rather_than_name():
     report = _run(grounding_rate=0.0, discrimination_rate=0.35)
     disc = report["stats"]["discrimination"]
@@ -299,6 +301,7 @@ def test_discrimination_refuses_when_no_sibling_exists():
     assert pick_discriminating_description(scenario, random.Random(0)) is None
 
 
+@pytest.mark.slow
 def test_generation_is_deterministic_for_v2_config():
     first = _run(grounding_rate=0.028, discrimination_rate=0.35)
     second = _run(grounding_rate=0.028, discrimination_rate=0.35)

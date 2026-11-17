@@ -113,6 +113,7 @@ def test_absence_claim_cannot_contradict_the_home():
     assert validate_spec(spec) == "contradictory_absence"
 
 
+@pytest.mark.slow
 def test_behavior_tags_describe_the_accepted_rows():
     rows = run_generation(GeneratorConfig(count=400, seed=77))["rows"]
     for row in rows:
@@ -125,6 +126,7 @@ def test_behavior_tags_describe_the_accepted_rows():
             assert len(calls) >= 2
 
 
+@pytest.mark.slow
 def test_audit_rejects_label_dependent_casing():
     from generators.audit import audit_rows
     rows = run_generation(GeneratorConfig(count=400, seed=17))["rows"]

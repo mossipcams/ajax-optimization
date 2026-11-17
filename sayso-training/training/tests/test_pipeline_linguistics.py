@@ -2,6 +2,8 @@
 import random
 import re
 
+import pytest
+
 from generators import pipeline
 from generators.config import GeneratorConfig
 from generators.deduplication import DuplicateTracker
@@ -62,6 +64,7 @@ def test_pipeline_preserves_alias_grammar_and_category(monkeypatch):
     assert spoken.casefold() in row["messages"][1]["content"].casefold()
 
 
+@pytest.mark.slow
 def test_generated_requests_are_grammatical_english():
     result = pipeline.run_generation(GeneratorConfig(count=400, seed=20260909))
     requests = [message["content"] for row in result["rows"]

@@ -173,6 +173,7 @@ def test_v10_recipe_enables_withheld_pairs_and_keeps_v9_shape():
     assert config.allocations["unavailable"] == pytest.approx(0.04)
 
 
+@pytest.mark.slow
 def test_pairs_exist_and_each_has_a_same_target_positive():
     siblings = _siblings()
     assert siblings

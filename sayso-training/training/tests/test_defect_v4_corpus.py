@@ -310,6 +310,7 @@ def test_ordinary_only_run_fills_with_balanced_real_home_mix() -> None:
     assert all(row["metadata"]["family"] == "ordinary" for row in result["rows"])
 
 
+@pytest.mark.slow
 def test_40k_shaped_refusal_leftover_fills_under_attempt_budget() -> None:
     base = _v4_config()
     plan = build_plan(

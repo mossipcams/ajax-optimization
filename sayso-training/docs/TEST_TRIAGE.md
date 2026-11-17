@@ -120,6 +120,47 @@ Group key: (a) generator bug, (b) stale test, (c) environment. Status is from th
 
 ## Remaining work (not fixed here)
 
-- Environment (group c): install `voluptuous` and `transformers` on the CI image. Not installed on the VM and not changed here.
+- Environment (group c): done in step 2 (see CI split). `voluptuous`, `transformers`, `tokenizers`, and `Jinja2` are in the CI grep. `test_lfm_python_parse.py` still errors on Python 3.12 (needs Home Assistant, which requires Python 3.14).
 - Stale (group b, unchanged): the satellite self-volume premise (`a73730b`), the `unsupported` media_players/turn_on slot (`fa9083b`), and the decoy-withhold answer-independence check. Each needs a decision (rewrite the fixture, retire the premise, or change the check). Not done here.
 - Unresolved generator (group a): `test_the_manifest_records_requested_and_achieved_mixing`. The real-home quota ends one row short (rate 0.2493 against the 0.25 target). The real-home selection is probabilistic (`pipeline.py` lines 537-543). This is pre-existing (identical in the baseline) and needs a policy decision, not a test edit.
+
+## CI split (step 2)
+
+The PR and push job runs `python -m pytest training/tests -m 'not slow' -q --continue-on-collection-errors`. The nightly job and `workflow_dispatch` run `python -m pytest training/tests -q --continue-on-collection-errors`. The `slow` marker is registered in `sayso-training/pytest.ini`.
+
+Threshold: a test is `slow` when it runs the corpus generator end to end and its own call or setup time is at least 5 s. Times come from `--durations=0` runs on the llm VM, which shares the host with the training job, so they vary between runs. The threshold uses the larger of two runs (`dur-full`, which lacked Jinja2, and `dur2-full`, on the final dependency set). Tests under 5 s stay in the fast set even when they generate, for example the 400-row tests at 3 to 5 s.
+
+Marked (18 tests): `test_coverage_gates.py` 3, `test_grounding_v2.py` 3, `test_real_home_mixing.py` 3, `test_data_quality.py` 2, and one each in `test_generator_pipeline.py`, `test_v5_feasible_mix.py`, `test_real_home_refusals.py`, `test_v6_eval_fixes.py`, `test_defect_v4_corpus.py`, `test_withheld_pairs.py`, and `test_pipeline_linguistics.py`.
+
+Wall times on the VM (`fast-final`, `full-final`):
+
+| Run | Tests | Result | Wall time |
+|---|---|---|---|
+| Fast set (`-m 'not slow'`) | 950 selected, 18 deselected | 939 passed, 8 failed, 3 errors | 127.6 s (2:07) |
+| Full suite | 968 | 957 passed, 8 failed, 3 errors | 525.4 s (8:45) |
+
+The full suite ran twice on the final dependency set (`dur2-full`, 531.7 s; `full-final`, 525.4 s) with identical failure sets. Job timeouts are 15 minutes for the fast job and 45 minutes for the full job.
+
+Dependencies in the CI grep: `voluptuous==0.15.2` matches the `voluptuous==0.15.2` pin in Home Assistant 2026.8.3, the version SaySo's `homeassistant>=2026.8.3` requires. `transformers==5.18.0`, `tokenizers==0.23.2`, and `Jinja2==3.1.6` are needed by the token-count and chat-template tests (`transformers` `apply_chat_template` raises without Jinja2; the pipeline-invariants test only skips on a missing `transformers`, so it failed on the Jinja2 import once `transformers` was present). Torch is not installed and the tests do not need it. `requests`, `numpy`, `scipy`, `soundfile`, and `llama-cpp-python` are not added: only `training/scripts` imports them, and no test does.
+
+Network: the tokenizer tests load `LiquidAI/LFM2.5-230M-Base` from the Hugging Face Hub (`test_defect_v4_corpus.py` token tests, `test_llamafactory_view.py`, and the render test in `test_pipeline_invariants.py`). `training/artifacts/` is gitignored, so CI fetches the tokenizer on every run. The VM serves it from its local cache, so the VM runs do not prove the CI fetch. CI has no Hub cache step.
+
+Import error that remains: `test_lfm_python_parse.py` imports `custom_components.sayso.lfm_parse`, and the package `__init__.py` imports `homeassistant` at module level. Home Assistant 2026.8.3 requires Python 3.14.2 or later, so it cannot be installed on the Python 3.12 CI or VM. The module is a collection error in both jobs. `--continue-on-collection-errors` lets the rest of each run proceed, and the job stays red. This is not a skip. Fixing it needs a decision: a Python 3.14 environment for this module, or a different test home for it.
+
+Step-1 status changes after the grep change: the 7 transformers and token-count tests in `test_defect_v4_corpus.py` and `test_llamafactory_view.py` now pass on the VM, using its cache. `test_pipeline_invariants.py::test_rendered_training_view_has_no_tool_call_tags` failed once Jinja2 was missing and passes with it. The 8 failures remaining in the table above are unchanged from step 1 (`test_canonical_generator`, `test_context_hard_negatives`, `test_nonstandard_generator`, and `test_real_home_mixing`).
+
+Still failing in the fast (PR) set, so both jobs stay red:
+
+- `test_canonical_generator.py::test_production_catalog_is_answer_independent` (group b)
+- `test_canonical_generator.py::test_unsupported_family_keeps_tool_and_labels_no_action` (group b)
+- `test_context_hard_negatives.py::test_home_without_context_entities_is_unchanged` (group b)
+- `test_context_hard_negatives.py::test_context_hard_negative_share_and_labels` (setup error, group b)
+- `test_context_hard_negatives.py::test_context_hard_negatives_are_deterministic` (setup error, group b)
+- `test_nonstandard_generator.py::test_satellite_rows_from_generated_scenarios_target_the_satellite` (group b)
+- `test_nonstandard_generator.py::test_satellite_tv_exclusion_builds_contrast_rows_in_both_directions` (group b)
+- `test_nonstandard_generator.py::test_satellite_tv_contrast_rows_pass_validate_row` (group b)
+- `test_nonstandard_generator.py::test_exclusion_row_missing_excluded_device_fails_validation` (group b)
+- `test_real_home_mixing.py::test_the_manifest_records_requested_and_achieved_mixing` (group a, unresolved)
+- `test_lfm_python_parse.py` (collection error, Home Assistant on Python 3.14)
+
+None of the 18 slow tests fails in either run.

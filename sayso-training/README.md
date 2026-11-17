@@ -37,14 +37,17 @@ The submodule is pinned to SaySo `origin/main` commit
 `738959a3b279a9d40c7f9258c97b8dd650472740`. Normal initialization uses the recorded
 commit; it does not follow later upstream changes.
 
-CI (`.github/workflows/sayso-training.yml`) runs the runtime-contract behaviour
-tests on every pull request and on pushes to `main`. They check the generator
-output against the live Home Assistant result shapes (query tools, timers,
-labels). They need no network access to Home Assistant and no secrets. Run them
-locally from this directory:
+CI (`.github/workflows/sayso-training.yml`) runs the fast test set, `training/tests`
+without the `slow` marker, on every pull request and on pushes to `main`. A nightly
+job and manual dispatch run the full `training/tests` suite. The fast set includes
+the runtime-contract behaviour tests, which check the generator output against the
+live Home Assistant result shapes (query tools, timers, labels). They need no network
+access to Home Assistant and no secrets. Run the fast set or the full suite locally
+from this directory:
 
 ```bash
-python -m pytest training/tests/test_runtime_behavior.py training/tests/test_label_gates.py -q
+python -m pytest training/tests -m 'not slow' -q
+python -m pytest training/tests -q
 ```
 
 `training_paths.py` defines the shared Python search path. `env.sh` exports it

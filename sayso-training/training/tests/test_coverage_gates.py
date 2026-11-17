@@ -219,6 +219,7 @@ def test_audit_caps_absence_answers():
     assert audit_rows(rows, max_absence_rate=0.90)["absence_rate"] == 0.8
 
 
+@pytest.mark.slow
 def test_generation_covers_every_tool_inside_declared_coverage():
     report = run_generation(COVERAGE_RUN)["stats"]["quality_audit"]
     covered = {tool for tool in covered_tool_names() if tool != "__script__"}
@@ -227,6 +228,7 @@ def test_generation_covers_every_tool_inside_declared_coverage():
     assert report["positive_by_tool"].get("__script__", 0) > 0
 
 
+@pytest.mark.slow
 def test_enabling_grounding_produces_grounding_supervision():
     report = run_generation(
         GeneratorConfig(
@@ -237,6 +239,7 @@ def test_enabling_grounding_produces_grounding_supervision():
     assert required <= set(report["by_family"])
 
 
+@pytest.mark.slow
 def test_tools_outside_declared_coverage_are_not_offered():
     rows = run_generation(COVERAGE_RUN)["rows"]
     offered = {tool["function"]["name"] for row in rows for tool in row["tools"]}

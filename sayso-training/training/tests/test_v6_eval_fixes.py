@@ -130,6 +130,7 @@ def test_retry_draws_a_fresh_scenario() -> None:
 
 
 
+@pytest.mark.slow
 def test_capped_run_keeps_the_exclusion_floor() -> None:
     result = run_generation(
         GeneratorConfig(
