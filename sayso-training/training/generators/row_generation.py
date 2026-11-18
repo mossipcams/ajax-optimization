@@ -559,9 +559,7 @@ def generate_row(
         target_usage=real_home_usage if real_home_row else None,
         family=None if real_home_row and family in REAL_HOME_REFUSAL_FAMILIES else family,
         bare_name_rate=config.bare_name_rate,
-        request_intent={"area": absence_area} if absence_area else (
-            variant.get("request_intent") if variant else None
-        ),
+        request_intent={"area": absence_area} if absence_area else (variant.get("request_intent") if variant else None),
     )
     if real_home_row:
         targets = [*(scenario.get("target_entities") or [])]
@@ -606,6 +604,8 @@ def generate_row(
     media_ambiguity = capability == "media_players" and family in {"clarify", "follow_up"}
     if media_ambiguity and scenario["expected"].get("response") != "clarify":
         kind = scenario["expected"].get("kind")
+        if real_home_row and kind == "no_action":
+            return None, "family_mismatch"
         family = {"action": "ordinary", "status": "status", "no_action": "absence"}.get(kind, family)
         scenario["family"] = family
     spec = scenario_to_spec(scenario)
