@@ -34,7 +34,7 @@ python scripts/wake_train.py --help
 ```
 
 The submodule is pinned to SaySo `origin/main` commit
-`738959a3b279a9d40c7f9258c97b8dd650472740`. Normal initialization uses the recorded
+`f854c8c5b4bd7c763d27c91dc33c5a5c865984cb`. Normal initialization uses the recorded
 commit; it does not follow later upstream changes.
 
 The full test suite is the verification gate, and it runs locally. Use
@@ -103,3 +103,36 @@ deploying either. The parent's 4-slot/128k KV constraints apply to serving.
 `scripts/publish_model.sh` targets releases in `mossipcams/SaySo` and updates
 constants in the submodule checkout. Publishing therefore leaves that checkout
 dirty for a separate upstream review; it does not update the recorded gitlink.
+
+## Generation gates and snapshot backup
+
+`./sayso generate` snapshots the working tree to `refs/sayso/snapshots/<tree>` and runs the fast
+tests and the golden generator test against that snapshot. The contract is invariants 12–17 in
+[docs/PIPELINE.md](docs/PIPELINE.md):
+
+- A fast-test failure always stops generation.
+- Golden drift stops generation.
+- Changes to the protected gate files (`training/tests`, `training/generators/validation.py`,
+  `training/preflight.py`, `evals/config/gates.yaml`, `training/dataset_gates.py`, `sayso`) since the
+  last promoted dataset also stop it.
+- `promote-dataset` regenerates the candidate in a separate checkout and requires a byte-for-byte
+  match; `train` refuses unless the candidate reproduced and its input fingerprint still matches.
+
+Flags for `./sayso generate`:
+
+- `--config <path>` generates from a recipe other than `GENERATION_CONFIG`
+  (`training/configs/generation/full_sft_v13.yaml`). Use a reviewed, versioned recipe under
+  `training/configs/generation/`.
+- `--accept-drift "<reason>"` accepts golden drift or protected gate-file changes for this candidate.
+  The reason must be non-empty. Gate-file changes save the diff as
+  `training/datasets/candidates/<run_id>.gate-diff.patch`. Use the flag only after reviewing the
+  change and stating what changed and why the new output is wanted.
+
+`scripts/backup-snapshot-refs.sh` runs on the dev machine. It fetches `refs/sayso/*` from the llm VM
+clone (`SAYSO_VM_REPO`, default `LLM@192.168.1.76:ajax-optimization`) into the local `refs/sayso/*`,
+then pushes `refs/sayso/*` to `origin`. It does not touch branches and does not force-push. Run it
+periodically, for example from cron (the ssh key must work without a prompt):
+
+```bash
+*/30 * * * * cd /path/to/ajax-optimization && sayso-training/scripts/backup-snapshot-refs.sh >> "$HOME/Library/Logs/sayso-snapshot-backup.log" 2>&1
+```

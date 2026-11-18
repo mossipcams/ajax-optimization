@@ -38,6 +38,7 @@ from generators.utterances import (
     request_seed_from_spec,
 )
 from generators.validation import (
+    check_fuzzy_eval_overlap,
     check_quality_eval_overlap,
     validate_row,
     validate_serialized_row,
@@ -49,6 +50,7 @@ from generators.validation import (
 CONTEXT_HARD_NEGATIVE_RATE = 0.30
 UNEXPOSED_DOMAIN_RATE = 0.25
 REAL_HOME_REPHRASE_LIMIT = 8
+AREA_ESCAPE_SHIFTS = 32
 
 _DATETIME_UTTERANCES = (
     "what time is it",
@@ -123,7 +125,7 @@ def _balanced_upper(casing_counts: dict[str, Counter[str]] | None, spec: dict[st
     return None
 
 
-_TIMER_CONTEXT_NAMES = ("tea", "rice", "pasta", "bread", "coffee", "eggs", "pizza", "laundry")
+_TIMER_CONTEXT_NAMES = ("soup", "roast", "muffin", "bread", "coffee", "eggs", "stew", "laundry")
 _TIMER_CONTEXT_MINUTES = (5, 10, 15, 20, 30)
 _TIMER_CONTEXT_START_NAMED = ("set a {minutes} minute {name} timer", "start a {name} timer for {minutes} minutes")
 _TIMER_CONTEXT_START_UNNAMED = ("set a {minutes} minute timer", "start a timer for {minutes} minutes")
@@ -641,7 +643,7 @@ _RESTORE_READ = {
 }
 _RESTORE_CHANGE = {
     "lights": ("set {name} to {amount} percent", "make {name} {amount} percent bright"),
-    "media_players": ("set the {name} volume to {amount}", "turn the {name} volume to {amount} percent"),
+    "media_players": ("change the {name} volume to {amount}", "turn the {name} volume to {amount} percent"),
 }
 _RESTORE_BACK = ("put it back", "set it back to how it was", "put {name} back the way it was", "set {name} back to how it was")
 _RESTORE_DOMAINS = {"lights": "light", "media_players": "media_player"}
@@ -1093,22 +1095,24 @@ def generate_row(
     if area_scenario:
         from generators.scenarios.area import build_area_spec
 
-        # Area specs are seeded by slot index, so a retry would rebuild the same
-        # eval-overlapping utterance; shift the index until it clears.
-        for shift in range(8):
-            spec = build_area_spec(area_scenario, slot["index"] + shift * 100_000, config.seed)
-            if not check_quality_eval_overlap(spec["utterance"]):
-                break
+        spec = None
+        for shift in range(AREA_ESCAPE_SHIFTS):
+            candidate = build_area_spec(area_scenario, slot["index"] + shift * 100_000, config.seed)
+            utterance = finalize_training_utterance(
+                candidate["utterance"], rng, upper=_balanced_upper(casing_counts, candidate)
+            )
+            if check_quality_eval_overlap(utterance) or check_fuzzy_eval_overlap(utterance):
+                continue
+            spec = {**candidate, "utterance": utterance}
+            break
+        if spec is None:
+            raise RuntimeError(
+                f"area scenario {area_scenario!r} slot {slot['index']}: every surface form across "
+                f"{AREA_ESCAPE_SHIFTS} shifts overlaps the eval set (exact or fuzzy)"
+            )
         spec["full_tool_catalog"] = True
-        if check_quality_eval_overlap(spec["utterance"]):
-            return None, "quality_eval_overlap"
-        spec["utterance"] = finalize_training_utterance(
-            spec["utterance"], rng, upper=_balanced_upper(casing_counts, spec)
-        )
         if spec["utterance"].casefold() in excluded:
             return None, "excluded_prompt"
-        if check_quality_eval_overlap(spec["utterance"]):
-            return None, "quality_eval_overlap"
         reason = validate_row(spec, token_budget=config.token_budget)
         if reason:
             return None, reason
@@ -1410,6 +1414,7 @@ def generate_row(
     elif robustness == "ambiguity":
         apply_generic_wording(spec)
     context_hard_negative = False
+    rephrasable = False
     if family == "datetime":
         spec["utterance"] = _datetime_utterance(rng, slot["index"])
         spec["linguistics"] = [{"source": "sayso_fallback", "intent": "GetDateTime"}]
@@ -1475,6 +1480,7 @@ def generate_row(
         spec["target_names"] = []
     else:
         spec["utterance"] = expand_utterance(spec)
+        rephrasable = True
 
     discrimination = False
     if (
@@ -1497,7 +1503,7 @@ def generate_row(
     if grounding_required and not grounding_family:
         return None, "grounding_variant_miss"
 
-    if real_home_row and not family and check_quality_eval_overlap(spec["utterance"]):
+    if real_home_row and rephrasable and not discrimination and check_quality_eval_overlap(spec["utterance"]):
         _rephrase_past_eval_overlap(spec)
     if check_quality_eval_overlap(spec["utterance"]):
         return None, "quality_eval_overlap"

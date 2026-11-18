@@ -63,6 +63,7 @@ Serving-only hard constraints unless the user says otherwise:
   from `sayso-training/evals/cases/`.
 - Do not expand corpora past the reviewed `sayso-training/evals/cases/`
   and training gold sets.
+- `--accept-drift` needs a real reason (what changed and why the new output is wanted), and gate code (`sayso`, `training/dataset_gates.py`, tests, the golden snapshot, validation gates) is never edited to make a run pass.
 - Training and wake tooling runbooks are summarized in
   `sayso-training/README.md`.
 - Before opening a pull request, and before pushing new commits to an open pull

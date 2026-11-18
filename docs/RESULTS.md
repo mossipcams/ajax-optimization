@@ -5,6 +5,23 @@ Rows from 2026-10-20 to 2026-11-11 used 2 slots x 81920. Rows dated 2026-09-30 a
 "SOLO" = one stream at ~30k depth, "PAIR" = two concurrent streams at ~30k each (combined tok/s).
 Since 2026-11, SOLO edit/review come from `hfbench.py` with Pi sampling (T1.0, top_p 0.95, top_k 20, repeat 1.05, freq 0.3) at ~24k depth.
 
+## Generator trust
+
+### SaySo eval pin bump exposes generator collisions (2026-11-18)
+SaySo pin bumped 7d77105 -> f854c8c. The promotion eval grew from 120 to 530 cases. The new
+`realistic_generated` cases are short, template-shaped commands (294 of 690 distinct prompts have 5 or fewer tokens).
+Before the fix, the 50-row smoke run (count=50, seed=21) accepted 46/50 rows after 1500 attempts, with 1302
+`fuzzy_eval_overlap` rejections (86.8% of attempts). 1298 came from four area scenarios, whose utterance is
+deterministic per slot index, so retries rebuilt the same colliding string. The same run at 7d77105 accepts 50/50
+with 3 fuzzy rejections. The 120-row smoke run fails at f854c8c (116/120 after 3600 attempts) and passes at 7d77105
+(120/120 in 190 attempts).
+Some collisions are real surface contamination ("turn off the lights", "switch the lamp on" against "Switch on the
+lamp."). Others are short-prompt Jaccard false positives ("switch on the nursery lamp" against "switch on the lamp").
+Fix: area-scenario retries now test exact and fuzzy overlap on the finalized utterance, and colliding templates are
+swapped (satellite-lights, lamp, vacuum-dock, timer-name and restore-volume phrasings). Thresholds are unchanged
+(exact match, Jaccard 0.8). All candidates generated before this change are unverified and must be regenerated under
+the new gates.
+
 ## Deployed
 
 ### One slot, 163840 context (2026-11-12)

@@ -126,8 +126,18 @@ def _pick(rng: random.Random, *options: str) -> str:
     return rng.choice(options)
 
 
+_SATELLITE_LIGHTS_OFF = (
+    "shut off the lights",
+    "lights off",
+    "turn off the lights in here",
+    "switch off the lights in here",
+)
+
+
 def _implicit(rng, sat, other, extra) -> _Built:
-    utterance = _pick(rng, "turn off the lights", "switch the lights off", "turn the lights off, please")
+    utterance = _pick(
+        rng, "turn off the lights", "switch the lights off", "turn the lights off, please", *_SATELLITE_LIGHTS_OFF
+    )
     call = _call("HassTurnOff", **_lights(area=sat[0]))
     return utterance, sat[0], (sat[0], other[0]), extra[0], {"kind": "action", "calls": [call]}, {}, None
 
@@ -159,7 +169,7 @@ def _unique(rng, sat, other, extra) -> _Built:
 
 
 def _duplicate(rng, sat, other, extra) -> _Built:
-    utterance = _pick(rng, "turn on the lamp", "switch the lamp on")
+    utterance = _pick(rng, "turn on the lamp", "switch the lamp on", "put the lamp on", "turn the lamp on please")
     question = f"Which Lamp do you mean, the one in the {other[0]} or the {extra[0]}?"
     expected = {"kind": "no_action", "response": "clarify", "calls": []}
     return utterance, sat[0], (other[0], extra[0]), sat[0], expected, {}, question
@@ -178,7 +188,7 @@ def _alias(rng, sat, other, extra) -> _Built:
 
 
 def _missing_satellite(rng, sat, other, extra) -> _Built:
-    utterance = _pick(rng, "turn off the lights", "switch the lights off")
+    utterance = _pick(rng, "turn off the lights", "switch the lights off", *_SATELLITE_LIGHTS_OFF)
     question = "Which area do you mean?"
     expected = {"kind": "no_action", "response": "clarify", "calls": []}
     return utterance, None, (sat[0], other[0]), extra[0], expected, {}, question
@@ -197,7 +207,9 @@ def _unresolved(rng, sat, other, extra) -> _Built:
 
 
 def _conflict(rng, sat, other, extra) -> _Built:
-    utterance = _pick(rng, "turn on the lamp in the {a}", "switch on the {a} lamp").format(a=other[0].lower())
+    utterance = _pick(rng, "turn on the lamp in the {a}", "switch on the {a} lamp", "put the {a} lamp on").format(
+        a=other[0].lower()
+    )
     call = _call("HassTurnOn", **_lights(name="Lamp", area=other[0]))
     return utterance, sat[0], (sat[0], other[0]), extra[0], {"kind": "action", "calls": [call]}, {}, None
 

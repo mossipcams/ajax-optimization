@@ -105,7 +105,7 @@ metrics and failed gate state; it never changes `final_eval_passed` to true.
 
 ## Eval suites
 
-The SaySo cases have three roles. `promotion` (120) and `context` are locked
+The SaySo cases have three roles. `promotion` (530) and `context` are locked
 acceptance suites and are only scored by `./sayso eval`. Every other case is
 split by category, with a fixed seed, into `dev` (checkpoint selection, canary
 diagnostics) and `regression` (scored only by `./sayso eval`). `smoke` is still
@@ -120,6 +120,8 @@ Per-run candidate records and the current-candidate pointer are under ignored
 `promoted_dataset.json` and `promoted_model.json`; each per-run JSON record keeps
 the candidate's earlier gate results. These are local operational files, not a
 database or Git-tracked approval system.
+
+Existing dataset candidates under those directories were all generated against the old SaySo eval pin (`7d77105`, 2026-10-28, 120 promotion cases) and their records captured `HEAD` rather than the code that actually ran. They are unverified: regenerate the candidate before the next training run.
 
 The accepted dataset distribution and model-eval baseline live in
 `training/configs/training_baseline.json`. A run reads this file but never

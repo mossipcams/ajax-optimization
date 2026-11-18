@@ -23,7 +23,7 @@ run_phase() {
   command -v python3.12 >/dev/null || { echo "local-ci: python3.12 not on PATH" >&2; exit 2; }
   cd "$dir"
   test -f vendor/SaySo/sayso_contract.py || { echo "local-ci: vendor/SaySo missing from export" >&2; exit 2; }
-  grep -E '^(hassil|jsonschema|PyYAML|hypothesis|pytest|transformers|tokenizers|voluptuous|Jinja2)==' training/requirements.txt > ci-requirements.txt
+  grep -E '^(hassil|jsonschema|PyYAML|hypothesis|pytest|syrupy|transformers|tokenizers|voluptuous|Jinja2)==' training/requirements.txt > ci-requirements.txt
   want=$(python3 -c 'import hashlib; print(hashlib.sha256(open("ci-requirements.txt", "rb").read()).hexdigest())')
   if [ ! -x "$venv/bin/python" ] || [ "$(cat "$venv/ci-pins.sha256" 2>/dev/null || true)" != "$want" ]; then
     python3.12 -m venv --clear "$venv"
