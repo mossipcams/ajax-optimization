@@ -111,18 +111,11 @@ def _domain_args(entity: dict[str, Any]) -> dict[str, Any]:
     domain = entity["domain"]
     if domain in {"light", "fan", "switch", "media_player", "climate", "vacuum", "scene", "script"}:
         return {"domain": [domain]}
-    if domain == "lock":
-        return {}
-    if entity.get("device_class"):
-        return {"device_class": [entity["device_class"]]}
     return {}
 
 
 def _media_player_args(entity: dict[str, Any]) -> dict[str, Any]:
-    args: dict[str, Any] = {"name": entity["name"], "domain": ["media_player"]}
-    if entity.get("device_class"):
-        args["device_class"] = [entity["device_class"]]
-    return args
+    return {"name": entity["name"], "domain": ["media_player"]}
 
 
 def build_turn_on(entity: dict[str, Any]) -> dict[str, Any]:
@@ -258,9 +251,11 @@ def build_get_datetime() -> dict[str, Any]:
     return {"name": "GetDateTime", "arguments": {}}
 
 
-def build_query(entity: dict[str, Any]) -> dict[str, Any]:
+def build_query(entity: dict[str, Any], *, area: str | None = None) -> dict[str, Any]:
     args: dict[str, Any] = {}
-    if entity.get("name"):
+    if area:
+        args["area"] = area
+    elif entity.get("name"):
         args["name"] = entity["name"]
     if entity.get("domain"):
         args["domain"] = entity["domain"]
@@ -275,8 +270,23 @@ def build_cancel_all_timers(area: str | None = None) -> dict[str, Any]:
 
 
 def build_start_timer(rng: random.Random, *, name: str | None = None) -> dict[str, Any]:
-    unit, low, high = rng.choices((("minutes", 1, 90), ("seconds", 10, 90), ("hours", 1, 3)), weights=(6, 2, 2))[0]
-    args: dict[str, Any] = {unit: rng.randint(low, high)}
+    shape = rng.choices(("single", "hours_minutes", "minutes_seconds"), weights=(60, 25, 15))[0]
+    if shape == "hours_minutes":
+        half = rng.random() < 0.3
+        args: dict[str, Any] = {
+            "hours": rng.choice((1, 1, 1, 2)) if half else rng.randint(1, 3),
+            "minutes": 30 if half else rng.randint(1, 59),
+        }
+    elif shape == "minutes_seconds":
+        half = rng.random() < 0.3
+        args = {
+            "minutes": 1 if half and rng.random() < 0.5 else rng.randint(1, 59),
+            "seconds": 30 if half else rng.randint(5, 55),
+        }
+    else:
+        unit, low, high = rng.choices((("minutes", 1, 90), ("seconds", 10, 90), ("hours", 1, 3)), weights=(6, 2, 2))[0]
+        value = 30 if unit == "minutes" and rng.random() < 0.1 else rng.randint(low, high)
+        args = {unit: value}
     if name:
         args["name"] = name
     return {"name": "HassStartTimer", "arguments": args}
@@ -302,14 +312,18 @@ def build_unpause_timer(*, name: str | None = None, area: str | None = None) -> 
     return {"name": "HassUnpauseTimer", "arguments": _timer_scope_args(name, area)}
 
 
-def build_cancel_timer(*, name: str | None = None) -> dict[str, Any]:
+def build_cancel_timer(*, name: str | None = None, area: str | None = None) -> dict[str, Any]:
     args: dict[str, Any] = {}
     if name:
         args["name"] = name
+    if area:
+        args["area"] = area
     return {"name": "HassCancelTimer", "arguments": args}
 
 
-def build_adjust_timer(rng: random.Random, *, direction: str, name: str | None = None) -> dict[str, Any]:
+def build_adjust_timer(
+    rng: random.Random, *, direction: str, name: str | None = None, area: str | None = None
+) -> dict[str, Any]:
     roll = rng.random()
     if roll < 0.25:
         args: dict[str, Any] = {"seconds": rng.choice((10, 15, 30, 45))}
@@ -319,6 +333,8 @@ def build_adjust_timer(rng: random.Random, *, direction: str, name: str | None =
         args = {"hours": rng.choice((1, 2))}
     if name:
         args["name"] = name
+    if area:
+        args["area"] = area
     tool = "HassIncreaseTimer" if direction == "increase" else "HassDecreaseTimer"
     return {"name": tool, "arguments": args}
 
@@ -333,6 +349,11 @@ def build_area_call(
 ) -> dict[str, Any]:
     cap = CAPABILITIES[capability]
     domain = cap.domain
+    tool = _operation_tool(operation, capability)
+    if tool == "HassVacuumCleanArea":
+        if area:
+            return {"name": tool, "arguments": {"area": area}}
+        return {"name": "HassVacuumStart", "arguments": {"domain": ["vacuum"], "floor": floor}}
     args: dict[str, Any] = {"area": area} if area else {}
     if floor:
         args["floor"] = floor
@@ -342,7 +363,6 @@ def build_area_call(
         args["domain"] = ["lock"]
     elif cap.device_class:
         args["device_class"] = [cap.device_class]
-    tool = _operation_tool(operation, capability)
     if tool in {"HassMediaSearchAndPlay", "HassSetVolumeRelative", "HassClimateSetTemperature"}:
         args.pop("domain", None)
         args.pop("device_class", None)
@@ -444,10 +464,10 @@ _TIMER_CALLS: dict[str, Callable[[random.Random, str | None], dict[str, Any]]] =
     "start": lambda rng, _area: build_start_timer(rng),
     "pause": lambda rng, area: build_pause_timer(area=_maybe_area(rng, area, 0.3)),
     "unpause": lambda rng, area: build_unpause_timer(area=_maybe_area(rng, area, 0.3)),
-    "cancel": lambda _rng, _area: build_cancel_timer(),
+    "cancel": lambda rng, area: build_cancel_timer(area=_maybe_area(rng, area, 0.35)),
     "status": lambda rng, area: build_timer_status(area=_maybe_area(rng, area, 0.3)),
-    "increase": lambda rng, _area: build_adjust_timer(rng, direction="increase"),
-    "decrease": lambda rng, _area: build_adjust_timer(rng, direction="decrease"),
+    "increase": lambda rng, area: build_adjust_timer(rng, direction="increase", area=_maybe_area(rng, area, 0.35)),
+    "decrease": lambda rng, area: build_adjust_timer(rng, direction="decrease", area=_maybe_area(rng, area, 0.35)),
 }
 
 
@@ -466,6 +486,9 @@ def build_call_for_operation(
     if operation == "query_state":
         if entity is not None:
             return build_query(entity)
+        if area:
+            domain_entity = {"domain": CAPABILITIES[capability].domain} if rng.random() < 0.6 else {}
+            return build_query(domain_entity, area=area)
         return {
             "name": "GetLiveContext",
             "arguments": {"domain": CAPABILITIES[capability].domain},

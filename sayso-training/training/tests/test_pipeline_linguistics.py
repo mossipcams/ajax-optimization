@@ -67,10 +67,10 @@ def test_pipeline_preserves_alias_grammar_and_category(monkeypatch):
 @pytest.mark.slow
 def test_generated_requests_are_grammatical_english():
     result = pipeline.run_generation(GeneratorConfig(count=400, seed=20260909))
-    requests = [message["content"] for row in result["rows"]
+    requests = [(message["content"], row["metadata"].get("chatter_wrap")) for row in result["rows"]
                 for message in row["messages"] if message["role"] == "user"]
     assert requests
-    for request in requests:
+    for request, chatter_wrap in requests:
         assert "  " not in request, request
         assert not re.search(r"\b(switchs|climates)\b", request, re.I), request
         assert "°" not in request and not re.search(r"\d k\b", request), request
@@ -83,6 +83,8 @@ def test_generated_requests_are_grammatical_english():
         assert "to scene" not in request.casefold(), request
         core = re.sub(r"^(?:hey|okay|please|could you|can you|when you get a chance),?\s+",
                       "", request.strip(), flags=re.I)
+        if chatter_wrap in ("prefix", "both"):
+            continue
         assert re.match(r"(?:turn|switch|set|change|make|open|close|lock|lok|unlock|start|stop|"
                         r"run|activate|transition|bring|play|pause|unpause|hold|freeze|resume|mute|unmute|dim|"
                         r"brighten|increase|decrease|adjust|raise|lower|cancel|vacuum|clean|"

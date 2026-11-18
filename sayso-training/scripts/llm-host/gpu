@@ -54,7 +54,7 @@ read_state() {
         if [[ $s == "train:lfm "* ]]; then
           if [[ ${1:-} == recover ]]; then
             write_state blocked:lfm-cleanup
-            docker restart unsloth >/dev/null || die "LFM recovery failed; GPU remains blocked"
+            docker restart sayso-trainer >/dev/null || die "LFM recovery failed; GPU remains blocked"
             write_state idle
             s=idle
           else
@@ -287,7 +287,7 @@ case $cmd in
       fi
       if [[ $pipeline == lfm && $rc != 0 ]]; then
         write_state blocked:lfm-cleanup
-        docker restart unsloth >/dev/null || exit "$rc"
+        docker restart sayso-trainer >/dev/null || exit "$rc"
       fi
       write_state idle
       exec 9>&-
@@ -320,7 +320,7 @@ case $cmd in
     stop_inference
     active=1
     if [[ $pipeline == lfm ]]; then
-      setsid docker exec unsloth "$@" 9>&- &
+      setsid docker exec sayso-trainer "$@" 9>&- &
     elif [[ $pipeline == wake ]]; then
       PATH=$WAKE_VENV/bin:$PATH setsid "$@" 9>&- &
     else

@@ -93,6 +93,7 @@ AMBIGUOUS_SETTINGS = (
     ("climate", "set_temperature"),
 )
 AMBIGUOUS_SETTINGS_SHARE = 0.5
+GENERIC_CONTRAST_RATE = 0.2
 
 SUBSTITUTION_PRONE_OPERATIONS = AMBIGUOUS_SETTINGS
 SUBSTITUTION_PRONE_SHARE = 0.5
@@ -176,7 +177,10 @@ _ALIASES_COMBINATIONS = tuple(
 
 
 def _pick_capability_operation(
-    family: str, rng: random.Random, aliases_rng: random.Random | None = None
+    family: str,
+    rng: random.Random,
+    aliases_rng: random.Random | None = None,
+    ordinary_ops: tuple[tuple[str, str], ...] = (),
 ) -> tuple[str, str, int]:
     if family == "datetime":
         return "datetime", "query_time", 0
@@ -254,6 +258,9 @@ def _pick_capability_operation(
     if family == "junk":
         cap_name = rng.choice(["lights", "fans", "switches", "media_players"])
         return cap_name, "turn_on", CAPABILITIES[cap_name].tier
+    if family == "ordinary" and ordinary_ops:
+        cap_name, operation = rng.choice(ordinary_ops)
+        return cap_name, operation, CAPABILITIES[cap_name].tier
     eligible_tiers = sorted(
         tier
         for tier in TIER_PROPORTIONS
@@ -428,6 +435,7 @@ def build_plan(
     real_home_rate: float = 0.0,
     min_positive_per_tool: int = 0,
     min_positive_per_operation: int = 0,
+    ordinary_ops: tuple[tuple[str, str], ...] = (),
 ) -> AllocationPlan:
     area_required = _area_required_counts(area_distribution_path, count)
     area_total = sum(area_required.values())
@@ -462,7 +470,7 @@ def build_plan(
                 slots.append(datetime_slot(index))
                 index += 1
                 continue
-            cap, operation, tier = _pick_capability_operation(family, rng, aliases_rng)
+            cap, operation, tier = _pick_capability_operation(family, rng, aliases_rng, ordinary_ops)
             home_size = sample_home_size(HOME_SIZE_WEIGHTS, rng)
             if family in {"exclusion", "multi_action"}:
                 home_size = max(home_size, 64)
@@ -507,7 +515,9 @@ def build_plan(
     return AllocationPlan(count=count, requested=requested, slots=slots, area_required=area_required)
 
 
-_FLOOR_HEADROOM = 1.05
+# Validation gates reject a few percent of reserved carriers (v16 regen ended
+# HassMediaSearchAndPlay at 198 of a 200 floor with 1.05), so over-reserve.
+_FLOOR_HEADROOM = 1.10
 _GROUNDING_HEADROOM = 1.25
 _DONORS = {"ordinary": frozenset({"HassTurnOn", "HassTurnOff"}), "settings": frozenset({"HassLightSet"})}
 

@@ -13,9 +13,6 @@ SPEC = importlib.util.spec_from_file_location("sayso_trainer", SCRIPTS / "sayso_
 TRAIN = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(TRAIN)
 COMMON = sys.modules["train_common"]
-UNSLOTH_SPEC = importlib.util.spec_from_file_location("train_unsloth_full", SCRIPTS / "train_unsloth_full.py")
-UNSLOTH = importlib.util.module_from_spec(UNSLOTH_SPEC)
-UNSLOTH_SPEC.loader.exec_module(UNSLOTH)
 
 
 def _tensor(*shape: int) -> SimpleNamespace:
@@ -27,10 +24,10 @@ def test_backend_flag_is_gone() -> None:
         TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary", "--backend", "unsloth"])
 
 
-def test_defaults_give_batch_8_and_accum_4() -> None:
+def test_defaults_give_batch_1_and_accum_32() -> None:
     args = TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary"])
-    assert args.batch == 8
-    assert args.accum == 4
+    assert args.batch == 1
+    assert args.accum == 32
 
 
 def test_method_defaults_to_sft() -> None:
@@ -87,7 +84,6 @@ def test_guard_rejects_position_ids_even_with_attention_mask() -> None:
 
 def test_load_rows_is_the_train_common_load_rows() -> None:
     assert TRAIN.load_rows is COMMON.load_rows
-    assert UNSLOTH.load_rows is COMMON.load_rows
 
 
 def test_manifest_records_backend_and_train_common_hash(tmp_path: Path) -> None:
@@ -120,8 +116,8 @@ def test_sayso_trainer_uses_the_shared_recipe() -> None:
 def test_recipe_gives_micro_batch_group_by_length_and_no_bf16() -> None:
     args = TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary"])
     training = TRAIN.recipe(args, evaluating=True)
-    assert training["per_device_train_batch_size"] == 8
-    assert training["gradient_accumulation_steps"] == 4
+    assert training["per_device_train_batch_size"] == 1
+    assert training["gradient_accumulation_steps"] == 32
     assert training["per_device_eval_batch_size"] == 1
     assert training["train_sampling_strategy"] == "group_by_length"
     assert training["eval_strategy"] == "steps"

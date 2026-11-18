@@ -19,9 +19,9 @@ each stage; host paths and the GPU lock are defined in `sayso`.
 - **Command:** `./sayso generate`. Internally runs
   `python -m generators.cli --config <generation-config> --output <dataset> --manifest <manifest>`
   with the working directory set to `training/` (see `cmd_generate` in `sayso`).
-- **Config it reads:** `training/configs/generation/full_sft_v13.yaml`, named by the
+- **Config it reads:** `training/configs/generation/full_sft_v17.yaml`, named by the
   `GENERATION_CONFIG` constant in `sayso`. The generator configs under
-  `training/configs/generation/` are versioned (`full_sft_v4.yaml` … `full_sft_v13.yaml`,
+  `training/configs/generation/` are versioned (`full_sft_v4.yaml` … `full_sft_v17.yaml`,
   plus `production.yaml` and `smoke.yaml`).
 - **Inputs:** the generation config; the pinned tool contract
   `schemas/sayso-tool-schema-v2.json` (referenced by the config's `schema.path`); the real-home
@@ -44,6 +44,14 @@ each stage; host paths and the GPU lock are defined in `sayso`.
   `scripts/preflight.py <dataset>` (see `cmd_validate` in `sayso`).
 - **Inputs:** the unchanged candidate dataset from stage 1. The CLI re-checks the
   dataset sha256 against the recorded value before running preflight.
+- **Preflight config:** a generation YAML may set top-level `preflight: <path>`, which
+  `sayso validate` passes to `scripts/preflight.py` as `--config` (default
+  `training/configs/preflight.yaml`). `coverage.min_behavior_share` (default 0.005) sets the
+  audit's minimum multi-call and alias row share (exclusion rows have no floor; the user does not prioritize exclusion phrasing, 2026-11-18), and `ordinary_ops` accepts a
+  `cap.op: weight` mapping. v18 uses `preflight_v18.yaml` with multi_action 300 and GetDateTime
+  150 and min_behavior_share 0.003, approved by the user on 2026-11-18; v18 compares drift against
+  `training/configs/training_baseline_v18.json` (measured v18 family shares, user-approved 2026-11-18)
+  instead of the v11-era baseline.
 - **Label gates (enforced at generation, checked here):** every tool call must pass the
   pinned schema; `ALLOWED_HASS_TOOLS` in `training/adapters/schema.py` is the dataset-build
   gate for that contract. Coverage and eval-overlap gates live in
@@ -67,8 +75,8 @@ explicitly promoted dataset. Both run the same trainer through the GPU lock.
 
 Both canary and full invoke, via the GPU lock,
 `gpu train lfm <TRAINER_PYTHON> <host>/training/scripts/sayso_trainer.py --data <staged> [--eval-data <staged-val>] …`
-(`TRAINER_PYTHON` is env `SAYSO_TRAINER_PYTHON`, default the SaySo Trainer venv's `bin/python`; its exact pins live in `training/requirements-sayso-trainer.txt`) with the recipe `--lr 5e-5 --warmup-ratio 0.1` (`TRAIN_RECIPE` in `sayso`) plus `--batch 8 --accum 4`. The full run also
-passes `--promotion-record`. `training/scripts/train_unsloth_full.py` is kept only as the rollback trainer until the first full run on `sayso_trainer.py` passes `./sayso eval` against the champion; rollback steps are in the [Rollback section](PLAN_SAYSO_TRAINER_TRL.md#rollback). Every GPU job runs inside a lock turn: `gpu run <label> -- <cmd>`
+(`TRAINER_PYTHON` is env `SAYSO_TRAINER_PYTHON`, default the SaySo Trainer venv's `bin/python`; its exact pins live in `training/requirements-sayso-trainer.txt`) with the recipe `--lr 5e-5 --warmup-ratio 0.1` (`TRAIN_RECIPE` in `sayso`) plus `--batch 1 --accum 32` (batch 8 x accum 4 measured 23% slower per step on the 7900 XTX; ROCm SDPA has no flash kernel with a padding mask). The full run also
+passes `--promotion-record`. Every GPU job runs inside a lock turn: `gpu run <label> -- <cmd>`
 (the CLI calls the `gpu` binary at `/srv/llm/bin/gpu`, overridable with `GPU_LOCK`).
 
 - **Config it reads / recipe:** base model `LFM2.5-230M-Base` (`BASE_MODEL` in `sayso`;
@@ -78,7 +86,10 @@ passes `--promotion-record`. `training/scripts/train_unsloth_full.py` is kept on
 - **Render + group-held-out split:** before training, the CLI renders both splits —
   `training/scripts/split_dataset.py` (whole-scenario-group held-out; the CLI gets `1 - VAL_RATIO`
   and `VAL_RATIO`, where `VAL_RATIO = 0.05` is defined in `sayso`, so a 95/5 train/val split) and `training/scripts/export_llamafactory_view.py` (the derived
-  prompt/completion view rendered with the pinned Base template). The val split is passed as
+  prompt/completion view rendered with the pinned Base template; the tool list is placed before
+  the `Area context:` block, as SaySo's embedded runtime prompts the model since 1.17.0, with each tool's
+  keys in template order: `type`, then `function` `name`, `description`, `parameters`; `adapters/test_lfm.py` and SaySo
+  `tests/test_tool_key_order.py` pin the same bytes). The val split is passed as
   `--eval-data` so the trainer reports group-held-out validation loss (`eval_strategy="steps"`).
 - **Outputs:** canary checkpoint + smoke/dev metrics under `/srv/llm/lfm/runs/sayso-promotion/`;
   a full run's checkpoints at `<out>/checkpoint-*` and `<out>/final`, plus a training-run record

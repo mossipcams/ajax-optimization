@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from generators.capability_registry import HOME_SIZE_WEIGHTS, TIER_PROPORTIONS
+from generators.capability_registry import CAPABILITIES, HOME_SIZE_WEIGHTS, TIER_PROPORTIONS
 from generators.planning import PRIMARY_FAMILIES
 
 DEFAULT_TRAIN_COUNT = 40_000
@@ -58,6 +58,7 @@ class GeneratorConfig:
     area_distribution_path: Path | None = None
     min_positive_per_operation: int = 1
     min_positive_per_tool: int = 1
+    min_behavior_share: float = 0.005
     recipe_count: int = 0
     max_absence_rate: float = 0.10
     get_datetime_positive_min: int = 1
@@ -66,7 +67,9 @@ class GeneratorConfig:
     real_home_rate: float = 0.0
     real_home_entity_cap: int = 0
     synthetic_only: bool = False
+    wording_pile: dict[str, Any] | None = None
     pair_rates: dict[str, float] = field(default_factory=dict)
+    ordinary_ops: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if self.synthetic_only:
@@ -78,7 +81,13 @@ class GeneratorConfig:
             total = sum(self.allocations.values())
             if abs(total - 1.0) > 0.02:
                 raise ValueError(f"allocations must sum to ~1.0, got {total:.4f}")
-        for name in ("grounding_rate", "discrimination_rate", "bare_name_rate", "stt_log_rate"):
+        for name in (
+            "grounding_rate",
+            "discrimination_rate",
+            "bare_name_rate",
+            "stt_log_rate",
+            "min_behavior_share",
+        ):
             value = getattr(self, name)
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{name} must be within [0, 1], got {value}")
@@ -92,6 +101,21 @@ class GeneratorConfig:
                 "grounding_rate + discrimination_rate must be <= 1, "
                 f"got {self.grounding_rate} + {self.discrimination_rate}"
             )
+        if self.ordinary_ops:
+            from generators.planning import _action_ops
+
+            for cap_name, op_name in self.ordinary_ops:
+                if cap_name not in CAPABILITIES or op_name not in _action_ops(CAPABILITIES[cap_name]):
+                    raise ValueError(f"unknown ordinary_op {cap_name}.{op_name}")
+        from generators.utterances import set_wording_pile
+
+        if self.wording_pile is None:
+            set_wording_pile(None)
+        else:
+            share = float(self.wording_pile.get("share", 0.0))
+            if not 0.0 <= share <= 1.0:
+                raise ValueError(f"wording_pile.share must be within [0, 1], got {share}")
+            set_wording_pile(self.wording_pile)
 
     def scaled_floor(self, floor: int) -> int:
         if floor > 0 and self.recipe_count and 0 < self.count < self.recipe_count:
@@ -138,6 +162,33 @@ class GeneratorConfig:
         if real_home_path and not real_home_path.is_absolute():
             real_home_path = root / real_home_path
         allocations = raw.get("allocations", {})
+        parsed_ordinary_ops = []
+        ops_raw = raw.get("ordinary_ops") or ()
+        if isinstance(ops_raw, dict):
+            op_entries = [(entry, weight) for entry, weight in ops_raw.items()]
+        else:
+            op_entries = [(entry, 1) for entry in ops_raw]
+        for entry, weight in op_entries:
+            if not isinstance(weight, int) or isinstance(weight, bool) or weight <= 0:
+                raise ValueError(
+                    f"ordinary_ops[{entry!r}] weight must be a positive int, got {weight!r}"
+                )
+            cap_name, _, op_name = str(entry).partition(".")
+            if not op_name:
+                raise ValueError(f"ordinary_ops entry {entry!r} must be 'capability.operation'")
+            parsed_ordinary_ops.extend([(cap_name, op_name)] * weight)
+        ordinary_ops = tuple(parsed_ordinary_ops)
+        pile = raw.get("wording_pile") or {}
+        wording_pile = None
+        if pile.get("path"):
+            pile_path = Path(pile["path"])
+            if not pile_path.is_absolute():
+                pile_path = root / pile_path
+            wording_pile = {
+                "path": pile_path,
+                "sha256": str(pile.get("sha256", "")),
+                "share": float(pile.get("share", 0.0)),
+            }
         return cls(
             count=int(raw["count"]),
             seed=int(raw["seed"]),
@@ -165,12 +216,15 @@ class GeneratorConfig:
             min_positive_per_operation=int(coverage.get("min_positive_per_operation", 1)),
             min_positive_per_tool=int(coverage.get("min_positive_per_tool", 1)),
             max_absence_rate=float(coverage.get("max_absence_rate", 0.10)),
+            min_behavior_share=float(coverage.get("min_behavior_share", 0.005)),
             get_datetime_positive_min=int(coverage.get("get_datetime_positive_min", 1)),
             real_home_path=real_home_path,
             real_home_rate=float(real.get("rate", 0.0)),
             real_home_entity_cap=int(real.get("entity_cap", 0)),
             synthetic_only=bool(gen.get("synthetic_only", True)),
+            wording_pile=wording_pile,
             pair_rates={str(k): float(v) for k, v in (raw.get("pairs") or {}).items()},
+            ordinary_ops=ordinary_ops,
         )
 
     def recipe_hash(self) -> str:
@@ -210,6 +264,14 @@ class GeneratorConfig:
             "real_home_entity_cap": self.real_home_entity_cap,
             "synthetic_only": self.synthetic_only,
         }
+        if self.wording_pile is not None:
+            data["wording_pile"] = {
+                "path": str(self.wording_pile["path"]),
+                "sha256": self.wording_pile["sha256"],
+                "share": self.wording_pile["share"],
+            }
         if self.pair_rates:
             data["pair_rates"] = self.pair_rates
+        if self.ordinary_ops:
+            data["ordinary_ops"] = [f"{cap}.{op}" for cap, op in self.ordinary_ops]
         return data

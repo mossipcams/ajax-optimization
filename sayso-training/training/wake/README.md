@@ -101,7 +101,7 @@ reservation, owner/worker liveness, and VRAM use. A dead wrapper or worker leade
 a reservation while non-zombie members of its process group survive.
 
 SIGTERM, SIGINT, and SSH hangup terminate the worker group before releasing the
-GPU. A failed or interrupted LFM command restarts Unsloth to stop container-side
+GPU. A failed or interrupted LFM command restarts the `sayso-trainer` container to stop container-side
 workers; Studio briefly disconnects. If that cleanup fails, serving remains
 blocked pending inspection of `/srv/llm/run/gpu.state` and the container.
 `--serve-after` restarts serving after successful cleanup, including command failure;
@@ -110,6 +110,6 @@ training through its UI bypasses the reservation and is unsupported.
 
 After an LFM wrapper and Docker client both crash, `gpu status` reports
 `orphan:lfm` without changing services. The next `serve`, `stop`, or `train`
-command restarts Unsloth under the lock before reusing the GPU; restart failure
+command restarts the `sayso-trainer` container under the lock before reusing the GPU; restart failure
 leaves it blocked. An interrupted launch with no recorded worker PID stays
 blocked for process inspection instead of assuming the GPU is idle.

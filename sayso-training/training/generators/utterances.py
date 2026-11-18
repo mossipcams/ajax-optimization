@@ -7,7 +7,23 @@ import zlib
 from typing import Any
 
 from generators.ohf import render_call
+from generators.stt_noise import _int_to_words
 from generators.capability_registry import is_satellite
+
+_WORDING_PILE = None
+_WORDING_PILE_SHARE = 0.0
+
+
+def set_wording_pile(pile_config: dict[str, Any] | None) -> None:
+    global _WORDING_PILE, _WORDING_PILE_SHARE
+    if pile_config is None:
+        _WORDING_PILE = None
+        _WORDING_PILE_SHARE = 0.0
+        return
+    from generators.piles import load_pile
+
+    _WORDING_PILE = load_pile(pile_config["path"], str(pile_config["sha256"]))
+    _WORDING_PILE_SHARE = float(pile_config.get("share", 0.0))
 
 _CONVERSATIONAL = (
     "Hey, could you {action}.",
@@ -125,15 +141,18 @@ def request_seed_from_spec(spec: dict[str, Any]) -> str:
     ]
     if expected.get("kind") == "status":
         provenance.append({"source": "sayso_fallback", "intent": "GetLiveContext"})
+        call_arguments = (expected.get("calls") or [{}])[0].get("arguments") or {}
+        status_rng = random.Random(zlib.crc32(f"status:{spec.get('candidate_id', '')}".encode()))
+        if call_arguments.get("area") and not targets:
+            return area_status_phrasing(call_arguments, status_rng)
         if targets:
-            domain = ((expected.get("calls") or [{}])[0].get("arguments") or {}).get("domain")
-            rng = random.Random(zlib.crc32(f"status:{spec.get('candidate_id', '')}".encode()))
+            domain = call_arguments.get("domain")
             questions = _STATUS_QUESTIONS.get(domain if isinstance(domain, str) else "", ())
-            if questions and rng.random() < 0.5:
-                question = rng.choice(questions).format(targets[0])
-                suffix = rng.choice(("", "", " right now")) if question.startswith("is ") else ""
+            if questions and status_rng.random() < 0.5:
+                question = status_rng.choice(questions).format(targets[0])
+                suffix = status_rng.choice(("", "", " right now")) if question.startswith("is ") else ""
                 return question + suffix + "?"
-            return f"what is the status of {targets[0]}"
+            return entity_status_phrasing(targets[0], status_rng)
         call = (expected.get("calls") or [{}])[0]
         domain = (call.get("arguments") or {}).get("domain")
         if isinstance(domain, list) and domain:
@@ -146,6 +165,7 @@ def request_seed_from_spec(spec: dict[str, Any]) -> str:
         first = (expected.get("calls") or [{}])[0]
         return _phrase_for_call(scope, first, f"{seed_key}:0", provenance) + _leave_clause(spec["excluded_names"], spec)
     satellites = _satellite_names(spec)
+    half_durations = len(expected.get("calls") or []) == 1
     for index, call in enumerate(expected.get("calls") or []):
         canonical = (call.get("arguments") or {}).get("name")
         seed_key = spec.get("phrasing_seed") or spec.get("candidate_id", "")
@@ -171,7 +191,8 @@ def request_seed_from_spec(spec: dict[str, Any]) -> str:
                 provenance.append({"source": "sayso_fallback", "intent": call["name"]})
             phrases.append(routine)
             continue
-        phrases.append(_phrase_for_call(str(target), _lock_phrasing(call, spec), f"{seed_key}:{index}", provenance))
+        phrases.append(_phrase_for_call(str(target), _lock_phrasing(_phrasing_device_class(call, spec), spec), f"{seed_key}:{index}", provenance,
+                                        half_durations=half_durations))
     seed = " and ".join(phrases)
     excluded = spec.get("excluded_names") or []
     if excluded:
@@ -192,6 +213,29 @@ def _leave_clause(excluded: list[str], spec: dict[str, Any]) -> str:
     seed_key = spec.get("phrasing_seed") or spec.get("candidate_id", "")
     rng = random.Random(zlib.crc32(f"leave:{seed_key}".encode()))
     return rng.choice(_LEAVE_CLAUSES).format(n=" and ".join(excluded), p="it" if len(excluded) == 1 else "them")
+
+
+_NAMED_CLASS_MEDIA_TOOLS = frozenset({
+    "HassMediaPause", "HassMediaUnpause", "HassSetVolume", "HassMediaPlayerMute",
+    "HassMediaPlayerUnmute", "HassMediaNext", "HassMediaPrevious",
+})
+_DOMAIN_ARG_DOMAINS = frozenset({"light", "fan", "switch", "media_player", "climate", "vacuum", "scene", "script", "lock"})
+
+
+def _phrasing_device_class(call: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:
+    arguments = call.get("arguments") or {}
+    if "device_class" in arguments or not arguments.get("name"):
+        return call
+    by_name = {entity["name"]: entity for entity in (spec.get("home") or {}).get("entities", [])}
+    entity = by_name.get(arguments["name"]) or {}
+    device_class = entity.get("device_class")
+    if not device_class:
+        return call
+    media = entity.get("domain") == "media_player" and call.get("name") in _NAMED_CLASS_MEDIA_TOOLS
+    other = call.get("name") in {"HassTurnOn", "HassTurnOff"} and entity.get("domain") not in _DOMAIN_ARG_DOMAINS
+    if not (media or other):
+        return call
+    return {**call, "arguments": {**arguments, "device_class": [device_class]}}
 
 
 def _lock_phrasing(call: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:
@@ -227,6 +271,89 @@ _STATUS_QUESTIONS: dict[str, tuple[str, ...]] = {
     "lawn_mower": ("is {0} mowing", "is {0} docked"),
     "todo": ("what's on {0}", "is anything on {0}"),
 }
+
+_ENTITY_STATUS_PHRASES: tuple[str, ...] = (
+    "what is the status of {0}", "what's the status of {0}", "check the status of {0}?", "could you tell me the status of {0}?",
+    "what is the state of {0} right now", "what is the current status of {0}", "what's the current status of {0}",
+    "what state is {0} in", "what's the state of {0}", "what is the current state of {0}",
+    "tell me the status of {0}", "what's the status of {0} right now", "check the state of {0}?",
+    "can you check the status of {0}?", "what's the state of {0} right now?", "could you tell me the state of {0}?",
+    "what is the status for {0}?",
+)
+
+_AREA_STATUS_WORDS: dict[str, tuple[str, str]] = {
+    "light": ("on", "lights"),
+    "switch": ("on", "outlets"),
+    "fan": ("on", "fans"),
+    "climate": ("on", "thermostats"),
+    "media_player": ("playing", "TVs"),
+    "cover": ("open", "blinds"),
+    "lock": ("unlocked", "locks"),
+    "vacuum": ("running", "vacuums"),
+    "lawn_mower": ("mowing", "lawn mowers"),
+}
+
+_AREA_DOMAIN_STATUS_PHRASES: tuple[str, ...] = (
+    "is anything {state} in the {area} right now", "is anything still {state} in the {area}",
+    "which {noun} are {state} in the {area} right now?", "which {noun} are currently {state} in the {area}?",
+    "are the {area} {noun} {state}", "are any {noun} {state} in the {area}", "are there any {noun} {state} in the {area}",
+    "what {noun} are {state} in the {area}", "what's still {state} in the {area}", "is anything {state} in the {area} right now?",
+    "is any of the {noun} in the {area} {state}", "which {noun} in the {area} are {state}?",
+    "are any of the {area} {noun} {state}", "is there anything {state} in the {area}",
+    "what's {state} in the {area}", "is anything {state} in the {area} at the moment",
+    "what {noun} in the {area} are still {state}",
+)
+
+_AREA_ANY_STATUS_PHRASES: tuple[str, ...] = (
+    "is anything going on in the {area}", "what's going on in the {area}", "is anything active in the {area}",
+    "what's active in the {area}", "is anything running in the {area}", "what is going on in the {area} right now",
+    "is anything happening in the {area}", "what's happening in the {area} right now",
+    "what devices are active in the {area}", "what's currently active in the {area}",
+    "is anything on in the {area} at all", "is there anything going on in the {area}?", "what's happening in the {area}",
+    "is there anything active in the {area}", "is anything turned on in the {area}",
+)
+
+_DATETIME_PHRASES: tuple[str, ...] = (
+    "tell me the time", "what's the time right now", "what is the current time", "what time is it now",
+    "do you know the time", "do you know what time it is", "what's today's date", "what is today's date",
+    "what day of the week is it", "what day is today", "what's the date", "what is the date right now",
+    "can you tell me the time", "could you tell me today's date", "what's the time now", "which day is it today",
+    "do you know what day it is", "what time do you have", "what's today's date and time", "what is the time right now",
+    "tell me today's date", "what day of the week is today",
+)
+
+_MEDIA_SEARCH_PHRASES: tuple[str, ...] = (
+    "search for {query} on {target}", "search {target} for {query}", "play {query} on {target}",
+    "can you search for {query} on {target}", "could you search for {query} on {target}", "can you search {target} for {query}",
+    "start {query} on {target}", "bring up {query} on {target}", "search {target} for {query} and play it",
+    "could you play {query} on {target}", "can you play {query} on {target}", "please search for {query} on {target}",
+    "search for {query} on {target} please", "play {query} on {target} please", "search {target} for {query} and start it",
+    "search for {query} and play it on {target}", "play {query} through {target}", "start playing {query} on {target}",
+)
+
+
+def entity_status_phrasing(target: str, rng: random.Random) -> str:
+    return rng.choice(_ENTITY_STATUS_PHRASES).format(target)
+
+
+def area_status_phrasing(arguments: dict[str, Any], rng: random.Random) -> str:
+    area = str(arguments["area"]).casefold()
+    domain = arguments.get("domain")
+    if isinstance(domain, list):
+        domain = domain[0] if domain else None
+    if isinstance(domain, str) and domain in _AREA_STATUS_WORDS:
+        state, noun = _AREA_STATUS_WORDS[domain]
+        return rng.choice(_AREA_DOMAIN_STATUS_PHRASES).format(area=area, state=state, noun=noun)
+    return rng.choice(_AREA_ANY_STATUS_PHRASES).format(area=area)
+
+
+def datetime_phrasing(rng: random.Random) -> str:
+    return rng.choice(_DATETIME_PHRASES)
+
+
+def media_search_phrasing(target: str, query: str, rng: random.Random) -> str:
+    return rng.choice(_MEDIA_SEARCH_PHRASES).format(query=query, target=target)
+
 
 _VACUUM_START = (
     "tell {0} to start cleaning", "start {0} cleaning", "start cleaning with {0}",
@@ -272,6 +399,14 @@ _UNNAMED_TIMER_PHRASES: dict[str, tuple[str, ...]] = {
     "HassIncreaseTimer": ("add {delta} to the timer", "give me {delta} more"),
     "HassDecreaseTimer": ("take {delta} off the timer", "cut {delta} off my timer"),
 }
+
+_HALF_DURATION_PHRASES: tuple[tuple[dict[str, int], tuple[str, ...]], ...] = (
+    ({"hours": 1, "minutes": 30}, ("an hour and a half",)),
+    ({"minutes": 30}, ("half an hour",)),
+    ({"minutes": 1, "seconds": 30}, ("a minute and a half",)),
+)
+
+_HALF_TIMER_PHRASES = ("start a timer for {half}", "set a timer for {half}")
 
 _SPOKEN_PLURALS = {"switch": "outlets", "climate": "thermostats", "cover": "blinds",
                    "media_player": "TVs", "device_class": "devices"}
@@ -326,10 +461,28 @@ def _timer_room_phrasing(spec: dict[str, Any], call: dict[str, Any], seed: str) 
     return rng.choice(_TIMER_ROOM_PHRASES).format(delta=delta, area=rng.choice(areas))
 
 _VOLUME_STEP_PHRASES: dict[str, tuple[str, ...]] = {
-    "up": ("turn {target} volume up {n} percent", "make {target} louder by {n}",
-           "raise {target} volume by {n} percent"),
-    "down": ("turn {target} volume down {n} percent", "lower {target} volume by {n}",
-             "{target}, turn it down {n}"),
+    "up": (
+        "turn {target} volume up by {n} percent",
+        "turn up {target} volume by {n} percent",
+        "raise {target} volume by {n} percent",
+        "make {target} louder by {n}",
+        "increase {target} volume by {n}",
+        "turn {target} volume up by {n}",
+        "turn {target} up by {n}",
+        "turn {target} up {n}",
+        "turn up {target} volume {n}",
+    ),
+    "down": (
+        "turn {target} volume down by {n} percent",
+        "turn down the volume on {target} by {n} percent",
+        "lower {target} volume by {n} percent",
+        "make {target} quieter by {n}",
+        "decrease {target} volume by {n}",
+        "turn {target} volume down by {n}",
+        "turn {target} down by {n}",
+        "turn {target} down {n}",
+        "turn the volume on {target} down {n}",
+    ),
 }
 
 _VOLUME_UP_PHRASES = ("turn up {0} volume", "make {0} a lot louder")
@@ -337,11 +490,19 @@ _VOLUME_UP_PHRASES = ("turn up {0} volume", "make {0} a lot louder")
 _VOLUME_DOWN_PHRASES = ("turn down {0} volume", "not so loud, {0}")
 
 
+def _volume_step_number(step: int, rng: random.Random) -> str:
+    words = _int_to_words(step)
+    if words and rng.random() < 0.5:
+        return words
+    return str(step)
+
+
 def _volume_phrasing(target: str, call: dict[str, Any], seed: str) -> str:
     step = (call.get("arguments") or {}).get("volume_step")
     rng = random.Random(zlib.crc32(f"volume:{seed}".encode()))
     if isinstance(step, int):
-        return rng.choice(_VOLUME_STEP_PHRASES["up" if step > 0 else "down"]).format(target=target, n=abs(step))
+        template = rng.choice(_VOLUME_STEP_PHRASES["up" if step > 0 else "down"])
+        return template.format(target=target, n=_volume_step_number(abs(step), rng))
     if step == "up":
         return rng.choice(_VOLUME_UP_PHRASES).format(target)
     if step == "down":
@@ -432,7 +593,7 @@ def _routine_phrasing(spec: dict[str, Any], call: dict[str, Any], seed: str) -> 
     return rng.choice(actions).format(name)
 
 
-def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenance=None) -> str:
+def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenance=None, half_durations: bool = True) -> str:
     if call["name"] == "HassVacuumStart" and target:
         rng = random.Random(zlib.crc32(f"vacuum:{seed}".encode()))
         if rng.random() < 0.6:
@@ -445,12 +606,21 @@ def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenan
             if provenance is not None:
                 provenance.append({"source": "sayso_fallback", "intent": call["name"]})
             return rng.choice(_TV_SHOW_PHRASES[call["name"]]).format(target=target)
+    if call["name"] == "HassStartTimer" and not target and half_durations:
+        arguments = call.get("arguments") or {}
+        for shape, halves in _HALF_DURATION_PHRASES:
+            if arguments == shape:
+                rng = random.Random(zlib.crc32(f"half_timer:{seed}".encode()))
+                if rng.random() < 0.5:
+                    if provenance is not None:
+                        provenance.append({"source": "sayso_fallback", "intent": call["name"]})
+                    return rng.choice(_HALF_TIMER_PHRASES).format(half=rng.choice(halves))
     phrasing = _vacuum_paraphrase(target, call, seed) or _level_phrasing(target, call, seed)
     if phrasing is not None:
         if provenance is not None:
             provenance.append({"source": "sayso_fallback", "intent": call["name"]})
         return phrasing
-    rendered = render_call(call, target, seed, provenance=provenance)
+    rendered = render_call(call, target, seed, provenance=provenance, half_durations=half_durations)
     if rendered is not None:
         if rendered.lower().startswith("next track"):
             return "skip to the " + rendered
@@ -462,7 +632,10 @@ def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenan
     name, arguments = call["name"], call.get("arguments") or {}
     if name in _UNNAMED_TIMER_PHRASES and not (arguments.get("name") or arguments.get("area") or arguments.get("floor")):
         rng = random.Random(zlib.crc32(f"timer:{seed}".encode()))
-        return rng.choice(_UNNAMED_TIMER_PHRASES[name]).format(delta=_duration(arguments))
+        phrases = _UNNAMED_TIMER_PHRASES[name]
+        if sum(1 for unit in ("hours", "minutes", "seconds") if arguments.get(unit)) > 1:
+            phrases = tuple(phrase for phrase in phrases if "{delta} timer" not in phrase)
+        return rng.choice(phrases).format(delta=_duration(arguments))
     if not target and (arguments.get("area") or arguments.get("floor")):
         domain = arguments.get("domain") or arguments.get("device_class") or ["device"]
         noun = domain[0] if isinstance(domain, list) else domain
@@ -519,7 +692,7 @@ def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenan
     if name == "HassMediaPrevious":
         return f"go back to the previous track on {target}"
     if name == "HassMediaSearchAndPlay":
-        return f"search for {arguments['search_query']} on {target}"
+        return media_search_phrasing(target, arguments["search_query"], random.Random(zlib.crc32(f"media:{seed}".encode())))
     if name == "HassStartTimer":
         duration = _duration(arguments)
         suffix = f" called {arguments['name']}" if arguments.get("name") else ""
@@ -540,7 +713,8 @@ def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenan
         delta = _duration(arguments)
         verb = "add" if name == "HassIncreaseTimer" else "take"
         preposition = "to" if name == "HassIncreaseTimer" else "off"
-        return f"{verb} {delta} {preposition} the {arguments.get('name', '')} timer".replace("  ", " ")
+        scope = "".join(f" {preposition} {arguments[key]}" for key, preposition in (("area", "in"), ("floor", "on")) if arguments.get(key))
+        return f"{verb} {delta} {preposition} the {arguments.get('name', '')} timer{scope}".replace("  ", " ")
     if name == "HassTimerStatus":
         scope = "".join(f" {preposition} {arguments[key]}" for key, preposition in (("area", "in"), ("floor", "on")) if arguments.get(key))
         return f"what is the {arguments.get('name', '')} timer status{scope}".replace("  ", " ")
@@ -574,6 +748,46 @@ def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenan
         return f"{op} the {_plural(domain_label)} in {area}"
     return f"control {target}"
 
+_PILE_DETERMINERS = frozenset({"the", "my", "our", "your", "this", "that"})
+
+
+def _drop_leading_determiner(template: str, slot: str, value: str) -> str:
+    prefix_words = template.split("{" + slot + "}", 1)[0].split()
+    if not prefix_words or prefix_words[-1].casefold() not in _PILE_DETERMINERS:
+        return value
+    head, sep, rest = value.partition(" ")
+    if sep and head.casefold() in _PILE_DETERMINERS:
+        return rest
+    return value
+
+
+def _pile_seed(spec: dict[str, Any], seed: str) -> str:
+    if _WORDING_PILE is None:
+        return seed
+    calls = (spec.get("expected") or {}).get("calls") or []
+    if len(calls) != 1:
+        return seed
+    capability = spec.get("capability")
+    operation = spec.get("operation")
+    if not capability or not operation:
+        return seed
+    op = f"{capability}.{operation}"
+    arguments = calls[0].get("arguments") or {}
+    name = arguments.get("name")
+    if name:
+        slot, value = "name", (spec.get("spoken_targets") or {}).get(name) or name
+    elif arguments.get("area"):
+        slot, value = "area", str(arguments["area"])
+    else:
+        return seed
+    key = spec.get("phrasing_seed") or spec.get("candidate_id") or f"seed:{spec.get('seed', 0)}"
+    rng = random.Random(zlib.crc32(f"wording-pile:{key}".encode()))
+    if rng.random() >= _WORDING_PILE_SHARE:
+        return seed
+    entry = _WORDING_PILE.choose(op, slot, rng)
+    if entry is None:
+        return seed
+    return _WORDING_PILE.render(entry, _drop_leading_determiner(entry["template"], entry["slot"], value))
 
 def expand_utterance(spec: dict[str, Any]) -> str:
     spec = apply_bare_media_room_phrasing(spec)
@@ -590,6 +804,8 @@ def expand_utterance(spec: dict[str, Any]) -> str:
         template = _CONVERSATIONAL[index]
         return template.format(action=action)
     seed = request_seed_from_spec(spec)
+    if (spec.get("expected") or {}).get("kind") == "action":
+        seed = _pile_seed(spec, seed)
     if category == "clean_direct" and seed:
         return seed[0].upper() + seed[1:]
     return seed

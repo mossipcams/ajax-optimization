@@ -331,7 +331,7 @@ def test_satellite_share_in_generated_homes():
             with_satellite += 1
             sat = satellites[0]
             assert sat["area"] == home["sayso_entity_area"]
-            assert sat["name"] in {f"{home['sayso_entity_area']} Satellite", "SaySo Satellite"}, sat["name"]
+            assert sat["name"] in {f"{home['sayso_entity_area']} Satellite", f"{home['sayso_entity_area']} Voice Assistant", f"{home['sayso_entity_area']} Voice PE", "Sayso Satellite"} or re.fullmatch(r"Home Assistant Voice [0-9a-f]{4}", sat["name"]), sat["name"]
             assert sat["device_class"] == "speaker", sat
     share = with_satellite / 80
     assert 0.2 <= share <= 0.4, share
@@ -428,6 +428,7 @@ def test_contrast_clause_needs_exactly_one_satellite_and_one_other_device():
 
 
 def test_satellite_rows_from_generated_scenarios_target_the_satellite():
+    from generators.capability_registry import is_satellite
     from generators.validation import validate_row
 
     seen = 0
@@ -436,7 +437,7 @@ def test_satellite_rows_from_generated_scenarios_target_the_satellite():
         scenario = build_scenario(index=index, seed=20261020, capability="media_players",
                                   operation=operation, home_size=24)
         call = scenario["expected"]["calls"][0]
-        satellites = [e["name"] for e in scenario["home"]["entities"] if e.get("name", "").endswith(" Satellite")]
+        satellites = [e["name"] for e in scenario["home"]["entities"] if is_satellite(e)]
         if call["arguments"]["name"] not in satellites:
             continue
         assert call["name"] in {"HassMediaPause", "HassMediaPlayerMute"}, call

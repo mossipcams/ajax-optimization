@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -200,12 +201,14 @@ DIFFICULTY_TAGS: tuple[str, ...] = (
 )
 
 SATELLITE_NAME_SUFFIX = "Satellite"
-# Synthetic satellites are "<Area> Satellite" or "SaySo Satellite" (the real home uses "Sayso Satellite").
-SATELLITE_NAME_BRAND = "SaySo"
+SATELLITE_NAME_SUFFIXES = (f" {SATELLITE_NAME_SUFFIX}", " Voice Assistant", " Voice PE")
+_HA_VOICE_SATELLITE_NAME = re.compile(r"Home Assistant Voice [0-9a-f]{4}", re.IGNORECASE)
 
 
 def is_satellite_name(name: str) -> bool:
-    return name.casefold().endswith(f" {SATELLITE_NAME_SUFFIX}".casefold())
+    return name.casefold().endswith(tuple(suffix.casefold() for suffix in SATELLITE_NAME_SUFFIXES)) or (
+        _HA_VOICE_SATELLITE_NAME.fullmatch(name) is not None
+    )
 
 
 def is_satellite(entity: dict[str, Any]) -> bool:

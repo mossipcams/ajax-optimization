@@ -171,6 +171,10 @@ def gold_from_scenario(scenario: dict[str, Any], rng: random.Random) -> dict[str
 
     if operation == "query_state":
         entity = _pick_entity(scenario, rng)
+        if targeting == "area":
+            area_status = _expected_area_status(scenario)
+            if area_status is not None:
+                return area_status
         if entity is None:
             return expected_no_action("clarify")
         return expected_status(entity)
@@ -234,6 +238,34 @@ def gold_from_scenario(scenario: dict[str, Any], rng: random.Random) -> dict[str
     if entity is None:
         return expected_no_action("clarify")
     return expected_action(entity, operation, rng)
+
+
+def _expected_area_status(scenario: dict[str, Any]) -> dict[str, Any] | None:
+    home = scenario["home"]
+    capability = scenario["capability"]
+    area = scenario.get("area") or home["sayso_entity_area"]
+    if not entities_in_area(home, capability, area):
+        return None
+    area_rng = random.Random(zlib.crc32(
+        f"area-status:{scenario.get('scenario_index')}:{scenario.get('seed')}".encode()))
+    call = build_call_for_operation(None, capability, "query_state", area_rng, area=area)
+    from generators.utterances import _AREA_STATUS_WORDS
+    arguments = call.get("arguments") or {}
+    if arguments.get("domain") not in _AREA_STATUS_WORDS:
+        arguments.pop("domain", None)
+    domain = arguments.get("domain")
+    covered = [
+        entity for entity in home["entities"]
+        if entity["area"] == area and (domain is None or entity["domain"] == domain)
+    ]
+    if not covered:
+        return None
+    return {
+        "kind": "status",
+        "calls": [call],
+        "state": covered[0]["state"],
+        "area_states": [(entity["name"], entity["state"]) for entity in covered],
+    }
 
 
 def _name_timer(call: dict[str, Any], scenario: dict[str, Any], rng: random.Random) -> None:

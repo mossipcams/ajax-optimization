@@ -95,28 +95,123 @@ def satellite_contrast_spoken(utterance: str, call_names: list[str], excluded: l
     return lowered.endswith(f", not the {excluded[0].casefold()}")
 
 
+def _area_wide_areas(calls: list[dict[str, Any]]) -> set[str]:
+    areas: set[str] = set()
+    for call in calls:
+        arguments = call.get("arguments") or {}
+        if not arguments.get("name") and arguments.get("area"):
+            areas.add(str(arguments["area"]).casefold())
+    return areas
+
+
+def _can_perform(entity: dict[str, Any], capability: str | None, operation: str | None) -> bool:
+    if not capability or not operation or not entity.get("capability"):
+        return True
+    return entity_supports(entity, capability, operation)
+
+
+def _longer_suffix_selects(names: list[str], text: str) -> bool:
+    """True when exactly one name has a 3+ word suffix appearing in the text, selecting it."""
+    matching = 0
+    for name in names:
+        words = name.split()
+        if any(
+            re.search(rf"\b{re.escape(' '.join(words[start:]))}\b", text)
+            for start in range(len(words) - 2)
+        ):
+            matching += 1
+    return matching == 1
+
+
+def _generic_phrase_ambiguity(
+    text: str, entities: list[dict[str, Any]], targeted: set[str], area_wide: set[str], action_areas: set[str],
+    capability: str | None, operation: str | None,
+) -> bool:
+    sharers_by_tail: dict[tuple[str, tuple[str, str]], list[str]] = {}
+    for entity in entities:
+        words = str(entity.get("name") or "").casefold().split()
+        if len(words) >= 2 and _can_perform(entity, capability, operation):
+            key = (str(entity.get("area") or "").casefold(), tuple(words[-2:]))
+            sharers_by_tail.setdefault(key, []).append(str(entity["name"]).casefold())
+    scoped_tails = set()
+    for entity in entities:
+        if str(entity.get("area") or "").casefold() not in action_areas:
+            continue
+        words = str(entity.get("name") or "").casefold().split()
+        if len(words) >= 2 and re.search(rf"\b{re.escape(f'{words[-2]} {words[-1]}')}\b", text):
+            scoped_tails.add(tuple(words[-2:]))
+    for (area, tail), names in sharers_by_tail.items():
+        if len(names) < 2:
+            continue
+        if area not in action_areas and tail in scoped_tails:
+            continue
+        phrase = f"{tail[0]} {tail[1]}"
+        if not re.search(rf"\b{re.escape(phrase)}\b", text):
+            continue
+        if any(re.search(rf"(?<!\w){re.escape(name)}(?!\w)", text) for name in names):
+            continue
+        if _longer_suffix_selects(names, text):
+            continue
+        possessive_counts = Counter(
+            word for name in names for word in name.split()[:-2] if "'" in word
+        )
+        selectors = {word for word, count in possessive_counts.items() if count == 1}
+        if any(re.search(rf"(?<!\w){re.escape(word)}(?!\w)", text) for word in selectors):
+            continue
+        if any(name not in targeted and area not in area_wide for name in names):
+            return True
+    return False
+
+
 def shared_alias_action_conflict(spec: dict[str, Any]) -> bool:
+    """True when an action utterance says a shared alias without naming every sharer.
+
+    Aliases resolve home-wide, so a shared alias flags whenever a same-area sharer is not targeted
+    by name or by an area-wide call. A multi-word name tail ending several same-area entity names
+    is scoped by _generic_phrase_ambiguity to the areas the calls act on.
+    """
     if (spec.get("expected") or {}).get("kind") != "action":
         return False
     text = (spec.get("utterance") or "").casefold()
     entities = (spec.get("home") or {}).get("entities") or []
+    calls = (spec.get("expected") or {}).get("calls") or []
+    targeted = {str((call.get("arguments") or {}).get("name", "")).casefold() for call in calls}
+    area_wide = _area_wide_areas(calls)
+    areas_by_name = {
+        str(entity.get("name") or "").casefold(): str(entity.get("area") or "").casefold()
+        for entity in entities
+    }
+    action_areas = set(area_wide)
+    for name in targeted:
+        if name in areas_by_name:
+            action_areas.add(areas_by_name[name])
     for entity in entities:
         for alias in entity.get("aliases") or []:
             needle = alias.casefold()
             if not re.search(rf"\b{re.escape(needle)}\b", text):
                 continue
-            if any(
-                other is not entity
-                and other.get("area") == entity.get("area")
+            sharers = [
+                other for other in entities
+                if other.get("area") == entity.get("area")
                 and needle in {name.casefold() for name in other.get("aliases") or []}
-                for other in entities
+            ]
+            if len(sharers) < 2:
+                continue
+            if any(
+                other["name"].casefold() not in targeted
+                and str(other.get("area") or "").casefold() not in area_wide
+                for other in sharers
             ):
                 return True
+    capability = spec.get("capability")
+    operation = spec.get("operation")
+    if _generic_phrase_ambiguity(text, entities, targeted, area_wide, action_areas, capability, operation):
+        return True
     return False
 
 
 def validate_spec(spec: dict[str, Any]) -> str | None:
-    if spec.get("shared_alias") and shared_alias_action_conflict(spec):
+    if shared_alias_action_conflict(spec):
         return "shared_alias_action"
     expected = spec.get("expected") or {}
     calls = expected.get("calls") or []
@@ -229,6 +324,29 @@ def _names_one_clarify_candidate(spec: dict[str, Any], lowered: str) -> bool:
     return sum(spoken(name) for name in candidates) == 1
 
 
+_DURATION_UNITS = ("hours", "minutes", "seconds")
+_DURATION_UNIT_NAMES = {"hour": "hours", "minute": "minutes", "second": "seconds"}
+
+
+@lru_cache(maxsize=1)
+def _half_duration_phrases() -> dict[tuple, tuple[str, ...]]:
+    from generators.ohf import HALF_DURATION_FORMS
+    from generators.utterances import _HALF_DURATION_PHRASES
+
+    phrases: dict[tuple, tuple[str, ...]] = defaultdict(tuple)
+    for shape, halves in _HALF_DURATION_PHRASES:
+        phrases[tuple(sorted(shape.items()))] += tuple(halves)
+    for form, halves in HALF_DURATION_FORMS.items():
+        shape = tuple(sorted((_DURATION_UNIT_NAMES[unit], int(number)) for number, unit in form))
+        phrases[shape] += tuple(halves)
+    return dict(phrases)
+
+
+def _has_half_duration(arguments: dict[str, Any], lowered: str) -> bool:
+    shape = tuple(sorted((key, arguments[key]) for key in _DURATION_UNITS if arguments.get(key)))
+    return any(phrase in lowered for phrase in _half_duration_phrases().get(shape, ()))
+
+
 def validate_utterance(spec: dict[str, Any]) -> str | None:
     utterance = spec.get("utterance")
     if not isinstance(utterance, str) or not utterance.strip():
@@ -251,10 +369,13 @@ def validate_utterance(spec: dict[str, Any]) -> str | None:
             for scope in ("area", "floor"):
                 if arguments.get(scope) and str(arguments[scope]).casefold() not in lowered:
                     return "missing_expected_scope"
+            half_duration = _has_half_duration(arguments, lowered)
             for key, value in arguments.items():
                 if isinstance(value, bool) or not isinstance(value, (int, float)):
                     continue
                 if key in {"hours", "minutes", "seconds"} and value == 0:
+                    continue
+                if half_duration and key in _DURATION_UNITS:
                     continue
                 if key == "volume_step":
                     value = abs(value)

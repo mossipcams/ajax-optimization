@@ -11,13 +11,14 @@ from typing import Any
 
 from generators.capability_registry import (
     CAPABILITIES,
-    SATELLITE_NAME_BRAND,
     SATELLITE_NAME_SUFFIX,
     CapabilitySpec,
     required_features,
 )
 
 SATELLITE_RATE = 0.30
+SAYSO_SATELLITE_NAME = "Sayso Satellite"
+SAYSO_SATELLITE_RATE = 0.25
 
 _AREAS = (
     "Kitchen", "Living Room", "Dining Room", "Master Bedroom", "Guest Bedroom", "Kids Room",
@@ -62,7 +63,7 @@ _ROLES = {
         "TV", "Television", "OLED TV", "Streaming TV", "Speaker", "Soundbar", "Smart Speaker",
         "Echo Dot", "QLED TV", "Smart TV", "Apple TV", "Chromecast", "Fire TV", "Shield TV",
         "Nest Mini", "HomePod Mini", "Sonos Speaker", "Bookshelf Speakers", "Subwoofer", "Radio",
-        "Echo Show", "Streaming Stick",
+        "Echo Show", "Streaming Stick", "Receiver", "AV Receiver", "Projector Box",
     ),
     "climate": (
         "Thermostat", "Heating", "Heat Pump", "Air Conditioner", "Mini Split", "Boiler", "AC Unit",
@@ -598,6 +599,126 @@ def _nickname_alias(
     return None
 
 
+SUFFIX_LISTED_RATE = 0.25
+_SUFFIX_NOUNS = (
+    "air purifier", "space heater", "ceiling fan", "smart plug", "light strip", "floor fan",
+    "desk fan", "tower fan", "robot vacuum", "smart speaker",
+)
+
+
+def suffix_alias(name: str) -> str | None:
+    words = name.split()
+    lowered = name.casefold()
+    brands = {brand.casefold() for values in (*_BRANDS.values(), *_HOLDOUT_BRANDS.values()) for brand in values}
+    for noun in _SUFFIX_NOUNS:
+        if not lowered.endswith(" " + noun):
+            continue
+        if len(words) >= 3 or words[0].casefold() in brands or any(char.isdigit() for char in words[0]):
+            return noun
+    return None
+
+
+def suffix_collides(suffix: str, entity: dict[str, Any], entities: list[dict[str, Any]]) -> bool:
+    key = suffix.casefold()
+    return any(
+        text.casefold() == key or text.casefold().endswith(" " + key)
+        for other in entities if other is not entity
+        for text in (other["name"], *other.get("aliases", []))
+    )
+
+
+def apply_suffix_aliases(entities: list[dict[str, Any]], rng: random.Random) -> None:
+    listed = rng.random() < SUFFIX_LISTED_RATE
+    for entity in entities:
+        suffix = suffix_alias(entity["name"])
+        if not listed or suffix is None or suffix_collides(suffix, entity, entities):
+            continue
+        if suffix.casefold() not in {alias.casefold() for alias in entity.get("aliases", [])}:
+            entity["aliases"] = [*entity.get("aliases", []), suffix]
+
+
+FRESH_WORD_RATE = 0.10
+FLOOR_THERMOSTAT_RATE = 0.25
+# Descriptor words the generator never used before. fresh_words() drops any that appear in eval
+# cases or eval homes without also being generator vocabulary, so a fresh name cannot leak eval text.
+_FRESH_WORD_POOL = (
+    "Alder", "Amber", "Aspen", "Atlas", "Aurora", "Basil", "Birch", "Bramble", "Briar", "Cairn",
+    "Cedar", "Cerulean", "Chalk", "Cinder", "Citrine", "Clover", "Cobalt", "Comet", "Coral",
+    "Cove", "Crimson", "Cypress", "Dapple", "Delta", "Dune", "Ebony", "Elder", "Ember", "Fable",
+    "Fennel", "Fern", "Fjord", "Flint", "Frost", "Gable", "Galaxy", "Garnet", "Glacier", "Glen",
+    "Granite", "Harbor", "Hazel", "Heron", "Indigo", "Ivory", "Jasper", "Juniper", "Kestrel",
+    "Lark", "Larch", "Lattice", "Lilac", "Linden", "Lumen", "Maple", "Marble", "Meadow", "Mesa",
+    "Mica", "Moss", "Nectar", "Nimbus", "Nova", "Oak", "Obsidian", "Olive", "Onyx", "Opal",
+    "Orchid", "Osprey", "Otter", "Pebble", "Pewter", "Piper", "Plume", "Poppy", "Prism", "Quartz",
+    "Quill", "Raven", "Reed", "Ridge", "Rowan", "Russet", "Sable", "Saffron", "Sage", "Sapphire",
+    "Sequoia", "Sierra", "Silver", "Slate", "Sorrel", "Spruce", "Stellar", "Summit", "Tamarind",
+    "Teal", "Thistle", "Timber", "Topaz", "Tulip", "Umber", "Velvet", "Verdant", "Violet",
+    "Walnut", "Willow", "Wren", "Yarrow", "Zephyr", "Zinnia", "Amethyst", "Beacon", "Bellflower",
+    "Cascade", "Driftwood", "Everglade", "Foxglove", "Hollow", "Ironwood", "Kingfisher",
+    "Lantern", "Magnolia", "Northstar", "Parasol", "Quarry", "Redwood", "Sundial", "Tidewater",
+    "Wicker",
+)
+
+
+def _word_tokens(text: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", text.casefold()))
+
+
+@lru_cache(maxsize=1)
+def _generator_word_tokens() -> frozenset[str]:
+    phrases = [*_AREAS, *_OUTDOOR_AREAS, *_OWNERS, *_SUFFIX_NOUNS, *_NICKNAMES]
+    for table in (_ROLES, _ROOM_LIGHTS, _BRANDS, _DEVICE_AREAS, _SPECIAL_NAMES, _NICKNAMES):
+        for values in table.values():
+            phrases.extend(values)
+    phrases.extend(template[0] for template in _ENTITY_TEMPLATES.values())
+    return frozenset(token for phrase in phrases for token in _word_tokens(phrase))
+
+
+@lru_cache(maxsize=1)
+def _eval_word_tokens() -> frozenset[str]:
+    cases = _eval_cases_module()
+    if cases is None:
+        return frozenset()
+    texts = [case.utterance for case in cases.load_all_cases()]
+    texts.extend(_eval_entity_names())
+    return frozenset(token for text in texts for token in _word_tokens(text))
+
+
+@lru_cache(maxsize=1)
+def fresh_words() -> tuple[str, ...]:
+    holdout_tokens = {token for values in holdout_slice().values() for phrase in values
+                      for token in _word_tokens(phrase)}
+    excluded = (_eval_word_tokens() - _generator_word_tokens()) | holdout_tokens
+    return tuple(word for word in _FRESH_WORD_POOL if word.casefold() not in excluded)
+
+
+def fresh_word_name(name: str, area: str, rng: random.Random, taken: set[str]) -> str:
+    # The device noun (final word) and the area prefix are never replaced; only a descriptor is.
+    if rng.random() >= FRESH_WORD_RATE:
+        return name
+    words = name.split()
+    area_words = [word.casefold() for word in area.split()]
+    prefix = len(area_words) if [word.casefold() for word in words[:len(area_words)]] == area_words else 0
+    positions = list(range(prefix, len(words) - 1))
+    if not positions:
+        return name
+    replaced = list(words)
+    replaced[rng.choice(positions)] = rng.choice(fresh_words())
+    candidate = " ".join(replaced)
+    if _slug(candidate) in taken or candidate.casefold() in _reserved_names():
+        return name
+    return candidate
+
+
+def floor_thermostat_name(floor: str, rng: random.Random, taken: set[str]) -> str | None:
+    if rng.random() >= FLOOR_THERMOSTAT_RATE:
+        return None
+    name = floor + " Thermostat"
+    if _slug(name) in taken or name.casefold() in _reserved_names():
+        return None
+    return name
+
+
 def _slug(name: str) -> str:
     return "".join(char.casefold() if char.isalnum() else "_" for char in name).strip("_")
 
@@ -614,7 +735,7 @@ def _device_class_for(cap: CapabilitySpec) -> str | None:
 
 _MEDIA_PROFILES: tuple[tuple[tuple[str, ...], str, tuple[str, ...]], ...] = (
     (
-        ("satellite",),
+        ("satellite", "voice pe", "voice assistant", "home assistant voice"),
         "speaker",
         # No absolute "volume": a satellite is only adjusted relative to its current level.
         ("on", "off", "play", "pause", "volume_step", "mute"),
@@ -625,9 +746,19 @@ _MEDIA_PROFILES: tuple[tuple[tuple[str, ...], str, tuple[str, ...]], ...] = (
         ("play", "pause", "volume", "volume_step", "mute", "next", "previous", "search"),
     ),
     (
-        ("speaker", "soundbar", "sonos", "stereo", "receiver", "subwoofer", "radio"),
+        ("speaker", "soundbar", "sonos", "stereo", "subwoofer", "radio"),
         "speaker",
         ("on", "off", "play", "pause", "volume", "volume_step", "mute", "next", "previous"),
+    ),
+    (
+        ("receiver",),
+        "receiver",
+        ("on", "off", "volume", "volume_step", "mute"),
+    ),
+    (
+        ("projector",),
+        "projector",
+        ("on", "off", "mute"),
     ),
     (
         ("streaming tv", "roku", "apple tv", "chromecast", "shield", "fire tv", "streaming stick"),
@@ -709,6 +840,16 @@ def _eval_entity_names() -> frozenset[str]:
             names.add(entity["name"])
             names.update(entity.get("aliases") or [])
     return frozenset(name.casefold() for name in names)
+
+
+@lru_cache(maxsize=1)
+def _nickname_names() -> frozenset[str]:
+    return frozenset(nickname.casefold() for nicknames in _NICKNAMES.values() for nickname in nicknames)
+
+
+def _reserved_names() -> frozenset[str]:
+    # Names no generated entity may take: eval-overlap names and nickname aliases.
+    return _eval_entity_names() | _nickname_names()
 
 
 _HOLDOUT = False
@@ -971,11 +1112,11 @@ def _random_entity_name(
             name = f"{area} {role}"
         if rng.random() < 0.26:
             name = name[:1] + name[1:].lower()
-        if _slug(name) not in taken and name.casefold() not in _eval_entity_names():
+        if _slug(name) not in taken and name.casefold() not in _reserved_names():
             return name
     for number in range(2, len(taken) + 3):
         name = f"{area} {roles[0]} {number}"
-        if _slug(name) not in taken and name.casefold() not in _eval_entity_names():
+        if _slug(name) not in taken and name.casefold() not in _reserved_names():
             return name
     raise ValueError("no unique fixture name")
 
@@ -1025,12 +1166,19 @@ def generate_home(
     owners = tuple(rng.sample(_HOLDOUT_OWNERS if holdout else _OWNERS, 2))
     nickname_rng = random.Random(f"nicknames:{index}:{size}")
     used_nicknames: set[str] = set()
+    # Separate seeded streams, so the main rng sequence (and every other field) is unchanged.
+    fresh_rng = random.Random(f"fresh-words:{index}:{size}")
+    floor_rng = random.Random(f"floor-thermostat:{index}:{size}")
     for slot, capability in enumerate(capabilities):
         area = rng.choice(device_areas(capability, rooms, holdout=holdout))
         name = _random_entity_name(
             capability, area, slot, index, rng, taken, owners,
             bare_name_rate=bare_name_rate, holdout=holdout,
         )
+        if not holdout:
+            name = fresh_word_name(name, area, fresh_rng, taken)
+            if capability == "climate":
+                name = floor_thermostat_name(floors[area], floor_rng, taken) or name
         taken.add(_slug(name))
         noun = _ENTITY_TEMPLATES[capability][0].lower()
         bare = not name.casefold().startswith(area.casefold())
@@ -1060,6 +1208,8 @@ def generate_home(
                 "lights", base["area"], len(entities), index, rng, taken, owners,
                 bare_name_rate=bare_name_rate, holdout=holdout,
             )
+            if not holdout:
+                name = fresh_word_name(name, base["area"], fresh_rng, taken)
             taken.add(_slug(name))
             entities.append(
                 make_entity(
@@ -1080,6 +1230,8 @@ def generate_home(
                 "media_players", elsewhere, len(entities), index, rng, taken, owners,
                 bare_name_rate=bare_name_rate, holdout=holdout,
             )
+            if not holdout:
+                name = fresh_word_name(name, elsewhere, fresh_rng, taken)
             taken.add(_slug(name))
             entities.append(
                 make_entity(
@@ -1092,17 +1244,25 @@ def generate_home(
                 )
             )
 
+    apply_suffix_aliases(entities, random.Random(f"suffix-listing:{index}:{size}"))
     remove_canonical_alias_collisions(entities, avoid_eval_names=True)
     area = sayso_entity_area or entities[index % len(entities)]["area"]
     satellite_rng = random.Random(zlib.crc32(f"satellite:{index}:{size}".encode()))
     outdoor = _HOLDOUT_OUTDOOR_AREAS if holdout else _OUTDOOR_AREAS
     # Satellites are indoor speakers. The draw is taken either way so the RNG stream is unchanged.
     if satellite_rng.random() < SATELLITE_RATE and area not in outdoor:
-        brand_name = f"{SATELLITE_NAME_BRAND} {SATELLITE_NAME_SUFFIX}"
-        area_name = f"{area} {SATELLITE_NAME_SUFFIX}"
-        candidates = [name for name in (brand_name, area_name)
-                      if _slug(name) not in taken and name.casefold() not in _eval_entity_names()]
-        sat_name = satellite_rng.choice(candidates) if candidates else None
+        hex_suffix = f"{satellite_rng.randrange(0x10000):04x}"
+        candidates = [
+            f"{area} {SATELLITE_NAME_SUFFIX}", f"{area} Voice Assistant", f"{area} Voice PE",
+            f"Home Assistant Voice {hex_suffix}", SAYSO_SATELLITE_NAME,
+        ]
+        free = [name for name in candidates
+                if _slug(name) not in taken and name.casefold() not in _reserved_names()]
+        others = [name for name in free if name != SAYSO_SATELLITE_NAME]
+        if SAYSO_SATELLITE_NAME in free and satellite_rng.random() < SAYSO_SATELLITE_RATE:
+            sat_name = SAYSO_SATELLITE_NAME
+        else:
+            sat_name = satellite_rng.choice(others) if others else None
     else:
         sat_name = None
     if sat_name is not None:

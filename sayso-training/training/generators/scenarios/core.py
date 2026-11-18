@@ -10,25 +10,34 @@ from typing import Any
 
 from generators.capability_registry import (
     CAPABILITIES,
+    SATELLITE_NAME_SUFFIX,
     CapabilitySpec,
     SupportLevel,
     entities_supporting,
+    is_satellite,
     operation_spec,
     required_features,
     trainable_operations,
 )
 from generators.gold import gold_from_scenario, target_names_from_expected
 from generators.tools import namespaced_tool_name
+from generators.planning import GENERIC_CONTRAST_RATE
 from generators.utterances import _plural
 from generators.homes import (
     _ENTITY_TEMPLATES,
+    _eval_entity_names,
     _random_entity_name,
     device_areas,
     entities_of_capability,
     generate_home,
     make_entity,
     remove_canonical_alias_collisions,
+    suffix_alias,
+    suffix_collides,
 )
+
+
+SUFFIX_SPOKEN_RATE = 0.3
 
 
 def home_areas(home: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
@@ -125,11 +134,13 @@ def _usable_aliases(entity: dict[str, Any], home: dict[str, Any]) -> list[str]:
         if other is not entity
         for name in [other["name"], *other.get("aliases", [])]
     }
+    other_full_names = [other["name"].casefold() for other in home["entities"] if other is not entity]
     return [
         alias
         for alias in entity.get("aliases", [])
         if alias.casefold() != entity["name"].casefold()
         and alias.casefold() not in other_names
+        and not any(name.endswith(" " + alias.casefold()) for name in other_full_names)
     ]
 
 
@@ -276,6 +287,65 @@ def _is_timer_pair(index: int, seed: int) -> bool:
     return pair_rng.random() < _TIMER_PAIR_RATE
 
 
+_GENERIC_CONTRAST_OPERATIONS = frozenset({"turn_on", "turn_off"})
+_GENERIC_CONTRAST_NOUNS = {"lights": ("light",), "media_players": ("speaker", "satellite")}
+_GENERIC_AREA_FIRST_RATE = 0.6
+
+
+def _inject_generic_target(
+    home: dict[str, Any], cap_entities: list[dict[str, Any]], capability: str, index: int, rng: random.Random,
+) -> dict[str, Any] | None:
+    area = home["sayso_entity_area"]
+    taken = {e["entity_id"].split(".", 1)[1] for e in home["entities"]}
+    if capability == "media_players":
+        name = f"{area} {SATELLITE_NAME_SUFFIX}"
+        if _slug(name) in taken or name.casefold() in _eval_entity_names():
+            return None
+    else:
+        owners = tuple(home.get("owners") or ())
+        name = _random_entity_name(
+            capability, area, len(home["entities"]), index, rng, taken=taken,
+            **({"owners": owners} if owners else {}),
+        )
+    entity = make_entity(
+        name=name, capability=capability, area=area,
+        floor=home_areas(home)[1].get(area, "Main Floor"), rng=rng,
+    )
+    home["entities"].append(entity)
+    cap_entities.append(entity)
+    return entity
+
+
+def _generic_contrast_target(
+    home: dict[str, Any], cap_entities: list[dict[str, Any]], capability: str, operation: str,
+    index: int, seed: int,
+) -> tuple[dict[str, Any], str] | None:
+    if capability not in _GENERIC_CONTRAST_NOUNS or operation not in _GENERIC_CONTRAST_OPERATIONS:
+        return None
+    rng = random.Random(zlib.crc32(f"generic-contrast:{index}:{seed}".encode()))
+    if rng.random() >= GENERIC_CONTRAST_RATE:
+        return None
+    area = home["sayso_entity_area"]
+    domain = CAPABILITIES[capability].domain
+    if not any(e["area"] == area and e["domain"] != domain for e in home["entities"]):
+        return None
+    in_area = [e for e in home["entities"] if e["area"] == area and e["domain"] == domain]
+    if not in_area:
+        target = _inject_generic_target(home, cap_entities, capability, index, rng)
+    elif len(in_area) == 1 and any(e is in_area[0] for e in cap_entities):
+        target = in_area[0]
+    else:
+        return None
+    if target is None or not entities_supporting([target], capability, operation):
+        return None
+    if capability == "media_players" and not is_satellite(target):
+        return None
+    noun = rng.choice(_GENERIC_CONTRAST_NOUNS[capability])
+    if rng.random() < _GENERIC_AREA_FIRST_RATE:
+        return target, f"the {area.lower()} {noun}"
+    return target, f"the {noun} in the {area.lower()}"
+
+
 def pick_target(
     cap_entities: list[dict[str, Any]], index: int, usage: Counter[str] | None
 ) -> dict[str, Any]:
@@ -320,6 +390,7 @@ def build_scenario(
         ^ zlib.crc32(capability.encode())
         ^ zlib.crc32(operation.encode())
     )
+    generated_home = home is None
     if home is None:
         home = generate_home(index, home_size, rng, bare_name_rate=bare_name_rate)
     if family == "datetime":
@@ -393,7 +464,13 @@ def build_scenario(
         usable = [entity for entity in cap_entities if _usable_aliases(entity, home)]
         if usable:
             cap_entities = usable
-    target_entity = pick_target(cap_entities, index, target_usage) if cap_entities else None
+    generic = None
+    if generated_home and robustness == "ordinary" and family in {None, "ordinary"} and cap_entities:
+        generic = _generic_contrast_target(home, cap_entities, capability, operation, index, seed)
+    if generic is not None:
+        target_entity = generic[0]
+    else:
+        target_entity = pick_target(cap_entities, index, target_usage) if cap_entities else None
     scenario: dict[str, Any] = {
         "scenario_index": index,
         "attempt": attempt,
@@ -422,6 +499,8 @@ def build_scenario(
             "home_size": home_size,
         },
     }
+    if generic is not None:
+        scenario["spoken_targets"] = {target_entity["name"]: generic[1]}
     if robustness == "exclusion" and len(cap_entities) >= 2:
         in_area = [e for e in cap_entities if e["area"] == home["sayso_entity_area"]]
         if len(in_area) >= 3 and rng.random() < 0.6:
@@ -487,17 +566,24 @@ def build_scenario(
         aliases = _usable_aliases(target_entity, home)
         if aliases:
             scenario["spoken_targets"] = {target_entity["name"]: rng.choice(aliases)}
+    if target_entity and robustness != "exclusion" and not scenario.get("spoken_targets"):
+        suffix_rng = random.Random(zlib.crc32(f"suffix:{seed}:{index}:{attempt}".encode()))
+        suffix = suffix_alias(target_entity["name"])
+        if suffix and not suffix_collides(suffix, target_entity, home["entities"]) and suffix_rng.random() < SUFFIX_SPOKEN_RATE:
+            scenario["spoken_targets"] = {target_entity["name"]: suffix}
     scenario["semantic_id"] = semantic_id(scenario)
     scenario["tier"] = CAPABILITIES[capability].tier
     return scenario
 
 
-def pick_targeting(cap: CapabilitySpec, rng: random.Random, robustness: str) -> str:
+def pick_targeting(cap: CapabilitySpec, rng: random.Random, robustness: str, operation: str | None = None) -> str:
     if robustness in {"multi_action", "exclusion"}:
         return "multiple"
     if robustness in {"ambiguity", "unavailable"}:
         return "area"
     modes = list(cap.targeting_modes)
+    if operation == "clean_area":
+        modes = [mode for mode in modes if mode != "floor"]
     if "individual" in modes:
         return rng.choices(modes, weights=[3] + [1] * (len(modes) - 1), k=1)[0]
     return rng.choice(modes)

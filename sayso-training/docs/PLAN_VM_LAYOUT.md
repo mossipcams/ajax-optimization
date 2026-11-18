@@ -17,7 +17,7 @@ SaySo trains two models on this one GPU, with separate pipelines:
 
 | Model | Trainer | Guide |
 | --- | --- | --- |
-| SaySo LFM (`LFM2.5-230M-Base`, full SFT) | Unsloth (`unsloth` container) | [training/README.md](../training/README.md) |
+| SaySo LFM (`LFM2.5-230M-Base`, full SFT) | Unsloth (`sayso-trainer` container) | [training/README.md](../training/README.md) |
 | Wake word | LiveKit (`livekit-wakeword`, host venv) | [training/wake/README.md](../training/wake/README.md) |
 
 vLLM (Qwen3.8-27B-INT4, `:8000`, ~97% VRAM) shares the same GPU for serving.
@@ -271,7 +271,7 @@ only while switching states.
 | Command | Does |
 | --- | --- |
 | `gpu serve` | If the state is `train:*` and its PID is alive, refuse. Otherwise start vLLM and set `serve`. Replaces `start-vllm.sh`. |
-| `gpu train lfm <cmd>` | Stop vLLM, set `train:lfm` with its PID, run `<cmd>` via `docker exec unsloth`, set `idle` on exit (via a trap, so crashes release it too). Restarting vLLM is a flag (`--serve-after`), not the default. |
+| `gpu train lfm <cmd>` | Stop vLLM, set `train:lfm` with its PID, run `<cmd>` via `docker exec sayso-trainer`, set `idle` on exit (via a trap, so crashes release it too). Restarting vLLM is a flag (`--serve-after`), not the default. |
 | `gpu train wake <cmd>` | Same, with `<cmd>` run by `/srv/llm/data/wake/.venv` on the host. |
 | `gpu stop` | Stop vLLM and set `idle`. Replaces `stop-vllm.sh`. |
 | `gpu status` | State, PID, whether that PID is alive, VRAM use (`rocm-smi`). |

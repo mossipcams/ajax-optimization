@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from adapters import lfm
 from adapters.lfm import (
     LFM_BASE_MODEL,
     forbidden_chatml_tool_call_patterns,
@@ -102,3 +103,47 @@ def test_forbidden_chatml_patterns_include_tool_call_tags() -> None:
 def test_validate_lfm_config_text_rejects_chatml_renderer() -> None:
     with pytest.raises(ValueError):
         validate_lfm_config_text('chat_template_jinja: <tool_call>{"name": "X"}</tool_call>')
+
+
+# Same pair as SaySo tests/test_tool_key_order.py: the runtime must inline the
+# compiled (sorted-key) tool as exactly the text training renders.
+COMPILED_TOOL = {
+    "function": {
+        "description": "Turns on a device",
+        "name": "intent__HassTurnOn",
+        "parameters": {
+            "properties": {"area": {"type": "string"}, "name": {"type": "string"}},
+            "type": "object",
+        },
+    },
+    "type": "function",
+}
+TRAINED_TOOL_TEXT = (
+    '{"type": "function", "function": {"name": "intent__HassTurnOn", '
+    '"description": "Turns on a device", "parameters": {"properties": '
+    '{"area": {"type": "string"}, "name": {"type": "string"}}, "type": "object"}}}'
+)
+
+
+def test_training_inlines_compiled_tools_in_template_key_order(monkeypatch) -> None:
+    seen = []
+
+    class _RecordingTokenizer:
+        def apply_chat_template(self, messages, tools=None, **_):
+            seen.append((messages[0]["content"], tools))
+            return "".join(str(message.get("content")) for message in messages)
+
+    monkeypatch.setattr(lfm, "_tokenizer", lambda _name: _RecordingTokenizer())
+    row = {
+        "messages": [
+            {"role": "system", "content": "Head\nArea context:\nsatellite_area: kitchen"},
+            {"role": "user", "content": "turn on the lamp"},
+            {"role": "assistant", "content": "Done.", "train_on_turn": True},
+        ],
+        "tools": [COMPILED_TOOL],
+    }
+
+    lfm.render_supervised_turn(row, 2, model_name="unused")
+
+    expected = f"Head\nList of tools: [{TRAINED_TOOL_TEXT}]\nArea context:\nsatellite_area: kitchen"
+    assert seen == [(expected, None), (expected, None)]

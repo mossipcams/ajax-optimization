@@ -245,7 +245,7 @@ so `EndpointAdapter` already works.
    the sha256.
 2. **Add `./sayso release-eval <train-id>`.** Start
    `python -m llama_cpp.server` from the same llama-cpp-python version the
-   integration pins. Run it on CPU inside the unsloth container: no GPU lock,
+   integration pins. Run it on CPU inside the sayso-trainer container: no GPU lock,
    no prod Qwen downtime. Serve the GGUF and run `promotion`, `context` and
    `regression` through `EndpointAdapter`. Store the results under the
    training record keyed by GGUF sha (RC4); RC3's comparison reads them.

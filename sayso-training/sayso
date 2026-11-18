@@ -35,8 +35,8 @@ PYTHON = Path(os.environ.get("PYTHON", ROOT / "training/.venv/bin/python"))
 STATE = ROOT / "training/runs/promotion"
 CANDIDATES = ROOT / "training/datasets/candidates"
 GPU_LOCK = os.environ.get("GPU_LOCK", "/srv/llm/bin/gpu")
-GENERATION_CONFIG = "training/configs/generation/full_sft_v13.yaml"
-TRAIN_RECIPE = ["--lr", "5e-5", "--warmup-ratio", "0.1", "--batch", "8", "--accum", "4"]
+GENERATION_CONFIG = "training/configs/generation/full_sft_v17.yaml"
+TRAIN_RECIPE = ["--lr", "5e-5", "--warmup-ratio", "0.1", "--batch", "1", "--accum", "32"]
 VAL_RATIO = 0.05
 BASE_MODEL = os.environ.get("BASE_MODEL", "/srv/llm/lfm/models/LFM2.5-230M-Base")
 DATASET_DIR = Path(os.environ.get("DATASET_DIR", "/srv/llm/data/lfm/datasets"))
@@ -63,11 +63,11 @@ def run(command: list[str], *, cwd: Path = ROOT, env: dict | None = None) -> Non
 def check_trainer_python() -> None:
     probe = (f"import sys; sys.path.insert(0, '{HOST_TRAINING}/training/scripts'); "
              "import sayso_trainer; sayso_trainer.check_installed_stack()")
-    result = subprocess.run(["docker", "exec", "unsloth", TRAINER_PYTHON, "-c", probe],
+    result = subprocess.run(["docker", "exec", "sayso-trainer", TRAINER_PYTHON, "-c", probe],
                             check=False, capture_output=True, text=True)
     if result.returncode != 0:
         tail = "\n".join((result.stdout + result.stderr).strip().splitlines()[-12:])
-        raise SystemExit(f"Trainer interpreter {TRAINER_PYTHON} failed the stack check in the unsloth container "
+        raise SystemExit(f"Trainer interpreter {TRAINER_PYTHON} failed the stack check in the sayso-trainer container "
                          f"(exit {result.returncode}):\n{tail}\n"
                          "rebuild it with scripts/llm-host/sayso-trainer-venv.sh")
 
@@ -197,7 +197,7 @@ def eval_checkpoint(checkpoint: str, out_name: str, suite: str, profile: str | N
                "--suite", suite, "--out", str(results)]
     else:
         cmd = ["docker", "exec", "-e", "CUDA_VISIBLE_DEVICES=", "-e", "HIP_VISIBLE_DEVICES=",
-               "-w", HOST_TRAINING, "unsloth", "bash", "-c",
+               "-w", HOST_TRAINING, "sayso-trainer", "bash", "-c",
                'source ./env.sh && exec python "$@"', "sayso-eval",
                f"{HOST_TRAINING}/training/scripts/eval_checkpoint_cpu.py", checkpoint,
                "--suite", suite, "--out", f"{HOST}/lfm/runs/sayso-promotion/{out_name}"]
@@ -348,12 +348,18 @@ def cmd_generate(args: argparse.Namespace) -> None:
 
 
 def cmd_validate(_: argparse.Namespace) -> None:
+    import yaml
     record = current()
     if digest(Path(record["dataset_path"])) != record["dataset_sha256"]:
         raise SystemExit("Candidate changed since generation; generate a fresh run before validation")
     record.update(validated=False, canary_passed=False)
     write_current(record)
-    run([str(PYTHON), str(ROOT / "scripts/preflight.py"), record["dataset_path"]])
+    command = [str(PYTHON), str(ROOT / "scripts/preflight.py"), record["dataset_path"]]
+    recipe = yaml.safe_load((ROOT / record["config"]).read_text(encoding="utf-8")) or {}
+    preflight_config = recipe.get("preflight")
+    if preflight_config:
+        command += ["--config", str(ROOT / preflight_config)]
+    run(command)
     record["validated"] = True
     record["validated_sha256"] = record["dataset_sha256"]
     write_current(record)
@@ -506,7 +512,7 @@ def export_release(training: dict, checkpoint: str) -> tuple[Path, str]:
     name = Path(checkpoint).name
     local = local_output(training) / "release"
     local.mkdir(parents=True, exist_ok=True)
-    run(["docker", "exec", "-e", "CUDA_VISIBLE_DEVICES=", "-e", "HIP_VISIBLE_DEVICES=", "unsloth", "python",
+    run(["docker", "exec", "-e", "CUDA_VISIBLE_DEVICES=", "-e", "HIP_VISIBLE_DEVICES=", "sayso-trainer", "python",
          CONVERTER, checkpoint, "--outfile", f"{training['output']}/release/{name}-F16.gguf", "--outtype", "f16"])
     gguf = local / f"{name}-{RELEASE_QUANT}.gguf"
     run([str(PYTHON), str(ROOT / "training/scripts/export_gguf.py"), str(local / f"{name}-F16.gguf"), str(gguf),

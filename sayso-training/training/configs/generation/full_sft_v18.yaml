@@ -1,0 +1,113 @@
+# Full fine-tune corpus v18: ordinary everyday commands across all device types, edge-case families cut to small shares; ordinary ops are weighted, settings carries brightness/color/speed/temperature.
+version: 1
+count: 40000
+seed: 20261118
+split: train
+output: training/datasets/sayso_full_sft_v18_20261118.jsonl
+manifest: training/datasets/sayso_full_sft_v18_20261118.manifest.json
+
+tokenizer:
+  model: LiquidAI/LFM2.5-230M-Base
+
+schema:
+  path: schemas/sayso-tool-schema-v2.json
+
+allocations:
+  ordinary: 0.585
+  settings: 0.05
+  junk: 0.15
+  clarify: 0.04
+  follow_up: 0.03
+  unsupported: 0.04
+  unavailable: 0.02
+  status: 0.03
+  correction: 0.01
+  multi_action: 0.01
+  aliases: 0.015
+  exclusion: 0.005
+  absence: 0.01
+  timer_context: 0.005
+
+ordinary_ops:
+  lights.turn_on: 10
+  lights.turn_off: 10
+  media_players.volume_up: 3
+  media_players.volume_down: 3
+  media_players.volume_set: 2
+  media_players.pause: 3
+  media_players.play: 3
+  media_players.turn_on: 2
+  media_players.turn_off: 2
+  media_players.mute: 1
+  media_players.unmute: 1
+  media_players.next_track: 1
+  media_players.previous_track: 1
+  media_players.search_and_play: 1
+  switches.turn_on: 3
+  switches.turn_off: 3
+  fans.turn_on: 3
+  fans.turn_off: 3
+  climate.turn_on: 3
+  climate.turn_off: 3
+  covers.open: 3
+  covers.close: 3
+  locks.lock: 3
+  locks.unlock: 3
+  timers.start: 4
+  timers.cancel: 2
+  timers.status: 2
+  timers.cancel_all: 1
+  timers.pause: 1
+  timers.unpause: 1
+  timers.increase: 1
+  timers.decrease: 1
+  vacuums.start: 1
+  vacuums.return_home: 1
+  vacuums.clean_area: 1
+  scenes.activate: 1
+
+cross_cutting:
+  area:
+    enabled: true
+    distribution: training/configs/area_distribution_v1.json
+
+generation:
+  stt_noise_rate: 0.15
+  stt_log_rate: 0.10
+  paraphrase_enabled: false
+  token_budget: 8000
+  near_duplicate_limit: 8
+  max_attempts_multiplier: 20
+  synthetic_only: false
+  bare_name_rate: 0.35
+
+wording_pile:
+  path: training/configs/piles/wording_v2.jsonl
+  sha256: 570e5c945ea747918d864a859bb7d0d23ea3ce8b83e514096756a53a9c6c8685
+  share: 0.3
+
+real_home:
+  path: training/fixtures/real_home.json
+  rate: 0.10
+  entity_cap: 0
+
+grounding:
+  rate: 0.08
+
+discrimination:
+  rate: 0.015
+
+coverage:
+  min_positive_per_operation: 40
+  min_positive_per_tool: 100
+  max_absence_rate: 0.10
+  get_datetime_positive_min: 150
+  min_behavior_share: 0.003
+
+pairs:
+  withheld_tool: 1.0
+
+recipe_exclusions:
+  withheld_from_catalog: []
+
+preflight: training/configs/preflight_v18.yaml
