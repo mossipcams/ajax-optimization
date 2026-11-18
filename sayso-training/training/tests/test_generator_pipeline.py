@@ -72,7 +72,6 @@ def _digest_under_hash_seed(hash_seed: str) -> str:
     return result.stdout.strip()
 
 
-@pytest.mark.slow
 def test_generation_is_reproducible_across_processes() -> None:
     assert _digest_under_hash_seed("0") == _digest_under_hash_seed("1")
 

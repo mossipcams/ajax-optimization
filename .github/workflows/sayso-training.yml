@@ -36,7 +36,7 @@ jobs:
         # tests are marked slow and skipped here. The full suite runs locally via
         # scripts/ci-local.sh before a pull request is opened or updated.
         run: |
-          grep -E '^(hassil|jsonschema|PyYAML|hypothesis|pytest|voluptuous)==' training/requirements.txt > "$RUNNER_TEMP/ci-requirements.txt"
+          grep -E '^(hassil|jsonschema|PyYAML|hypothesis|pytest|syrupy|voluptuous)==' training/requirements.txt > "$RUNNER_TEMP/ci-requirements.txt"
           python -m pip install -r "$RUNNER_TEMP/ci-requirements.txt"
 
       - name: Set PYTHONPATH as training_paths.py does
