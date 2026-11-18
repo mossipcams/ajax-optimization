@@ -7,11 +7,11 @@
 hassil==3.12.1
 jsonschema==4.26.0
 PyYAML==6.0.3
-voluptuous==0.15.2
-transformers==5.18.0
-tokenizers==0.23.2
+voluptuous==0.16.0
+transformers==5.23.0
+tokenizers==0.23.3
 Jinja2==3.1.6
 requests>=2.32.0
-hypothesis==6.168.4
-pytest==9.1.1
-llama-cpp-python==0.3.36
+hypothesis==6.170.15
+pytest==9.2.0
+llama-cpp-python==0.3.37
