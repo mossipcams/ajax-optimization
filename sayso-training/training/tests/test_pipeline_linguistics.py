@@ -2,6 +2,8 @@
 import random
 import re
 
+import pytest
+
 from generators import pipeline
 from generators.config import GeneratorConfig
 from generators.deduplication import DuplicateTracker
@@ -62,6 +64,7 @@ def test_pipeline_preserves_alias_grammar_and_category(monkeypatch):
     assert spoken.casefold() in row["messages"][1]["content"].casefold()
 
 
+@pytest.mark.slow
 def test_generated_requests_are_grammatical_english():
     result = pipeline.run_generation(GeneratorConfig(count=400, seed=20260909))
     requests = [message["content"] for row in result["rows"]
@@ -81,7 +84,7 @@ def test_generated_requests_are_grammatical_english():
         core = re.sub(r"^(?:hey|okay|please|could you|can you|when you get a chance),?\s+",
                       "", request.strip(), flags=re.I)
         assert re.match(r"(?:turn|switch|set|change|make|open|close|lock|lok|unlock|start|stop|"
-                        r"run|activate|transition|bring|play|pause|unpause|resume|mute|unmute|dim|"
+                        r"run|activate|transition|bring|play|pause|unpause|hold|freeze|resume|mute|unmute|dim|"
                         r"brighten|increase|decrease|adjust|raise|lower|cancel|vacuum|clean|"
                         r"skip|go|search|add|take|press|remove|continue|"
                         r"send|create|begin|check|tell|what|how|is|are|which|do|does|could|can|"

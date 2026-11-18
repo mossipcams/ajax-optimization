@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parent
 sys.path.insert(0, str(ROOT))
 
+import pytest
+
 from generators.config import GeneratorConfig
 from generators.grounding import training_variants
 from generators.planning import verify_feasible
@@ -32,6 +34,7 @@ def test_v5_recipe_is_feasible() -> None:
     assert cfg.stt_log_rate == 0.10
 
 
+@pytest.mark.slow
 def test_v5_recipe_grounding_does_not_starve_families() -> None:
     from dataclasses import replace
 

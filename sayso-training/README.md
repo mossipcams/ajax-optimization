@@ -4,6 +4,8 @@ This directory contains the training tools imported from SaySo. Run the commands
 in the older training and wake runbooks from this directory: `training/.venv`,
 `training/configs`, `satellite/models`, and `scripts/` are relative to here.
 
+The canonical end-to-end LFM training pipeline — stages, commands, artifacts, and the invariants a run must not deviate from — is documented in [docs/PIPELINE.md](docs/PIPELINE.md).
+
 | Path | Purpose |
 |---|---|
 | `training/` | Corpus generators, adapters, recipes, fixtures, tests, and training/export commands. |
@@ -34,6 +36,35 @@ python scripts/wake_train.py --help
 The submodule is pinned to SaySo `origin/main` commit
 `738959a3b279a9d40c7f9258c97b8dd650472740`. Normal initialization uses the recorded
 commit; it does not follow later upstream changes.
+
+The full test suite is the verification gate, and it runs locally. Use
+`scripts/ci-local.sh` from anywhere in the checkout. It exports the merge of `HEAD`
+with `origin/main` into a temp tree, fills `vendor/SaySo` from the pinned submodule
+commit, and runs `python -m pytest training/tests -q` in a Python 3.12 venv with the
+exact CI pins (`SAYSO_CI_VENV`, default `~/.cache/sayso-ci/venv`):
+
+```bash
+sayso-training/scripts/ci-local.sh
+sayso-training/scripts/ci-local.sh --remote USER@HOST
+sayso-training/scripts/ci-local.sh --post
+```
+
+`--remote` streams the same tree and script to a temp dir on the host and runs the
+suite there (use the llm VM for heavy runs). The last line is `local-ci: PASS|FAIL
+<counts> head=<sha> main=<sha>`, and the exit status is pytest's. The result is
+recorded under the git dir for `HEAD`. `--post` sets a `local-ci` commit status on
+`HEAD` from that record; it fails if `HEAD` has no record or is not pushed.
+
+The GitHub pull request job (`.github/workflows/sayso-training.yml`) is light. It runs
+`training/tests -m 'not slow'` with only the non-tokenizer pins, which skips the
+Hugging Face tokenizer tests. There is no nightly job and no manual dispatch. The fast
+set includes the runtime-contract behaviour tests, which check the generator output
+against the live Home Assistant result shapes (query tools, timers, labels). They need
+no network access to Home Assistant and no secrets. To run only the fast set locally:
+
+```bash
+python -m pytest training/tests -m 'not slow' -q
+```
 
 `training_paths.py` defines the shared Python search path. `env.sh` exports it
 for direct scripts and their subprocesses; pytest and `./sayso` load the same

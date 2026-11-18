@@ -31,11 +31,13 @@ def unique_no_action_hint(spec: dict[str, Any], rng: random.Random) -> str:
         })
     capability = spec["capability"]
     operation = spec["operation"]
-    area = spec["home"]["sayso_entity_area"]
+    intent = spec.get("request_intent") or {}
+    area = intent.get("area") or spec["home"]["sayso_entity_area"]
     entity = None
     if capability != "timers":
+        noun = intent.get("name") or ("routine" if capability == "scripts" else _ENTITY_TEMPLATES[capability][0].lower())
         entity = make_entity(
-            name=f"the {area} {'routine' if capability == 'scripts' else _ENTITY_TEMPLATES[capability][0].lower()}",
+            name=f"the {area} {noun}",
             capability=capability, area=area, floor="Main Floor", rng=rng,
         )
     template = _UNAVAILABLE_REQUESTS.get((capability, operation))

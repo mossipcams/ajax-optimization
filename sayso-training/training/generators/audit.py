@@ -8,7 +8,19 @@ import re
 from adapters.schema import tool_schema_map, validate_tool_arguments
 from generators.capability_registry import SCRIPT_ACTION_TOOL
 from generators.coverage import ABSENCE, bare_tool_name, classify_row, expected_tool
-from generators.validation import check_quality_eval_overlap, is_satellite_contrast, satellite_contrast_spoken
+from generators.validation import (
+    check_label_conflicts,
+    check_quality_eval_overlap,
+    gate_areas,
+    gate_clarification,
+    gate_hidden_capability_refusal,
+    gate_named_device_calls,
+    gate_offered_tools,
+    gate_on_off_polarity,
+    gate_scripts,
+    is_satellite_contrast,
+    satellite_contrast_spoken,
+)
 
 
 def _shares_long_word(name: str, alias: str) -> bool:
@@ -194,6 +206,113 @@ def audit_rows(
             "positive_by_domain_targeting": {
                 f"{cap}/{op}/{mode}": n for (cap, op, mode), n in sorted(by_domain.items())
             }}
+
+
+HARD_GATES = (
+    ("gate_offered_tools", gate_offered_tools),
+    ("gate_scripts", gate_scripts),
+    ("gate_areas", gate_areas),
+    ("gate_named_device_calls", gate_named_device_calls),
+    ("gate_clarification", gate_clarification),
+    ("gate_on_off_polarity", gate_on_off_polarity),
+    ("gate_hidden_capability_refusal", gate_hidden_capability_refusal),
+)
+_FAMILY_FIELDS = ("family", "template_family", "grounding_family", "category")
+_EXAMPLE_LIMIT = 3
+
+
+def _row_id(row: dict, line_number: int):
+    return (row.get("metadata") or {}).get("candidate_id", line_number)
+
+
+def _conflict_view(row: dict) -> dict:
+    messages = []
+    for message in row.get("messages") or []:
+        role = message.get("role")
+        if role in {"system", "user"}:
+            messages.append({"role": role, "content": message.get("content")})
+        elif role == "assistant" and message.get("train_on_turn"):
+            messages.append({
+                "role": role,
+                "train_on_turn": True,
+                "tool_calls": [
+                    {"function": {"name": call["function"]["name"], "arguments": call["function"].get("arguments")}}
+                    for call in message.get("tool_calls") or []
+                ],
+            })
+    return {
+        "messages": messages,
+        "tools": [{"function": {"name": tool["function"]["name"]}} for tool in row.get("tools") or []],
+        "metadata": {"no_action_reason": (row.get("metadata") or {}).get("no_action_reason")},
+    }
+
+
+def audit_corpus(path: Path, *, limit: int | None = None) -> dict:
+    scanned = 0
+    rejected_rows = 0
+    row_ids: list = []
+    conflict_views: list[dict] = []
+    gate_stats = {name: {"rejected": 0, "reasons": Counter(), "examples": []} for name, _ in HARD_GATES}
+    rejected_by_field: dict[str, Counter] = {field: Counter() for field in _FAMILY_FIELDS}
+    with path.open(encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            if limit is not None and scanned >= limit:
+                break
+            row = json.loads(line)
+            scanned += 1
+            row_id = _row_id(row, line_number)
+            row_ids.append(row_id)
+            conflict_views.append(_conflict_view(row))
+            rejected = False
+            for name, gate in HARD_GATES:
+                reason = gate(row)
+                if reason is None:
+                    continue
+                rejected = True
+                stats = gate_stats[name]
+                stats["rejected"] += 1
+                stats["reasons"][reason] += 1
+                if len(stats["examples"]) < _EXAMPLE_LIMIT:
+                    stats["examples"].append(row_id)
+            if rejected:
+                rejected_rows += 1
+                metadata = row.get("metadata") or {}
+                for field in _FAMILY_FIELDS:
+                    if metadata.get(field) is not None:
+                        rejected_by_field[field][str(metadata[field])] += 1
+
+    conflict_groups = check_label_conflicts(conflict_views)
+    conflict_examples = [
+        {
+            "command": group["command"][:160],
+            "rows": {label[:160]: [row_ids[index] for index in indexes[:_EXAMPLE_LIMIT]] for label, indexes in group["labels"].items()},
+        }
+        for group in conflict_groups[:_EXAMPLE_LIMIT]
+    ]
+    return {
+        "corpus": str(path),
+        "limit": limit,
+        "rows_scanned": scanned,
+        "rows_rejected": rejected_rows,
+        "gates": {
+            name: {
+                "rejected": stats["rejected"],
+                "reasons": dict(sorted(stats["reasons"].items())),
+                "examples": stats["examples"],
+            }
+            for name, stats in gate_stats.items()
+        },
+        "label_conflicts": {
+            "groups": len(conflict_groups),
+            "rows": sum(len(indexes) for group in conflict_groups for indexes in group["labels"].values()),
+            "examples": conflict_examples,
+        },
+        "rejected_by_metadata": {
+            field: dict(sorted(counts.items())) for field, counts in rejected_by_field.items() if counts
+        },
+    }
 
 
 if __name__ == "__main__":

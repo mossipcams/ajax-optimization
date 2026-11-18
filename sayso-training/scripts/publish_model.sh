@@ -39,6 +39,15 @@ else
 fi
 echo "    sha256: $SHA"
 
+PROMOTED="${PROMOTED_MODEL:-$REPO_ROOT/training/runs/promotion/promoted_model.json}"
+PROMOTED_SHA="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("gguf_sha256") or "")' "$PROMOTED" 2>/dev/null || true)"
+if [ "$PROMOTED_SHA" != "$SHA" ]; then
+  echo "error: $FILENAME is not the promoted model (${PROMOTED_SHA:-no gguf_sha256 in $PROMOTED})" >&2
+  echo "       run ./sayso eval and ./sayso promote-model for it, or set PROMOTED_MODEL" >&2
+  exit 1
+fi
+echo "    matches promoted model record: $PROMOTED"
+
 SLUG="mossipcams/SaySo"
 URL="https://github.com/$SLUG/releases/download/$TAG/$FILENAME"
 echo "==> target: $URL"

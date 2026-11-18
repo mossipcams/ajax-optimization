@@ -64,6 +64,7 @@ def test_the_tv_survives_the_train_holdout_split():
     assert "TV" not in holdout_entity_names(FIXTURE)
 
 
+@pytest.mark.slow
 def test_mixing_produces_positive_tv_rows_for_its_supported_operations():
     rows = _mixed_run()["rows"]
     operations = set()
@@ -129,6 +130,7 @@ def test_held_out_entities_never_become_training_targets():
     assert not holdout_entity_names(FIXTURE) & set(result["stats"]["real_home"]["target_counts"])
 
 
+@pytest.mark.slow
 def test_an_explicit_cap_binds():
     result = _mixed_run(real_home_entity_cap=3)
     counts = result["stats"]["real_home"]["target_counts"]
@@ -158,6 +160,7 @@ def test_live_snapshot_requires_assist_exposure_and_stale_exports_fail(tmp_path)
         require_exposure_source(FIXTURE, allowed=LIVE_EXPOSURE_SOURCES)
 
 
+@pytest.mark.slow
 def test_saturated_real_home_falls_back_to_synthetic():
     config = GeneratorConfig(
         count=250,

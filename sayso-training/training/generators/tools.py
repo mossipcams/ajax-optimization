@@ -133,7 +133,7 @@ def build_light_set(entity: dict[str, Any], rng: random.Random, operation: str) 
     if operation == "set_brightness":
         args["brightness"] = rng.randrange(10, 101)
     elif operation == "set_color":
-        args["color"] = rng.choice(("red", "blue", "warm white", "cool white"))
+        args["color"] = rng.choice(("red", "blue", "green", "yellow"))
     elif operation == "set_color_temperature":
         args["temperature"] = rng.choice((2700, 3000, 4000, 5000))
     return {"name": "HassLightSet", "arguments": args}
@@ -292,31 +292,24 @@ def build_start_timer(rng: random.Random, *, name: str | None = None) -> dict[st
     return {"name": "HassStartTimer", "arguments": args}
 
 
-def build_pause_timer(*, name: str | None = None, area: str | None = None) -> dict[str, Any]:
-    args: dict[str, Any] = {}
+def _timer_scope_args(name: str | None, area: str | None) -> dict[str, Any]:
     if name:
-        args["name"] = name
+        return {"name": name}
     if area:
-        args["area"] = area
-    return {"name": "HassPauseTimer", "arguments": args}
+        return {"area": area}
+    return {}
+
+
+def build_pause_timer(*, name: str | None = None, area: str | None = None) -> dict[str, Any]:
+    return {"name": "HassPauseTimer", "arguments": _timer_scope_args(name, area)}
 
 
 def build_timer_status(*, name: str | None = None, area: str | None = None) -> dict[str, Any]:
-    args: dict[str, Any] = {}
-    if name:
-        args["name"] = name
-    if area:
-        args["area"] = area
-    return {"name": "HassTimerStatus", "arguments": args}
+    return {"name": "HassTimerStatus", "arguments": _timer_scope_args(name, area)}
 
 
 def build_unpause_timer(*, name: str | None = None, area: str | None = None) -> dict[str, Any]:
-    args: dict[str, Any] = {}
-    if name:
-        args["name"] = name
-    if area:
-        args["area"] = area
-    return {"name": "HassUnpauseTimer", "arguments": args}
+    return {"name": "HassUnpauseTimer", "arguments": _timer_scope_args(name, area)}
 
 
 def build_cancel_timer(*, name: str | None = None, area: str | None = None) -> dict[str, Any]:
@@ -462,19 +455,19 @@ _ENTITY_CALLS: dict[str, Callable[[dict[str, Any], random.Random], dict[str, Any
     "clean_area": lambda entity, _rng: build_vacuum_clean_area(entity),
 }
 
-def _timer_area(rng: random.Random, area: str | None) -> str | None:
-    return area if area and rng.random() < 0.35 else None
+def _maybe_area(rng: random.Random, area: str | None, share: float) -> str | None:
+    return area if area and rng.random() < share else None
 
 
 _TIMER_CALLS: dict[str, Callable[[random.Random, str | None], dict[str, Any]]] = {
-    "cancel_all": lambda _rng, area: build_cancel_all_timers(area),
+    "cancel_all": lambda rng, area: build_cancel_all_timers(_maybe_area(rng, area, 0.5)),
     "start": lambda rng, _area: build_start_timer(rng),
-    "pause": lambda rng, area: build_pause_timer(area=_timer_area(rng, area)),
-    "unpause": lambda rng, area: build_unpause_timer(area=_timer_area(rng, area)),
-    "cancel": lambda rng, area: build_cancel_timer(area=_timer_area(rng, area)),
-    "status": lambda rng, area: build_timer_status(area=_timer_area(rng, area)),
-    "increase": lambda rng, area: build_adjust_timer(rng, direction="increase", area=_timer_area(rng, area)),
-    "decrease": lambda rng, area: build_adjust_timer(rng, direction="decrease", area=_timer_area(rng, area)),
+    "pause": lambda rng, area: build_pause_timer(area=_maybe_area(rng, area, 0.3)),
+    "unpause": lambda rng, area: build_unpause_timer(area=_maybe_area(rng, area, 0.3)),
+    "cancel": lambda _rng, _area: build_cancel_timer(),
+    "status": lambda rng, area: build_timer_status(area=_maybe_area(rng, area, 0.3)),
+    "increase": lambda rng, _area: build_adjust_timer(rng, direction="increase"),
+    "decrease": lambda rng, _area: build_adjust_timer(rng, direction="decrease"),
 }
 
 

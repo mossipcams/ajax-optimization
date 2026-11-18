@@ -21,7 +21,7 @@ each stage; host paths and the GPU lock are defined in `sayso`.
   with the working directory set to `training/` (see `cmd_generate` in `sayso`).
 - **Config it reads:** `training/configs/generation/full_sft_v15.yaml`, named by the
   `GENERATION_CONFIG` constant in `sayso`. The generator configs under
-  `training/configs/generation/` are versioned (`full_sft_v4.yaml`, `full_sft_v5.yaml`, `full_sft_v6.yaml`, `full_sft_v8.yaml`, `full_sft_v9.yaml`, `full_sft_v10.yaml`, `full_sft_v11.yaml`, `full_sft_v15.yaml`,
+  `training/configs/generation/` are versioned (`full_sft_v4.yaml` … `full_sft_v17.yaml`,
   plus `production.yaml` and `smoke.yaml`).
 - **Inputs:** the generation config; the pinned tool contract
   `schemas/sayso-tool-schema-v2.json` (referenced by the config's `schema.path`); the real-home
@@ -61,14 +61,14 @@ explicitly promoted dataset. Both run the same trainer through the GPU lock.
   dataset exists and its sha256 still matches.
 
 Both canary and full invoke, via the GPU lock,
-`gpu train lfm python <host>/training/scripts/train_unsloth_full.py --data <staged> [--eval-data <staged-val>] …`
-with the recipe `--lr 5e-5 --warmup-ratio 0.1` (`TRAIN_RECIPE` in `sayso`). The full run also
-passes `--promotion-record`. Every GPU job runs inside a lock turn: `gpu run <label> -- <cmd>`
+`gpu train lfm <TRAINER_PYTHON> <host>/training/scripts/sayso_trainer.py --data <staged> [--eval-data <staged-val>] …`
+(`TRAINER_PYTHON` is env `SAYSO_TRAINER_PYTHON`, default the SaySo Trainer venv's `bin/python`; its exact pins live in `training/requirements-sayso-trainer.txt`) with the recipe `--lr 5e-5 --warmup-ratio 0.1` (`TRAIN_RECIPE` in `sayso`) plus `--batch 8 --accum 4`. The full run also
+passes `--promotion-record`. `training/scripts/train_unsloth_full.py` is kept only as the rollback trainer until the first full run on `sayso_trainer.py` passes `./sayso eval` against the champion; rollback steps are in the [Rollback section](PLAN_SAYSO_TRAINER_TRL.md#rollback). Every GPU job runs inside a lock turn: `gpu run <label> -- <cmd>`
 (the CLI calls the `gpu` binary at `/srv/llm/bin/gpu`, overridable with `GPU_LOCK`).
 
 - **Config it reads / recipe:** base model `LFM2.5-230M-Base` (`BASE_MODEL` in `sayso`;
-  `--model` default in `training/scripts/train_unsloth_full.py`); learning rate and warmup from
-  `TRAIN_RECIPE`. The trainer is full-parameter (`full_finetuning=True`) with BF16 weights and
+  `--model` default in `training/scripts/sayso_trainer.py`); learning rate and warmup from
+  `TRAIN_RECIPE`. The trainer is full-parameter (`AutoModelForCausalLM.from_pretrained`, no adapter) with BF16 weights and
   compute (`dtype=torch.bfloat16`, `bf16=True`) and no FP32 master weights (`float32_mixed_precision` not set).
 - **Render + group-held-out split:** before training, the CLI renders both splits —
   `training/scripts/split_dataset.py` (whole-scenario-group held-out; the CLI gets `1 - VAL_RATIO`
@@ -134,11 +134,11 @@ direction rather than proceeding.
 ## Pipeline invariants
 
 1. **Base model is `LFM2.5-230M-Base`.** Defined by `BASE_MODEL` in `sayso` and the `--model`
-   default in `training/scripts/train_unsloth_full.py`.
+   default in `training/scripts/sayso_trainer.py`.
 2. **Full-parameter fine-tuning from fresh Base — no LoRA/adapter, no continued merge.** Defined by
-   `full_finetuning=True` in `training/scripts/train_unsloth_full.py`.
-3. **BF16 weights and compute; no FP32 master weights.** Defined by `dtype=torch.bfloat16` /
-   `bf16=True` in `training/scripts/train_unsloth_full.py` and the absence of `float32_mixed_precision=True`.
+   `AutoModelForCausalLM.from_pretrained` with no PEFT/LoRA/adapter call in `training/scripts/sayso_trainer.py`.
+3. **BF16 weights and compute; no FP32 master weights.** Defined by `dtype=torch.bfloat16` on
+   the `AutoModelForCausalLM.from_pretrained` call and `bf16=True` in `SFTConfig` in `training/scripts/sayso_trainer.py`, and the absence of `float32_mixed_precision=True`.
 4. **Group-held-out validation split — a scenario/household group never spans two splits.** Defined
    by `_group_keys`, `assign_split`, and the violation checks in `training/scripts/split_dataset.py`;
    held at `VAL_RATIO = 0.05` in `sayso`.

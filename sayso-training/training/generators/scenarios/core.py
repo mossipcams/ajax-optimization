@@ -160,6 +160,9 @@ def configure_family_scenario(
     removed_tools: list[str] = []
     request_intent: dict[str, Any] | None = None
 
+    if capability == "media_players" and family in {"clarify", "follow_up"}:
+        return "area", "ambiguity", {"area": area, "name": "tv"}, removed_tools
+
     if family in {"clarify", "junk", "follow_up"}:
         _ensure_supporting_in_area(home, capability, operation, area, 2, rng, index)
         return "area", "ambiguity", request_intent, removed_tools
@@ -275,8 +278,6 @@ _FAMILY_GRAPH_CONSTRAINTS = frozenset({
 })
 
 
-_SATELLITE_CONTRAST_OPERATIONS = frozenset({"volume_set", "volume_up", "volume_down"})
-
 _TIMER_PAIR_RATE = 0.2
 
 
@@ -284,18 +285,6 @@ def _is_timer_pair(index: int, seed: int) -> bool:
     # Own RNG so choosing a timer pair leaves the existing multi_action draws untouched.
     pair_rng = random.Random(zlib.crc32(f"timer-pair:{index}:{seed}".encode()))
     return pair_rng.random() < _TIMER_PAIR_RATE
-
-
-def _satellite_contrast_pair(
-    cap_entities: list[dict[str, Any]], capability: str, operation: str
-) -> tuple[dict[str, Any], dict[str, Any]] | None:
-    if capability != "media_players" or operation not in _SATELLITE_CONTRAST_OPERATIONS:
-        return None
-    satellite = next((e for e in cap_entities if is_satellite(e)), None)
-    tv = next((e for e in cap_entities if not is_satellite(e)), None)
-    if satellite is None or tv is None:
-        return None
-    return satellite, tv
 
 
 _GENERIC_CONTRAST_OPERATIONS = frozenset({"turn_on", "turn_off"})
@@ -439,7 +428,9 @@ def build_scenario(
         targeting, robustness, request_intent, removed_tools = configure_family_scenario(
             home, capability, operation, family, rng, index,
         )
-        if family in {"absence", "unsupported"}:
+        if family in {"absence", "unsupported"} or (
+            capability == "media_players" and family in {"clarify", "follow_up"}
+        ):
             inject_missing = False
     cap_entities = entities_of_capability(home, capability)
     if capability == "timers":
@@ -512,17 +503,7 @@ def build_scenario(
         scenario["spoken_targets"] = {target_entity["name"]: generic[1]}
     if robustness == "exclusion" and len(cap_entities) >= 2:
         in_area = [e for e in cap_entities if e["area"] == home["sayso_entity_area"]]
-        pair = _satellite_contrast_pair(cap_entities, capability, operation)
-        if pair is not None and rng.random() < 0.5:
-            target, other = pair if rng.random() < 0.5 else pair[::-1]
-            scenario["target_entities"] = [target]
-            scenario["target_entity"] = target
-            scenario["target_index"] = next(i for i, e in enumerate(cap_entities) if e is target)
-            scenario["area"] = target["area"]
-            scenario["floor"] = target["floor"]
-            scenario["excluded_names"] = [other["name"]]
-            scenario["targeting"] = "multiple"
-        elif len(in_area) >= 3 and rng.random() < 0.6:
+        if len(in_area) >= 3 and rng.random() < 0.6:
             top = max(_near_miss_score(entity, in_area) for entity in in_area)
             kept = rng.choice([e for e in in_area if _near_miss_score(e, in_area) == top])
             scenario["target_entities"] = [e for e in in_area if e is not kept]

@@ -54,7 +54,7 @@ def test_named_routine_action_uses_script_tool_and_name(index: int) -> None:
     assert utterance in {
         "run my Movie Mode routine", "start the Movie Mode routine",
         "run the routine called Movie Mode", "go ahead and kick off Movie Mode", "run Movie Mode",
-    } or utterance.startswith("run ")
+    } or utterance.startswith(("run ", "turn on ", "switch on "))
     assert "Movie Mode" in utterance or utterance.startswith("run ")
 
 

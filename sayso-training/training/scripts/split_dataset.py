@@ -149,6 +149,8 @@ def main() -> int:
     parser.add_argument("input", type=Path)
     parser.add_argument("--out-dir", type=Path, default=ROOT / "datasets")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--train-ratio", type=float, default=0.8)
+    parser.add_argument("--val-ratio", type=float, default=0.1)
     args = parser.parse_args()
 
     links = _Links()
@@ -171,7 +173,7 @@ def main() -> int:
     for line, keys, real in rows:
         root = links.find(keys[0])
         if root not in units:
-            units[root] = assign_split(root)
+            units[root] = assign_split(root, train_ratio=args.train_ratio, val_ratio=args.val_ratio)
         split = units[root]
         assigned.append((line, keys, split))
         buckets[split].append(line)

@@ -2,54 +2,51 @@
 
 from __future__ import annotations
 
-import argparse
-import hashlib
 import json
-import os
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
 
-from unsloth import FastModel
-import torch
-from datasets import Dataset
-from transformers import DataCollatorForSeq2Seq, Trainer, TrainingArguments
+SCRIPTS = Path(__file__).resolve().parent
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
 
-HOST = "/workspace/host"
+from train_common import (
+    CANARY_STEPS,
+    HOST,
+    build_parser,
+    load_eval_rows,
+    load_rows,
+    preflight,
+    recipe,
+    sha256,
+    stop_callback,
+)
+from train_common import build_manifest as common_build_manifest
+from train_common import parse_args as common_parse_args
+
+
+def build_manifest(args, training_args: dict, data_sha256: str) -> dict:
+    return common_build_manifest(args, training_args, data_sha256, backend="unsloth", trainer_sha256=sha256(__file__))
+
+
+def training_arguments(args, evaluating: bool):
+    from transformers import TrainingArguments
+
+    return TrainingArguments(bf16=True, **recipe(args, evaluating))
+
+
+def parse_args(argv: list[str] | None = None):
+    parser = build_parser()
+    parser.add_argument("--model", default=f"{HOST}/lfm/models/LFM2.5-230M-Base")
+    return common_parse_args(argv, parser=parser)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", default=f"{HOST}/lfm/models/LFM2.5-230M-Base")
-    parser.add_argument("--data", default=f"{HOST}/datasets/sayso_full_sft_v5_20260922_rendered.jsonl")
-    parser.add_argument("--out")
-    parser.add_argument("--cutoff", type=int, default=8192)
-    parser.add_argument("--epochs", type=float, default=2)
-    parser.add_argument("--lr", type=float, default=2e-5)
-    parser.add_argument("--warmup-ratio", type=float, default=0.03)
-    parser.add_argument("--accum", type=int, default=32)
-    parser.add_argument("--max-steps", type=int, default=-1)
-    parser.add_argument("--canary", action="store_true", help="Run 250 production-config optimizer steps")
-    parser.add_argument("--promotion-record", help="Required promotion metadata for full training")
-    parser.add_argument("--resume", default=None)
-    args = parser.parse_args()
-    print(f"argv={sys.argv} lr={args.lr} warmup_ratio={args.warmup_ratio} resume={args.resume}", flush=True)
-    if args.canary:
-        args.max_steps = 250
-    elif not args.promotion_record:
-        parser.error("full training requires --promotion-record from ./sayso promote-dataset")
-    else:
-        with open(args.promotion_record, encoding="utf-8") as handle:
-            promotion = json.load(handle)
-        digest = hashlib.sha256()
-        with open(args.data, "rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(chunk)
-        if (not promotion.get("promoted") or not promotion.get("validation_passed")
-                or not promotion.get("canary_passed")
-                or digest.hexdigest() != promotion.get("rendered_sha256")):
-            parser.error("full training blocked: data does not match the explicitly promoted dataset")
-    args.out = args.out or (
-        f"{HOST}/lfm/runs/sayso-lfm-v5-canary" if args.canary else f"{HOST}/lfm/runs/sayso-lfm-v5-full"
-    )
+    args = parse_args()
+    from unsloth import FastModel
+    import torch
+    from transformers import DataCollatorForSeq2Seq, Trainer
 
     print(f"torch {torch.__version__} hip={torch.version.hip} device={torch.cuda.get_device_name(0)}")
     if not torch.version.hip or not torch.cuda.is_available():
@@ -61,65 +58,39 @@ def main() -> int:
         load_in_4bit=False,
         full_finetuning=True,
     )
+    # LFM2 short-conv layers are causal and unmasked, so pads must trail the real tokens.
+    tokenizer.padding_side = "right"
+    assert tokenizer.pad_token_id is not None, "tokenizer has no pad token; right padding needs one"
 
-    def encode(row):
-        prompt = tokenizer(row["instruction"], add_special_tokens=False)["input_ids"]
-        completion = tokenizer(row["output"], add_special_tokens=False)["input_ids"]
-        return {
-            "input_ids": prompt + completion,
-            "attention_mask": [1] * (len(prompt) + len(completion)),
-            "labels": [-100] * len(prompt) + completion,
-            "length": len(prompt) + len(completion),
-            "supervised": len(completion),
-        }
-
-    def rows(path, stamp):
-        with open(path, encoding="utf-8") as handle:
-            for line in handle:
-                row = json.loads(line)
-                yield {"instruction": row["instruction"], "output": row["output"]}
-
-    stat = os.stat(args.data)
-    dataset = Dataset.from_generator(
-        rows, gen_kwargs={"path": args.data, "stamp": f"{stat.st_size}:{stat.st_mtime_ns}"}
-    )
-    dataset = dataset.map(encode, remove_columns=dataset.column_names, num_proc=6)
-    lengths = dataset["length"]
-    too_long = sum(length > args.cutoff for length in lengths)
-    empty = sum(count == 0 for count in dataset["supervised"])
-    print(
-        f"rows={len(dataset)} max_tokens={max(lengths)} "
-        f"supervised_tokens={sum(dataset['supervised'])} over_cutoff={too_long} empty_completion={empty}"
-    )
-    if too_long or empty:
-        sys.exit("preflight failed")
+    dataset = load_rows(args.data, tokenizer)
+    eval_dataset = load_eval_rows(args.eval_data, tokenizer, args.cutoff) if args.eval_data else None
+    preflight(dataset, args.cutoff)
     dataset = dataset.remove_columns(["length", "supervised"])
     trainer = Trainer(
         model=model,
         train_dataset=dataset,
+        eval_dataset=eval_dataset,
         data_collator=DataCollatorForSeq2Seq(tokenizer, padding=True),
         processing_class=tokenizer,
-        args=TrainingArguments(
-            output_dir=args.out,
-            per_device_train_batch_size=1,
-            gradient_accumulation_steps=args.accum,
-            num_train_epochs=args.epochs,
-            max_steps=args.max_steps,
-            learning_rate=args.lr,
-            lr_scheduler_type="cosine",
-            warmup_ratio=args.warmup_ratio,
-            weight_decay=0.0,
-            bf16=True,
-            optim="adamw_torch",
-            logging_steps=5,
-            save_strategy="steps",
-            save_steps=200,
-            save_total_limit=3,
-            report_to="none",
-            seed=20260922,
-        ),
+        args=training_arguments(args, evaluating=eval_dataset is not None),
+        callbacks=[stop_callback(args.stop_at_step)] if args.stop_at_step else None,
     )
-    trainer.train(resume_from_checkpoint=args.resume)
+    manifest = build_manifest(args, trainer.args.to_dict(), sha256(args.data))
+    Path(args.out).mkdir(parents=True, exist_ok=True)
+    manifest_path = Path(args.out) / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2, default=str) + "\n", encoding="utf-8")
+    result = trainer.train()
+    peak_vram_bytes = torch.cuda.max_memory_allocated() if torch.cuda.is_available() else None
+    rates = [entry["learning_rate"] for entry in trainer.state.log_history if "learning_rate" in entry]
+    manifest.update(finished_at=datetime.now(timezone.utc).isoformat(), final_step=trainer.state.global_step,
+                    max_steps=trainer.state.max_steps, train_metrics=result.metrics, peak_vram_bytes=peak_vram_bytes,
+                    last_logged_learning_rate=rates[-1] if rates else None,
+                    eval_loss=[{"step": entry["step"], "eval_loss": entry["eval_loss"]}
+                               for entry in trainer.state.log_history if "eval_loss" in entry],
+                    parameter_dtypes=sorted({str(param.dtype) for param in model.parameters() if param.requires_grad}),
+                    optimizer_state_dtypes=sorted({str(state["exp_avg"].dtype)
+                                                   for state in trainer.optimizer.state.values() if "exp_avg" in state}))
+    manifest_path.write_text(json.dumps(manifest, indent=2, default=str) + "\n", encoding="utf-8")
     trainer.save_model(f"{args.out}/final")
     tokenizer.save_pretrained(f"{args.out}/final")
     return 0

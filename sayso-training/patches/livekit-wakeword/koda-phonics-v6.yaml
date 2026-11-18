@@ -1,0 +1,126 @@
+# v6: generator fixed. v2-v5 synthesised "Koda" as "ko da" [kˈoʊ dˈɑː] and "Kota" as
+# [kˈoʊ tˈɑː] (CMUDict subword split), so 2/3 of every synthetic positive was the wrong word.
+# The wake word is /koʊdə/ only.
+model_name: koda-phonics-v6
+target_phrases: ["Koda"]
+pronunciations:
+  koda: "K OW1 D AH0"
+adversarial_max_replace: 1
+adversarial_whole_word: true
+
+n_samples: 25000
+n_samples_val: 5000
+n_background_samples: 2000
+n_background_samples_val: 500
+tts_batch_size: 50
+
+# One-slot neighbours of /koʊdə/ that CMUDict lacks (the CMUDict ones - goda, toda, boda,
+# cota, cody, coder, cola, kona, koza, soda, ... - come from the adversarial search).
+# [[...]] is espeak phoneme input: exact pronunciation, bypasses spelling.
+custom_negative_phrases:
+  # carried from v5
+  - "coder"
+  - "yoda"
+  - "code day"
+  - "[[k'oUdi]]"
+  - "Dakota"
+  - "no da"
+  # onset [k] -> voiced / weak / none (minimal pairs: g 88%, h 52%, none 52% fire on v5)
+  - "[[h'oUd@]]"
+  - "Oda"
+  - "[[d'oUd@]]"
+  - "[[tS'oUd@]]"
+  - "[[x'oUd@]]"
+  - "[[b'oUd@]]"
+  # nucleus [oʊ] -> neighbours
+  - "[[k'A:d@]]"
+  - "Kawda"
+  - "Kowda"
+  - "[[k'ud@]]"
+  # medial [d] -> flap / t / other
+  - "[[k'oUt@]]"
+  - "Koba"
+  - "[[k'oUl@]]"
+  - "[[k'oU@]]"
+  # final [ə] -> other vowels, nasal, none (final ɛ fired 98% on v5)
+  - "[[k'oUdE]]"
+  - "[[k'oUdA:]]"
+  - "Kodo"
+  - "[[k'oUd@n]]"
+  - "[[k'oUd@m]]"
+  - "Code"
+  # stress
+  - "[[koUd'@]]"
+  # live false-positive shapes (2026-10-15..17)
+  - "Gold"
+  - "gold star"
+  - "[[g'oUd]]"
+  - "hello"
+  - "[[hA:l'oU]]"
+  - "[['oUl@]]"
+  - "because"
+  - "cause"
+  # exact phone strings of the live false positives (wav2vec2 phoneme CTC)
+  - "[[x'A:lEn]]"
+  - "[[A:l'oUm]]"
+  - "[[g'A:lEn]]"
+  - "[[k'A:z]]"
+  - "[[g'oUdst]]"
+
+noise_scales: [0.98]
+noise_scale_ws: [0.98]
+length_scales: [0.75, 1.0, 1.25]
+slerp_weights: [0.2, 0.35, 0.5, 0.65, 0.8]
+
+data_dir: ./data
+output_dir: ./output
+
+augmentation:
+  clip_duration: 2.0
+  batch_size: 16
+  rounds: 1
+  common_window: true
+  background_paths: [./data/backgrounds]
+  rir_paths: [./data/rirs]
+
+model:
+  model_type: conv_attention
+  model_size: small
+
+steps: 100000
+learning_rate: 0.0001
+weight_decay: 0.01
+label_smoothing: 0.05
+max_negative_weight: 3000
+target_fp_per_hour: 0.1
+
+mine:
+  window_seconds: 2.0
+  include_unknown_groups: false
+  target_split: train
+
+ingest:
+  enabled: true
+  asr:
+    backend: faster_whisper
+    model_size: small
+  split_fractions:
+    train: 0.70
+    dev: 0.15
+  sources:
+    ami:
+      enabled: true
+      quota: 0
+      local_root: real_negs
+
+# Rebalanced: real eMeet positives 10 -> 40 per batch (half of them live misses), real
+# false-positive windows as their own heavily sampled class.
+batch_n_per_class:
+  positive: 50
+  adversarial_negative: 50
+  ACAV100M_sample: 1024
+  background_noise: 50
+  real_positive: 40
+  far_field_replay: 50
+  real_speech_media: 100
+  hard_real_words: 30

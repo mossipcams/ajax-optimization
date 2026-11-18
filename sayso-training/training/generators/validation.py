@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import math
@@ -15,11 +16,11 @@ import yaml
 
 from adapters.schema import tool_schema_map, validate_tool_arguments, v2_openai_tools
 from generators.context import STATIC_CONTEXT_HEADER
-from generators.tools import HA_TOOL_NAMESPACES, namespaced_tool_name, script_tool_name
+from generators.tools import _OPERATION_TOOLS, HA_TOOL_NAMESPACES, namespaced_tool_name, script_tool_name
 from generators.capability_registry import CAPABILITIES, SupportLevel, entity_supports, is_satellite_name
 from generators.config import DEFAULT_TOKEN_BUDGET
-from generators.gold import _type_label
-from generators.stt_noise import _int_to_words, utterance_contains_target
+from generators.gold import _type_label, refers_to
+from generators.stt_noise import _int_to_words, fold_stt_text, utterance_contains_target
 
 _BANNED = re.compile(r"<tool_call>|evals/cases/|tool_call_start", re.I)
 _PLACEHOLDER_AREA = "unassigned"
@@ -543,6 +544,19 @@ def validate_serialized_row(
         return "placeholder_area"
     if not row.get("tools"):
         return "missing_tools"
+    reason = (
+        gate_offered_tools(row)
+        or gate_scripts(row)
+        or gate_areas(row)
+        or gate_named_device_calls(row)
+        or gate_unjustified_refusal(row)
+        or gate_clarification(row)
+        or gate_on_off_polarity(row)
+        or gate_hidden_capability_refusal(row)
+        or gate_call_referents(row)
+    )
+    if reason:
+        return reason
     for message in row.get("messages", []):
         if message.get("role") == "assistant" and message.get("train_on_turn"):
             if message.get("tool_calls"):
@@ -658,6 +672,616 @@ def check_unsupported_calls(row: dict[str, Any], *, home: dict[str, Any] | None 
                     return "entity_lacks_capability"
             elif all(_domain_supports(domain, bare) is False for domain in domains):
                 return "unsupported_operation"
+    return None
+
+
+_KNOWN_HA_TOOLS = frozenset({*_BARE_TOOL, *HA_TOOL_NAMESPACES})
+_AREA_CONTEXT_LINE = re.compile(r"^(?:target_area|satellite_area): (.+)$", re.MULTILINE)
+
+
+def _labelled_calls(row: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        call
+        for message in row.get("messages") or []
+        if message.get("role") == "assistant" and message.get("train_on_turn")
+        for call in message.get("tool_calls") or []
+    ]
+
+
+def gate_offered_tools(row: dict[str, Any]) -> str | None:
+    offered = _offered_schemas(row)
+    if any((call.get("function") or {}).get("name") not in offered for call in _labelled_calls(row)):
+        return "unoffered_tool"
+    return None
+
+
+_NON_TARGET_TOOLS = frozenset({"GetLiveContext", "GetDateTime"})
+_TOGGLE_TOOLS = frozenset({"HassTurnOn", "HassTurnOff"})
+_UNACTIONABLE_DOMAINS = frozenset({"sun", "sensor", "binary_sensor", "number", "weather", "person", "device_tracker", "zone"})
+_NON_HA_LIGHT_COLORS = frozenset({"warm white", "cool white", "soft white", "daylight"})
+
+
+def _domains_argument(arguments: dict[str, Any]) -> set[str]:
+    raw = arguments.get("domain")
+    if isinstance(raw, str):
+        return {raw}
+    if isinstance(raw, list):
+        return {domain for domain in raw if isinstance(domain, str)}
+    return set()
+
+
+def _target_consistency_reason(row: dict[str, Any]) -> str | None:
+    entities = _static_entities(_system_prompt(row))
+    for call in _labelled_calls(row):
+        function = call.get("function") or {}
+        bare = _BARE_TOOL.get(function.get("name"), function.get("name"))
+        if bare in _NON_TARGET_TOOLS or bare in _TIMER_NAME_TOOLS:
+            continue
+        arguments = _parsed_arguments(function.get("arguments"))
+        if arguments is None:
+            return "invalid_call_shape"
+        target = arguments.get("name")
+        if target is None:
+            continue
+        if not isinstance(target, str):
+            return "invalid_call_shape"
+        entries = [entry for entry in entities if target in entry["names"]]
+        if not entries:
+            return "unknown_canonical_entity"
+        area = arguments.get("area")
+        if isinstance(area, str):
+            entries = [entry for entry in entries if area.casefold() in {a.casefold() for a in entry["areas"]}]
+            if not entries:
+                return "target_outside_area"
+        domains = _domains_argument(arguments)
+        if domains and not any(entry["domain"] in domains for entry in entries):
+            return "target_domain_mismatch"
+    return None
+
+
+def _unactionable_domain_reason(row: dict[str, Any]) -> str | None:
+    entities = _static_entities(_system_prompt(row))
+    for call in _labelled_calls(row):
+        function = call.get("function") or {}
+        if _BARE_TOOL.get(function.get("name"), function.get("name")) not in _TOGGLE_TOOLS:
+            continue
+        arguments = _parsed_arguments(function.get("arguments"))
+        if arguments is None:
+            return "invalid_call_shape"
+        target = arguments.get("name")
+        if isinstance(target, str):
+            domains = {entry["domain"] for entry in entities if target in entry["names"]}
+            if domains and domains <= _UNACTIONABLE_DOMAINS:
+                return "unactionable_domain"
+        domains = _domains_argument(arguments)
+        if domains and domains <= _UNACTIONABLE_DOMAINS:
+            return "unactionable_domain"
+    return None
+
+
+def _light_color_reason(row: dict[str, Any]) -> str | None:
+    for call in _labelled_calls(row):
+        function = call.get("function") or {}
+        if _BARE_TOOL.get(function.get("name"), function.get("name")) != "HassLightSet":
+            continue
+        arguments = _parsed_arguments(function.get("arguments"))
+        if arguments is None:
+            return "invalid_call_shape"
+        color = arguments.get("color")
+        if color is None:
+            continue
+        if not isinstance(color, str):
+            return "invalid_call_shape"
+        if color.strip().casefold() in _NON_HA_LIGHT_COLORS:
+            return "unknown_light_color"
+    return None
+
+
+def gate_named_device_calls(row: dict[str, Any]) -> str | None:
+    reason = (
+        check_unsupported_calls(row)
+        or _target_consistency_reason(row)
+        or _unactionable_domain_reason(row)
+        or _light_color_reason(row)
+    )
+    if reason:
+        return reason
+    canonical = {entry["names"][0] for entry in _static_entities(_system_prompt(row)) if entry["names"]}
+    calls = [
+        tool_call
+        for message in row.get("messages") or []
+        if message.get("role") == "assistant"
+        for tool_call in message.get("tool_calls") or []
+    ]
+    for call in calls:
+        function = call["function"]
+        bare = _BARE_TOOL.get(function["name"], function["name"])
+        target = (_parsed_arguments(function.get("arguments")) or {}).get("name")
+        if bare in _KNOWN_HA_TOOLS and bare not in _TIMER_NAME_TOOLS and target is not None:
+            if target not in canonical:
+                return "unknown_canonical_entity"
+    return None
+
+
+def gate_scripts(row: dict[str, Any]) -> str | None:
+    offered = _offered_schemas(row)
+    for call in _labelled_calls(row):
+        function = call.get("function") or {}
+        name = function.get("name")
+        if not isinstance(name, str) or name in _KNOWN_HA_TOOLS or "__" in name:
+            continue
+        if name not in offered:
+            return "unexposed_script"
+        arguments = _parsed_arguments(function.get("arguments"))
+        if arguments is None:
+            return "invalid_call_shape"
+        if arguments:
+            return "script_tool_takes_no_arguments"
+    return None
+
+
+def _visible_areas(system_prompt: str) -> set[str]:
+    areas = {area.casefold() for entry in _static_entities(system_prompt) for area in entry["areas"]}
+    areas.update(value.casefold() for value in _AREA_CONTEXT_LINE.findall(system_prompt) if value != "none")
+    return areas
+
+
+def gate_areas(row: dict[str, Any]) -> str | None:
+    visible = _visible_areas(_system_prompt(row))
+    for call in _labelled_calls(row):
+        arguments = _parsed_arguments((call.get("function") or {}).get("arguments"))
+        if arguments is None:
+            return "invalid_call_shape"
+        area = arguments.get("area")
+        if area is None:
+            continue
+        if not isinstance(area, str):
+            return "invalid_call_shape"
+        if area.casefold() not in visible:
+            return "unknown_area"
+    return None
+
+
+_DID_YOU_MEAN = re.compile(r"Did you mean (.+)\?")
+_WHICH_DEVICE = re.compile(r"Which (?:device|routine) did you mean\?")
+_WHICH_IN_AREA = re.compile(r"Which (.+) do you mean, the one in the (.+) or the (.+)\?")
+_CLARIFY_LIST_SEPARATOR = re.compile(r",\s*or\s+|,\s+|\s+or\s+")
+
+
+def _clarify_candidates(text: str) -> list[tuple[str, str | None]] | None:
+    if _WHICH_DEVICE.fullmatch(text):
+        return []
+    if match := _WHICH_IN_AREA.fullmatch(text):
+        noun, first, second = match.groups()
+        return [(noun, first), (noun, second)]
+    if match := _DID_YOU_MEAN.fullmatch(text):
+        return [(part, None) for part in _CLARIFY_LIST_SEPARATOR.split(match.group(1))]
+    return None
+
+
+def _spellings(text: str) -> set[str]:
+    lowered = text.casefold()
+    return {lowered, lowered.removeprefix("the ")}
+
+
+def _clarification_entities(row: dict[str, Any]) -> tuple[dict[str, Any], ...]:
+    entries = list(_static_entities(_system_prompt(row)))
+    for tool in row.get("tools") or []:
+        schema = tool.get("function") or {}
+        name = schema.get("name", "")
+        if name in _KNOWN_HA_TOOLS or "__" in name:
+            continue
+        canonical, separator, aliases = schema.get("description", "").partition(". Aliases: ")
+        names = [canonical]
+        if separator:
+            try:
+                parsed = ast.literal_eval(aliases)
+            except (SyntaxError, ValueError):
+                parsed = []
+            if isinstance(parsed, list):
+                names.extend(alias for alias in parsed if isinstance(alias, str))
+        entries.append({"names": names, "domain": "script", "areas": []})
+    timers = set()
+    for message in row.get("messages") or []:
+        if message.get("role") != "assistant":
+            continue
+        for call in message.get("tool_calls") or []:
+            function = call.get("function") or {}
+            if _BARE_TOOL.get(function.get("name"), function.get("name")) != "HassStartTimer":
+                continue
+            name = (_parsed_arguments(function.get("arguments")) or {}).get("name")
+            if isinstance(name, str):
+                timers.add(f"{name} timer".casefold())
+    entries.extend({"names": [name], "domain": "timer", "areas": []} for name in sorted(timers))
+    return tuple(entries)
+
+
+def _resolve_candidate(text: str, area: str | None, entries: tuple[dict[str, Any], ...]) -> int | None:
+    spellings = _spellings(text)
+    matches = [
+        index
+        for index, entry in enumerate(entries)
+        if spellings & {name.casefold() for name in entry["names"]}
+        and (area is None or area.casefold() in {a.casefold() for a in entry["areas"]})
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
+_CLARIFY_TYPE_WORDS = {
+    cap.domain: {
+        _type_label(cap.name),
+        _type_label(cap.name).removesuffix("s"),
+    }
+    for cap in CAPABILITIES.values()
+}
+for _domain, _words in {
+    "light": ("lamp",),
+    "switch": ("plug",),
+    "media_player": ("speaker", "tv", "television"),
+    "script": ("routine",),
+}.items():
+    _CLARIFY_TYPE_WORDS[_domain].update(word for noun in _words for word in (noun, noun + "s"))
+_CLARIFY_TYPES = {
+    domain: re.compile(r"\b(?:" + "|".join(re.escape(word) for word in sorted(words)) + r")\b")
+    for domain, words in _CLARIFY_TYPE_WORDS.items()
+}
+_TV_WORD = re.compile(r"\b(?:t[ .]*v|television)s?\b")
+
+
+def _genuine_match(entry: dict[str, Any], domains: set[str], named_areas: set[str], tv: bool) -> bool:
+    if entry["domain"] not in domains:
+        return False
+    if named_areas and entry["domain"] not in {"script", "timer"}:
+        if not named_areas & {area.casefold() for area in entry["areas"]}:
+            return False
+    entity = {"name": entry["names"][0], "aliases": entry["names"][1:]}
+    return not tv or any(refers_to(entity, word) for word in ("tv", "television"))
+
+
+def _clarification_reason(candidates: list[tuple[str, str | None]], reference: str, row: dict[str, Any]) -> str | None:
+    entries = _clarification_entities(row)
+    identities = []
+    for text, area in candidates:
+        identity = _resolve_candidate(text, area, entries)
+        if identity is None:
+            return "clarify_unexposed_candidate"
+        identities.append(identity)
+    if len(set(identities)) < len(identities):
+        return "clarify_duplicate_candidate"
+    reference = reference.casefold()
+    tv = bool(_TV_WORD.search(reference))
+    domains = {"media_player"} if tv else {
+        domain for domain, pattern in _CLARIFY_TYPES.items() if pattern.search(reference)
+    }
+    if not domains:
+        return None
+    areas = {
+        area for area in _visible_areas(_system_prompt(row))
+        if re.search(rf"\b{re.escape(area)}\b", reference)
+    }
+    if sum(_genuine_match(entries[index], domains, areas, tv) for index in identities) < 2:
+        return "clarify_without_genuine_choice"
+    return None
+
+
+def gate_clarification(row: dict[str, Any]) -> str | None:
+    messages = row.get("messages") or []
+    for index, message in enumerate(messages):
+        if message.get("role") != "assistant" or not message.get("train_on_turn") or message.get("tool_calls"):
+            continue
+        candidates = _clarify_candidates(str(message.get("content") or ""))
+        if candidates is None:
+            continue
+        reference = next(
+            (str(m.get("content") or "") for m in reversed(messages[:index]) if m.get("role") == "user"),
+            "",
+        )
+        reason = _clarification_reason(candidates, reference, {**row, "messages": messages[:index]})
+        if reason:
+            return reason
+    return None
+
+
+_OHF_RULES = json.loads(Path(__file__).with_name("ohf_en.json").read_text())["rules"]
+_SCENE_OPERATIONS = frozenset({"activate", "run"})
+
+
+def _ohf_verbs(rule: str) -> frozenset[str]:
+    group = re.search(r"\(([^)]*)\)", _OHF_RULES[rule])
+    return frozenset(group.group(1).split("|")) if group else frozenset()
+
+
+_ON_VERBS = (
+    frozenset(op for op, tool in _OPERATION_TOOLS.items() if tool == "HassTurnOn" and "_" not in op) - _SCENE_OPERATIONS
+) | _ohf_verbs("open")
+_OFF_VERBS = frozenset(op for op, tool in _OPERATION_TOOLS.items() if tool == "HassTurnOff" and "_" not in op) | _ohf_verbs("close")
+_TURN_VERBS = _ohf_verbs("turn")
+_CLAUSE_BREAKS = frozenset({".", ",", ";", "!", "?", "and", "then", "but", "or"})
+
+
+def _area_prepositions(tokens: list[str], places: set[str]) -> set[int]:
+    phrases = {tuple(re.findall(r"[a-z]+", place)) for place in places} - {()}
+    found = set()
+    for index, token in enumerate(tokens):
+        if token != "on":
+            continue
+        start = index + 1 + (tokens[index + 1:index + 2] == ["the"])
+        for phrase in phrases:
+            end = start + len(phrase)
+            if tuple(tokens[start:end]) == phrase and tokens[end:end + 1] == ["off"]:
+                found.add(index)
+    return found
+
+
+def _clause_words_after(tokens: list[str], start: int, prepositions: set[int]) -> list[str]:
+    words = []
+    for offset in range(start, len(tokens)):
+        if tokens[offset] in _CLAUSE_BREAKS or tokens[offset] in _TURN_VERBS:
+            break
+        if offset not in prepositions:
+            words.append(tokens[offset])
+    return words
+
+
+def _utterance_polarity(utterance: str, places: set[str]) -> str | None:
+    tokens = re.findall(r"[a-z]+|[.,;!?]", utterance.casefold())
+    prepositions = _area_prepositions(tokens, places)
+    signals = {"off"} if prepositions else set()
+    for index, token in enumerate(tokens):
+        if index in prepositions:
+            continue
+        if token in _ON_VERBS:
+            signals.add("on")
+        if token in _OFF_VERBS:
+            signals.add("off")
+        if token in _TURN_VERBS:
+            following = _clause_words_after(tokens, index + 1, prepositions)
+            if "on" in following:
+                signals.add("on")
+            if "off" in following:
+                signals.add("off")
+    return signals.pop() if len(signals) == 1 else None
+
+
+def _is_scene_or_script(target: str, system: str) -> bool:
+    return any(
+        entry["domain"] in {"scene", "script"} and target in entry["names"]
+        for entry in _static_entities(system)
+    )
+
+
+def gate_on_off_polarity(row: dict[str, Any]) -> str | None:
+    system = _system_prompt(row)
+    visible = _visible_areas(system)
+    messages = row.get("messages") or []
+    utterance = ""
+    for message in messages:
+        if message.get("role") == "user":
+            utterance = str(message.get("content") or "")
+            continue
+        if message.get("role") != "assistant" or not message.get("train_on_turn"):
+            continue
+        calls = message.get("tool_calls") or []
+        bares = {_BARE_TOOL.get(name, name) for name in ((call.get("function") or {}).get("name") for call in calls)}
+        if {"HassTurnOn", "HassTurnOff"} <= bares:
+            continue
+        floors = set()
+        for call in calls:
+            floor = (_parsed_arguments((call.get("function") or {}).get("arguments")) or {}).get("floor")
+            if isinstance(floor, str):
+                floors.add(floor.casefold())
+        polarity = _utterance_polarity(utterance, visible | floors)
+        if polarity is None:
+            continue
+        for call in calls:
+            function = call.get("function") or {}
+            bare = _BARE_TOOL.get(function.get("name"), function.get("name"))
+            target = (_parsed_arguments(function.get("arguments")) or {}).get("name")
+            if isinstance(target, str):
+                if _is_scene_or_script(target, system) or {"on", "off"} & set(re.findall(r"[a-z]+", target.casefold())):
+                    continue
+            if bare == "HassTurnOn" and polarity == "off":
+                return "turn_on_answers_off_utterance"
+            if bare == "HassTurnOff" and polarity == "on":
+                return "turn_off_answers_on_utterance"
+    return None
+
+
+_NAMED_REFUSALS = (
+    re.compile(r"(.+) does not support that\."),
+    re.compile(r"I can't control (.+)\. It is only available as context\."),
+)
+_WORD_TOOLS: dict[str, str] = {
+    **{op: tool for op, tool in _OPERATION_TOOLS.items() if "_" not in op and op not in _SCENE_OPERATIONS},
+    **{word: "HassTurnOn" for word in _ON_VERBS},
+    **{word: "HassTurnOff" for word in _OFF_VERBS},
+}
+
+
+def _requested_tool(utterance: str) -> str | None:
+    tokens = re.findall(r"[a-z]+", utterance.casefold())
+    tools = {_WORD_TOOLS[token] for token in tokens if token in _WORD_TOOLS}
+    for index, token in enumerate(tokens):
+        if token in _TURN_VERBS:
+            following = tokens[index + 1:index + 5]
+            if "on" in following:
+                tools.add("HassTurnOn")
+            if "off" in following:
+                tools.add("HassTurnOff")
+    return next(iter(tools)) if len(tools) == 1 else None
+
+
+def _named_refusal(text: str) -> str | None:
+    for pattern in _NAMED_REFUSALS:
+        if match := pattern.fullmatch(text):
+            return match.group(1)
+    return None
+
+
+def gate_hidden_capability_refusal(row: dict[str, Any]) -> str | None:
+    domains_by_name: dict[str, set[str]] = defaultdict(set)
+    for entity in _static_entities(_system_prompt(row)):
+        for name in entity["names"]:
+            domains_by_name[name].add(entity["domain"])
+    offered = _offered_schemas(row)
+    utterance = ""
+    for message in row.get("messages") or []:
+        if message.get("role") == "user":
+            utterance = str(message.get("content") or "")
+            continue
+        if message.get("role") != "assistant" or not message.get("train_on_turn"):
+            continue
+        name = _named_refusal(str(message.get("content") or ""))
+        domains = domains_by_name.get(name, set()) if name else set()
+        tool = _requested_tool(utterance)
+        if len(domains) != 1 or tool is None:
+            continue
+        if _domain_supports(next(iter(domains)), tool) is True and namespaced_tool_name(tool) in offered:
+            return "hidden_capability_refusal"
+    return None
+
+
+_TARGET_AREA_LINE = re.compile(r"^target_area: (.+)$", re.MULTILINE)
+_REFUSAL_REPLY = re.compile(
+    r"I can't help with that request\.|I can't do that with the available Home Assistant tools\."
+    r"|Sorry, I didn't catch that\.|There is no .+ in the .+\.|The .+ has no .+ available\."
+)
+_ABSENCE_REPLY = re.compile(r"There is no .+ in the .+\.|The .+ has no .+ available\.")
+_OPEN_OR_CLOSE = re.compile(r"\b(?:open|close)\b")
+
+
+def _context_target_area(system: str) -> str | None:
+    match = _TARGET_AREA_LINE.search(system)
+    if match is None or match.group(1) == "none":
+        return None
+    return match.group(1).casefold()
+
+
+def _user_turns_before(messages: list[dict[str, Any]], index: int) -> list[str]:
+    return [str(message.get("content") or "") for message in messages[:index] if message.get("role") == "user"]
+
+
+def _area_scope(system: str, said: list[str]) -> set[str]:
+    spoken = {area for area in _visible_areas(system) if any(utterance_contains_target(text, area) for text in said)}
+    if spoken:
+        return spoken
+    if (target := _context_target_area(system)) is not None:
+        return {target}
+    return set()
+
+
+def _type_in_area_referred(entries: tuple[dict[str, Any], ...], said: list[str], scope: set[str]) -> bool:
+    for entry in entries:
+        pattern = _CLARIFY_TYPES.get(entry["domain"])
+        if pattern is None or not {area.casefold() for area in entry["areas"]} & scope:
+            continue
+        if any(pattern.search(fold_stt_text(text)) for text in said):
+            return True
+    return False
+
+
+def _outside_area_name_referred(entries: tuple[dict[str, Any], ...], said: list[str], scope: set[str]) -> bool:
+    for entry in entries:
+        if not {area.casefold() for area in entry["areas"]} & scope:
+            continue
+        for name in entry["names"]:
+            rest = name
+            for area in entry["areas"]:
+                rest = re.sub(rf"\b{re.escape(area)}\b", " ", rest, flags=re.IGNORECASE)
+            rest = " ".join(rest.split())
+            if rest and any(utterance_contains_target(text, rest) for text in said):
+                return True
+    return False
+
+
+def gate_call_referents(row: dict[str, Any]) -> str | None:
+    system = _system_prompt(row)
+    entities = _static_entities(system)
+    messages = row.get("messages") or []
+    for index, message in enumerate(messages):
+        if message.get("role") != "assistant" or not message.get("train_on_turn"):
+            continue
+        said = _user_turns_before(messages, index)
+        scope = _area_scope(system, said)
+        for call in message.get("tool_calls") or []:
+            function = call.get("function") or {}
+            bare = _BARE_TOOL.get(function.get("name"), function.get("name"))
+            if bare in _NON_TARGET_TOOLS or bare in _TIMER_NAME_TOOLS:
+                continue
+            arguments = _parsed_arguments(function.get("arguments"))
+            if arguments is None:
+                continue
+            target = arguments.get("name")
+            area = arguments.get("area")
+            if isinstance(target, str):
+                named = tuple(entry for entry in entities if target in entry["names"])
+                names = [name for entry in named for name in entry["names"]]
+                referred = any(utterance_contains_target(text, name) for text in said for name in names)
+                if not (
+                    referred
+                    or _type_in_area_referred(named, said, scope)
+                    or _outside_area_name_referred(named, said, scope)
+                ):
+                    return "unreferenced_call_target"
+            if isinstance(area, str):
+                named_in_target = isinstance(target, str) and utterance_contains_target(target, area)
+                if area.casefold() not in scope and not named_in_target:
+                    return "unreferenced_call_target"
+    return None
+
+
+def _utterance_matches_entity(entry: dict[str, Any], utterance: str, scope: set[str], typed: bool) -> bool:
+    if scope and not {area.casefold() for area in entry["areas"]} & scope:
+        return False
+    if any(utterance_contains_target(utterance, name) for name in entry["names"]):
+        return True
+    pattern = _CLARIFY_TYPES.get(entry["domain"])
+    return typed and bool(scope) and pattern is not None and pattern.search(fold_stt_text(utterance)) is not None
+
+
+def _matching_operation_entities(
+    entities: tuple[dict[str, Any], ...], utterance: str, tool: str, scope: set[str], typed: bool
+) -> int:
+    return sum(
+        1
+        for entry in entities
+        if _domain_supports(entry["domain"], tool) is True and _utterance_matches_entity(entry, utterance, scope, typed)
+    )
+
+
+def _candidates_are_distinct_exposed(candidates: list[tuple[str, str | None]], row: dict[str, Any]) -> bool:
+    entries = _clarification_entities(row)
+    identities = [_resolve_candidate(text, area, entries) for text, area in candidates]
+    return None not in identities and len(set(identities)) == len(identities)
+
+
+def gate_unjustified_refusal(row: dict[str, Any]) -> str | None:
+    messages = row.get("messages") or []
+    system = _system_prompt(row)
+    entities = _static_entities(system)
+    offered = _offered_schemas(row)
+    for index, message in enumerate(messages):
+        if message.get("role") != "assistant" or not message.get("train_on_turn") or message.get("tool_calls"):
+            continue
+        reply = str(message.get("content") or "")
+        if _named_refusal(reply) is not None:
+            continue
+        candidates = _clarify_candidates(reply)
+        if candidates is None and _REFUSAL_REPLY.fullmatch(reply) is None:
+            continue
+        absence = _ABSENCE_REPLY.fullmatch(reply) is not None
+        if candidates is not None and (
+            len(candidates) < 2 or not _candidates_are_distinct_exposed(candidates, {**row, "messages": messages[:index]})
+        ):
+            continue
+        said = _user_turns_before(messages, index)
+        utterance = said[-1] if said else ""
+        tool = _requested_tool(utterance)
+        if tool is None or namespaced_tool_name(tool) not in offered or _OPEN_OR_CLOSE.search(utterance.casefold()):
+            continue
+        matches = _matching_operation_entities(entities, utterance, tool, _area_scope(system, said), not absence)
+        if matches == 1:
+            return "unjustified_refusal_or_clarify"
     return None
 
 

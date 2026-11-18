@@ -73,24 +73,6 @@ def expected_unexposed_domain(
     )
 
 
-def expected_device_unsupported(
-    entities: list[dict[str, Any]],
-    capability: str,
-    operation: str,
-    rng: random.Random,
-) -> dict[str, Any]:
-    target = entities[0]
-    requested = {
-        "kind": "action",
-        "calls": [build_call_for_operation(target, capability, operation, rng)],
-    }
-    return expected_no_action(
-        "device_unsupported",
-        requested=requested,
-        unsupported_names=[entity["name"] for entity in entities],
-    )
-
-
 def gold_matches_family(expected: dict[str, Any], family: str) -> bool:
     kind = expected.get("kind")
     response = expected.get("response")
@@ -203,7 +185,7 @@ def gold_from_scenario(scenario: dict[str, Any], rng: random.Random) -> dict[str
         matches = entities_supporting(present, capability, operation)
         if not matches:
             if present:
-                return expected_device_unsupported(present, capability, operation, rng)
+                return {"kind": "reject", "reason": "entity_lacks_capability", "calls": []}
             return expected_no_action(
                 "area_unavailable",
                 unavailable={"area": area.casefold(), "type": _type_label(capability)},
@@ -249,6 +231,9 @@ def gold_from_scenario(scenario: dict[str, Any], rng: random.Random) -> dict[str
             calls.append(timer)
         return {"kind": "action", "calls": calls, "script_targets": script_targets}
 
+    target = scenario.get("target_entity")
+    if target and not entity_supports(target, capability, operation):
+        return {"kind": "reject", "reason": "entity_lacks_capability", "calls": []}
     entity = _pick_entity(scenario, rng)
     if entity is None:
         return expected_no_action("clarify")
@@ -324,7 +309,8 @@ def _requested(
     intent = intent or {}
     area = intent.get("area") or home["sayso_entity_area"]
     present = entities_in_area(home, capability, area)
-    return area, [item for item in present if refers_to(item, intent.get("name"))]
+    nouns = ("tv", "television") if capability == "media_players" and intent.get("name") == "tv" else (intent.get("name"),)
+    return area, [item for item in present if any(refers_to(item, noun) for noun in nouns)]
 
 
 def _ambiguous_gold(
@@ -337,10 +323,14 @@ def _ambiguous_gold(
     if capability == "scripts":
         return expected_no_action("clarify")
     area, present = _requested(home, capability, intent)
-    matches = entities_supporting(present, capability, operation)
+    two_visible_tvs = (
+        capability == "media_players" and (intent or {}).get("name") == "tv" and len(present) > 1
+    )
+    matches = present if two_visible_tvs else entities_supporting(present, capability, operation)
+    matches = list({entity["name"].casefold(): entity for entity in matches}.values())
     if len(matches) == 0:
         if present:
-            return expected_device_unsupported(present, capability, operation, rng)
+            return {"kind": "reject", "reason": "entity_lacks_capability", "calls": []}
         noun = (intent or {}).get("name")
         if noun:
             return expected_no_action(

@@ -12,8 +12,9 @@ from generators.capability_registry import CAPABILITIES, operation_spec, trainab
 from generators.config import GeneratorConfig
 from generators.deduplication import DuplicateTracker, pair_hash
 from generators.grounding import is_blocked_request, pick_variant
+from generators.homes import prepare_media_tv_ambiguity
 from generators.correction import entity_name_contains_area
-from generators.gold import expected_action, expected_no_action, expected_unexposed_domain, gold_from_scenario, gold_matches_family, target_names_from_expected
+from generators.gold import expected_action, expected_no_action, expected_status, expected_unexposed_domain, gold_from_scenario, gold_matches_family, target_names_from_expected
 from generators.labels import render_example, scenario_to_spec
 from generators.real_home import load_real_home
 from generators.scenarios import build_scenario, pick_robustness, pick_targeting
@@ -78,6 +79,7 @@ from generators.talk import (
 from generators.utterances import (
     _DATETIME_PHRASES,
     apply_generic_wording,
+    discrimination_utterance,
     expand_utterance,
     finalize_training_utterance,
     request_seed_from_spec,
@@ -86,6 +88,7 @@ from generators.validation import (
     check_quality_eval_overlap,
     validate_row,
     validate_serialized_row,
+    validate_token_budget,
 )
 
 CONTEXT_HARD_NEGATIVE_RATE = 0.30
@@ -276,6 +279,24 @@ def _shared_alias_row(
         return None, reason
     dup_tracker.record(spec)
     return row, None
+
+
+def _labelled_gate_row(row: dict[str, Any]) -> dict[str, Any]:
+    if row["metadata"].get("family") != "correction":
+        return row
+    untried_ids = {
+        call["id"]
+        for message in row["messages"]
+        if message["role"] == "assistant" and not message.get("train_on_turn")
+        for call in message.get("tool_calls") or []
+    }
+    messages = [
+        message
+        for message in row["messages"]
+        if message.get("tool_call_id") not in untried_ids
+        and not untried_ids.intersection(call["id"] for call in message.get("tool_calls") or [])
+    ]
+    return {**row, "messages": messages}
 
 
 def generate_row(
@@ -548,8 +569,28 @@ def generate_row(
         if any(name not in real_home_names for name in scenario["expected"].get("candidates") or []):
             return None, "family_mismatch"
         scenario["home"] = real_home_context
-        if family in REAL_HOME_REFUSAL_FAMILIES and scenario["robustness"] == "ambiguity":
-            scenario["expected"] = gold_from_scenario(scenario, rng)
+    if (
+        capability == "media_players"
+        and family in {"clarify", "follow_up"}
+        and scenario.get("robustness") == "ambiguity"
+    ):
+        intent_area = (scenario.get("request_intent") or {}).get("area") or scenario["home"]["sayso_entity_area"]
+        prepare_media_tv_ambiguity(scenario["home"], operation, intent_area, rng, slot["index"])
+    if (
+        (
+            capability == "media_players"
+            and family in {"clarify", "follow_up"}
+            and scenario.get("robustness") == "ambiguity"
+        )
+        or (
+            real_home_row
+            and family in REAL_HOME_REFUSAL_FAMILIES | {"clarify", "follow_up"}
+            and scenario["robustness"] == "ambiguity"
+        )
+    ):
+        scenario["expected"] = gold_from_scenario(scenario, rng)
+        scenario["semantic_id"] = semantic_id(scenario)
+    if real_home_row:
         if family == "junk":
             scenario["expected"] = expected_no_action("not_understood")
         scenario["semantic_id"] = semantic_id(scenario)
@@ -558,8 +599,15 @@ def generate_row(
     if grounding_family:
         scenario["phrasing_seed"] = variant["phrasing_seed"]
 
+    media_ambiguity = capability == "media_players" and family in {"clarify", "follow_up"}
+    if media_ambiguity and scenario["expected"].get("response") != "clarify":
+        kind = scenario["expected"].get("kind")
+        family = {"action": "ordinary", "status": "status", "no_action": "absence"}.get(kind, family)
+        scenario["family"] = family
     spec = scenario_to_spec(scenario)
-    if family == "absence" and not real_home_row and rng.random() < UNEXPOSED_DOMAIN_RATE:
+    if media_ambiguity:
+        spec["request_intent"] = scenario["request_intent"]
+    if family == "absence" and not media_ambiguity and not real_home_row and rng.random() < UNEXPOSED_DOMAIN_RATE:
         unexposed = expected_unexposed_domain(spec["home"], rng)
         if unexposed is not None:
             spec["expected"] = unexposed
@@ -567,7 +615,18 @@ def generate_row(
     if family:
         spec["family"] = family
     spec["full_tool_catalog"] = True
+    context_name = None
+    if (
+        family == "unsupported"
+        and spec["home"].get("context_entities")
+        and not is_blocked_request(family, slot.get("capability"), slot.get("operation"))
+        and rng.random() < CONTEXT_HARD_NEGATIVE_RATE
+    ):
+        context_name = rng.choice(spec["home"]["context_entities"])["name"]
+        spec["expected"] = expected_no_action("device_unsupported", unsupported_names=[context_name])
     expected = spec.get("expected") or {}
+    if expected.get("kind") == "reject":
+        return None, expected["reason"]
     if family and not gold_matches_family(expected, family):
         return None, "family_mismatch"
     follow_up_clarify_candidates: list[str] | None = None
@@ -616,23 +675,16 @@ def generate_row(
         spec["linguistics"] = [{"source": "sayso_fallback", "intent": "unexposed_domain"}]
         spec.pop("request_hint", None)
         spec.pop("clarify_question", None)
-    elif (
-        family == "unsupported"
-        and spec["home"].get("context_entities")
-        and not is_blocked_request(family, slot.get("capability"), slot.get("operation"))
-        and rng.random() < CONTEXT_HARD_NEGATIVE_RATE
-    ):
+    elif context_name is not None:
         context_hard_negative = True
-        name = rng.choice(spec["home"]["context_entities"])["name"]
         state = rng.choice(("on", "off"))
         template = rng.choice((
             "turn {state} {name}",
             "switch {name} {state}",
             "could you turn {name} {state}?",
         ))
-        spec["utterance"] = template.format(name=name, state=state)
+        spec["utterance"] = template.format(name=context_name, state=state)
         spec["linguistics"] = [{"source": "sayso_fallback", "intent": "device_unsupported"}]
-        spec["expected"] = expected_no_action("device_unsupported", unsupported_names=[name])
         spec.pop("request_hint", None)
         spec.pop("clarify_question", None)
     elif family == "follow_up":
@@ -646,7 +698,10 @@ def generate_row(
         )
         if entity is None:
             return None, "family_mismatch"
-        spec["expected"] = expected_action(entity, operation, rng)
+        spec["expected"] = (
+            expected_status(entity) if media_ambiguity and operation == "query_state"
+            else expected_action(entity, operation, rng)
+        )
         if spec.get("hint_call"):
             hint_args = spec["hint_call"].get("arguments") or {}
             gold_args = spec["expected"]["calls"][0]["arguments"]
@@ -674,12 +729,9 @@ def generate_row(
         seed_text = request_seed_from_spec(spec)
         description = pick_discriminating_description(scenario, rng)
         if description:
-            verb = "turn on"
-            for candidate in ("turn on", "turn off", "open", "close", "lock", "unlock", "set", "run"):
-                if seed_text.lower().startswith(candidate):
-                    verb = candidate
-                    break
-            spec["utterance"] = f"{verb} {description}"
+            spec["utterance"] = discrimination_utterance(
+                expected["calls"][0]["name"], seed_text, description
+            )
             discrimination = True
             spec["discrimination"] = True
 
@@ -771,9 +823,12 @@ def generate_row(
         row["metadata"]["chatter_wrap"] = chatter_placement
     if family:
         row["metadata"]["family"] = family
+    gate_row = _labelled_gate_row(row)
     reason = validate_serialized_row(
-        row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
+        gate_row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
     )
+    if reason is None and gate_row is not row:
+        reason = validate_token_budget(row, config.token_budget, tokenizer_model=config.tokenizer_model)
     if reason:
         return None, reason
     if quota is not None and family not in {"datetime", "junk"}:

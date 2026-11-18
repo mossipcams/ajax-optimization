@@ -17,7 +17,9 @@ llama.cpp only hosts inference.
 **Host change: 2026-09-23.** The 24 GB GPU exists: `ssh llm`, Radeon RX 7900
 XTX, ROCm 7.2.4 ([host facts](../training/README.md#training-host-observed-2026-09-23)).
 LLaMA-Factory ran the HIP smoke there, then was replaced: **the LFM trainer is
-Unsloth** (`unsloth` container on the host). Every LLaMA-Factory reference below
+Unsloth** (`unsloth` container on the host). **Since 2026-11-17 the LFM trainer is the
+SaySo Trainer** (TRL 1.18.1 SFTTrainer on transformers 5.23.0, in its own venv inside the `unsloth` container);
+see [PLAN_SAYSO_TRAINER_TRL.md](PLAN_SAYSO_TRAINER_TRL.md). Every LLaMA-Factory reference below
 is the plan as reviewed, not the tool in use. The data contract (derived
 Base-template view, completion-only loss, full SFT from Base) is
 trainer-independent and still binding. Wake-word training is a separate
@@ -32,6 +34,8 @@ The existing host was inspected read-only; its facts are recorded in
 [training/README.md](../training/README.md#retired-host-192168140).
 No generation, training, deployment, or runtime change is part of this planning
 update. The execution plan below must be reviewed before implementation.
+
+**Precision correction: 2026-10-29.** FP32 master weights (179f4ce) reverted to BF16; the canonical rule is [docs/PIPELINE.md](PIPELINE.md) invariant 3.
 
 Keep the Base checkpoint and use LLaMA-Factory for training. Instruct,
 FunctionGemma, the old Axolotl configs, and host TRL launchers remain historical.
@@ -202,7 +206,7 @@ Proposed LLaMA-Factory settings, subject to a GPU smoke on the actual 24 GB card
 |---|---|
 | Method | `stage: sft`, `do_train: true`, `finetuning_type: full`; no adapter or quantization configuration |
 | Template | Planned `template: sayso_lfm2_rendered`, as defined above |
-| Weight/optimizer storage | FP32 parameters, gradients, and AdamW states; `pure_bf16: false` |
+| Weight/optimizer storage | BF16 parameters and gradients, no FP32 master weights; AdamW moment precision follows the trainer (`dtype=torch.bfloat16`, `bf16=True`, no `float32_mixed_precision`; canonical rule: [docs/PIPELINE.md](PIPELINE.md) invariant 3) |
 | Compute | `bf16: true`, `fp16: false` only after ROCm BF16 forward/backward passes; otherwise separately validate FP16 with loss scaling |
 | Attention | `flash_attn: sdpa`; `disable_gradient_checkpointing: false`; verify training disables the KV cache |
 | Sequence limit | `cutoff_len: 8192`, including prompt, tools, history, results, and labels |
@@ -214,10 +218,11 @@ Proposed LLaMA-Factory settings, subject to a GPU smoke on the actual 24 GB card
 
 These are initial experiment choices, not measured optimal hyperparameters.
 Do not carry the old adapter learning rate of `2e-4` into full fine-tuning.
-For 230M parameters, FP32 weights + gradients + two Adam moments total roughly
-3.43 GiB (`230M × 16 bytes`), before activations, logits, temporary buffers,
-and allocator overhead. The 65,536-token vocabulary makes long-row logits
-material; 24 GB does not establish a safe batch size by itself.
+For 230M parameters, BF16 weights + gradients total roughly
+0.86 GiB (`230M × 4 bytes`), plus AdamW state at the precision the trainer
+uses, before activations, logits, temporary buffers, and allocator overhead.
+The 65,536-token vocabulary makes long-row logits material; 24 GB does not
+establish a safe batch size by itself.
 
 Run 20 optimizer steps spanning the longest rows and each supervision shape.
 Require finite losses/gradients, actual updates in representative embedding,

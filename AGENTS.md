@@ -40,8 +40,8 @@ fixed layout.
 
 Serving-only hard constraints unless the user says otherwise:
 
-- Keep 4 slots sharing one 128k unified KV pool (`--parallel -1`, `--kv-unified`,
-  `-c 131072`). Propose layout changes; never apply them.
+- Keep 1 slot with the full 163840 context (`--parallel 1`, `--ctx-size 163840`,
+  no `--kv-unified`). Propose layout changes; never apply them.
 - GPU-side changes only: no CPU or RAM offload (layers, KV, experts), and do not
   add or optimize host-side work. If a GPU bottleneck traces to CPU-bound host
   code, name it and stop.
@@ -51,6 +51,8 @@ Serving-only hard constraints unless the user says otherwise:
 
 ## SaySo training
 
+- `sayso-training/docs/PIPELINE.md` is the canonical pipeline; do not
+  deviate from its invariants without explicit user approval.
 - SaySo model training design lives in
   `sayso-training/docs/SAYSO_LFM_TRAINING_PLAN.md`; wake-word training has its
   own `sayso-training/docs/SAYSO_WAKE_WORD_TRAINING_PLAN.md`. The model target
@@ -63,6 +65,13 @@ Serving-only hard constraints unless the user says otherwise:
   and training gold sets.
 - Training and wake tooling runbooks are summarized in
   `sayso-training/README.md`.
+- Before opening a pull request, and before pushing new commits to an open pull
+  request, that touches `sayso-training/`, run
+  `sayso-training/scripts/ci-local.sh --remote <llm VM>` (full suite on the merge
+  with current `origin/main`, exact CI pins; heavy runs go to the llm VM, not the
+  Mac). Push only when it prints `local-ci: PASS`. After pushing, run
+  `sayso-training/scripts/ci-local.sh --post` so the PR shows the `local-ci`
+  status. GitHub CI runs only the light fast job and is not the verification gate.
 
 ## GPU host safety
 
@@ -75,7 +84,7 @@ Serving-only hard constraints unless the user says otherwise:
 - Deploy scripts and compose changes by writing a temp file and `mv` (atomic
   rename). Back up the previous file first. Never overwrite a script in place
   while a job that runs it is active.
-- Benchmark from real workload shapes (about 30k depth, two concurrent streams),
+- Benchmark from real workload shapes (about 30k depth, single stream; prod has one slot),
   alternate A/B images, and quote medians; sampled runs swing +/-10%.
 
 ## Universal safety
@@ -102,6 +111,14 @@ Serving-only hard constraints unless the user says otherwise:
 - Prefer reusing existing code over writing a new equivalent. Search before you
   write.
 
+## Code search
+
+- `rg` for text: strings, config keys, errors, comments.
+- `ast-grep` (see skill) when structure matters: calls/definitions where rg hits
+  comments or strings, and ALL multi-file rewrites. Never sed/regex rewrites on
+  code.
+- `ast-grep outline` before reading an unfamiliar file in full.
+
 ## Delegation
 
 The local agent does the work; the frontier agent orchestrates. All
@@ -119,6 +136,8 @@ Never spawn native harness subagents (Cursor Task, best-of-n, Claude/Codex/Pi
 task children) for any work. A delegate must run in-process. When the delegate
 fails, re-route through the router; do not take over. Do not duplicate model
 rankings or exact model IDs in this file.
+
+Exception: when the orchestrator harness is pi, do not delegate — run the full loop in-process — unless explicitly told to delegate for that request.
 
 Only an explicit user approval to bypass delegation for this request lets the
 frontier agent run the loop in-process (explore, implement, test, diagnose,
@@ -149,13 +168,18 @@ need a comment, restructure the code or name it so the comment is unnecessary.
 Evidence that a change works is required. Prefer focused verification first,
 then the strongest practical broader check for the risk: the FA correctness
 harness (`bench/fa_correctness.sh`), the microbench (`bench/fa_perf.sh`), and an
-end-to-end SOLO/PAIR A/B (`bench/fapack_ab.sh`).
+end-to-end SOLO/PAIR A/B (`bench/fapack_ab.sh`). For `sayso-training/` changes,
+the gate is `sayso-training/scripts/ci-local.sh` (see SaySo training above).
 
 If validation cannot run because of missing tools, environment limits, time, or
 unrelated failures, report the exact command and result. Final reports must say
 what changed, list verification and its results, disclose failed or skipped
 commands, and state remaining risks or follow-up work. Do not claim the
 repository is clean unless status was checked.
+
+Give user-facing times in 12-hour US Central time (e.g. "5:30 PM CT"), not
+UTC or 24-hour. Convert UTC log/server timestamps (CST = UTC-6, CDT = UTC-5);
+raw UTC can stay inside commands and logs.
 
 ## Stop conditions
 

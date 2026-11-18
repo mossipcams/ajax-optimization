@@ -1,0 +1,985 @@
+{
+  "captured_at": "2026-10-28",
+  "ha_version": "2026.10.4",
+  "sayso_integration_version": "1.16.1",
+  "pipeline": {
+    "conversation_engine": "conversation.sayso_local",
+    "conversation_language": "*",
+    "language": "en",
+    "name": "SaySo",
+    "stt_engine": "stt.granite_speech_5_0_470m_turboctc_q8_0",
+    "stt_language": "en",
+    "tts_engine": "tts.phonon",
+    "tts_language": "en",
+    "tts_voice": "Alfie",
+    "wake_word_entity": null,
+    "wake_word_id": null,
+    "prefer_local_intents": false,
+    "id": "01m1jcfdrkqfj7gmrgbq58s539"
+  },
+  "satellite": {
+    "name": "Living Room",
+    "model": "Linux Voice Assistant",
+    "area": "Living Room",
+    "floor": "Floor 1"
+  },
+  "inference": {
+    "backend": "embedded",
+    "engine": "llama-cpp-python create_chat_completion",
+    "model": "SaySo-LFM-v11-Q4_K_M",
+    "n_ctx": 8192,
+    "n_threads": 2,
+    "temperature": 0.0,
+    "max_tokens": 160,
+    "tool_choice": "auto",
+    "max_tool_iterations": 3,
+    "timeout_s": 30,
+    "llm_hass_api": "assist"
+  },
+  "system_prompt": {
+    "option_prompt": "You are SaySo, a local Home Assistant voice agent.\nUse the available tools for home state queries and actions. Only claim an action succeeded when its tool result confirms success. Use names, areas, and context supplied by Home Assistant. If a request is ambiguous, ask one short question. Keep spoken responses brief. Do not describe tool calls.",
+    "assist_api_prompt_no_device": "You ARE equipped to answer questions about the current state of\nthe home by retrieving live context. This is a primary function. Do not state you lack the\nfunctionality if the question requires live data.\nIf the user asks about device existence/type (e.g., \"Do I have lights in the bedroom?\"): Answer\nfrom the static context below.\nIf the user asks about the CURRENT state, value, or mode (e.g., \"Is the lock locked?\",\n\"Is the fan on?\", \"What mode is the thermostat in?\", \"What is the temperature outside?\"):\n    1.  Recognize this requires live data.\n    2.  You MUST use the provided tool to retrieve live context. This tool will provide the needed real-time information (like temperature from the local weather, lock status, etc.).\n    3.  Use the tool's response** to answer the user accurately (e.g., \"The temperature outside is [value from tool].\").\nFor general knowledge questions not about the home: Answer truthfully from internal knowledge.\n\nStatic Context: An overview of the areas and the devices in this smart home:\n- names: Person One\n  domain: person\n- names: Apollo MSR-2 Radar Moving Target\n  domain: binary_sensor\n  areas: Bedroom\n- names: Aqara Dryer Sensor\n  domain: binary_sensor\n  areas: Kitchen\n- names: Christmas tree\n  domain: switch\n  areas: Living Room\n- names: Corner lamp\n  domain: switch\n  areas: Living Room\n- names: Date\n  domain: sensor\n- names: Date & Time\n  domain: sensor\n- names: Everywhere\n  domain: media_player\n- names: Home Assistant Climate\n  domain: sensor\n- names: Home Assistant Lights\n  domain: sensor\n- names: Home Assistant Media players\n  domain: sensor\n- names: Home Assistant Switches\n  domain: sensor\n- names: Home Assistant Timers\n  domain: sensor\n- names: Home Assistant To-do lists\n  domain: sensor\n- names: Humidifier Plugin\n  domain: switch\n  areas: Bedroom\n- names: Humidifier Plugin Bedroomcontrol\n  domain: humidifier\n  areas: Bedroom\n- names: Kitchen light\n  domain: light\n  areas: Kitchen\n- names: LEVDS-Switch-92D6\n  domain: light\n  areas: Kitchen\n- names: Levoit VeSync Core 300S Plus Smart Air Purifier\n  domain: fan\n  areas: Bedroom\n- names: Living Room Mic Volume\n  domain: number\n  areas: Living Room\n- names: Living Room Mute\n  domain: switch\n  areas: Living Room\n- names: Living room Lampshade\n  domain: switch\n  areas: Living Room\n- names: Living room lights\n  domain: switch\n  areas: Living Room\n- names: Person Two\n  domain: person\n- names: Movie\n  domain: scene\n  areas: Living Room\n- names: Nightstand\n  domain: light\n  areas: Bedroom\n- names: Outdoor Lights\n  domain: light\n  areas: Outside\n- names: Party Time\n  domain: media_player\n- names: Pending Notifications\n  domain: binary_sensor\n- names: PirateWeather Daytime High Temperature 0d\n  domain: sensor\n- names: PirateWeather Overnight Low Temperature 0d\n  domain: sensor\n- names: Porch_Light\n  domain: light\n  areas: Outside\n- names: Reminders\n  domain: todo\n- names: Rocky room cam\n  domain: switch\n  areas: Rock's room\n- names: SaySo (local)\n  domain: conversation\n  areas: Living Room\n- names: Sayso Satellite\n  domain: media_player\n  areas: Living Room\n- names: Shelf lamp\n  domain: switch\n  areas: Living Room\n- names: Sonoff Sensor Humidity\n  domain: sensor\n  areas: Bedroom\n- names: Sonoff Sensor Temperature\n  domain: sensor\n  areas: Bedroom\n- names: Sun\n  domain: sun\n- names: TV\n  domain: media_player\n  areas: Living Room\n- names: TV Active app\n  domain: sensor\n  areas: Living Room\n- names: TV Application\n  domain: select\n  areas: Living Room\n- names: Thermo Humidity\n  domain: sensor\n  areas: Hallway\n- names: Thermostat\n  domain: climate\n  areas: Hallway\n- names: Thermostat Current Temperature\n  domain: sensor\n  areas: Hallway\n- names: Thermostat Motion\n  domain: binary_sensor\n  areas: Hallway\n- names: Third Reality Temp Temperature\n  domain: sensor\n  areas: Office\n- names: Third reality humidity\n  domain: sensor\n  areas: Office\n- names: sidetable lamp\n  domain: switch\n  areas: Living Room\n\nWhen controlling Home Assistant always call the intent tools. Use intent__HassTurnOn to lock and intent__HassTurnOff to unlock a lock. When controlling a device, prefer passing just name and domain. When controlling an area, prefer passing just area name and domain.\nWhen a user asks to turn on all devices of a specific type, ask the user to specify an area, unless there is only one device of that type.\nThis device is not able to start timers.",
+    "ha_system_satellite": "You are SaySo, a local Home Assistant voice agent.\nUse the available tools for home state queries and actions. Only claim an action succeeded when its tool result confirms success. Use names, areas, and context supplied by Home Assistant. If a request is ambiguous, ask one short question. Keep spoken responses brief. Do not describe tool calls.\nYou ARE equipped to answer questions about the current state of\nthe home by retrieving live context. This is a primary function. Do not state you lack the\nfunctionality if the question requires live data.\nIf the user asks about device existence/type (e.g., \"Do I have lights in the bedroom?\"): Answer\nfrom the static context below.\nIf the user asks about the CURRENT state, value, or mode (e.g., \"Is the lock locked?\",\n\"Is the fan on?\", \"What mode is the thermostat in?\", \"What is the temperature outside?\"):\n    1.  Recognize this requires live data.\n    2.  You MUST use the provided tool to retrieve live context. This tool will provide the needed real-time information (like temperature from the local weather, lock status, etc.).\n    3.  Use the tool's response** to answer the user accurately (e.g., \"The temperature outside is [value from tool].\").\nFor general knowledge questions not about the home: Answer truthfully from internal knowledge.\n\nStatic Context: An overview of the areas and the devices in this smart home:\n- names: Person One\n  domain: person\n- names: Apollo MSR-2 Radar Moving Target\n  domain: binary_sensor\n  areas: Bedroom\n- names: Aqara Dryer Sensor\n  domain: binary_sensor\n  areas: Kitchen\n- names: Christmas tree\n  domain: switch\n  areas: Living Room\n- names: Corner lamp\n  domain: switch\n  areas: Living Room\n- names: Date\n  domain: sensor\n- names: Date & Time\n  domain: sensor\n- names: Everywhere\n  domain: media_player\n- names: Home Assistant Climate\n  domain: sensor\n- names: Home Assistant Lights\n  domain: sensor\n- names: Home Assistant Media players\n  domain: sensor\n- names: Home Assistant Switches\n  domain: sensor\n- names: Home Assistant Timers\n  domain: sensor\n- names: Home Assistant To-do lists\n  domain: sensor\n- names: Humidifier Plugin\n  domain: switch\n  areas: Bedroom\n- names: Humidifier Plugin Bedroomcontrol\n  domain: humidifier\n  areas: Bedroom\n- names: Kitchen light\n  domain: light\n  areas: Kitchen\n- names: LEVDS-Switch-92D6\n  domain: light\n  areas: Kitchen\n- names: Levoit VeSync Core 300S Plus Smart Air Purifier\n  domain: fan\n  areas: Bedroom\n- names: Living Room Mic Volume\n  domain: number\n  areas: Living Room\n- names: Living Room Mute\n  domain: switch\n  areas: Living Room\n- names: Living room Lampshade\n  domain: switch\n  areas: Living Room\n- names: Living room lights\n  domain: switch\n  areas: Living Room\n- names: Person Two\n  domain: person\n- names: Movie\n  domain: scene\n  areas: Living Room\n- names: Nightstand\n  domain: light\n  areas: Bedroom\n- names: Outdoor Lights\n  domain: light\n  areas: Outside\n- names: Party Time\n  domain: media_player\n- names: Pending Notifications\n  domain: binary_sensor\n- names: PirateWeather Daytime High Temperature 0d\n  domain: sensor\n- names: PirateWeather Overnight Low Temperature 0d\n  domain: sensor\n- names: Porch_Light\n  domain: light\n  areas: Outside\n- names: Reminders\n  domain: todo\n- names: Rocky room cam\n  domain: switch\n  areas: Rock's room\n- names: SaySo (local)\n  domain: conversation\n  areas: Living Room\n- names: Sayso Satellite\n  domain: media_player\n  areas: Living Room\n- names: Shelf lamp\n  domain: switch\n  areas: Living Room\n- names: Sonoff Sensor Humidity\n  domain: sensor\n  areas: Bedroom\n- names: Sonoff Sensor Temperature\n  domain: sensor\n  areas: Bedroom\n- names: Sun\n  domain: sun\n- names: TV\n  domain: media_player\n  areas: Living Room\n- names: TV Active app\n  domain: sensor\n  areas: Living Room\n- names: TV Application\n  domain: select\n  areas: Living Room\n- names: Thermo Humidity\n  domain: sensor\n  areas: Hallway\n- names: Thermostat\n  domain: climate\n  areas: Hallway\n- names: Thermostat Current Temperature\n  domain: sensor\n  areas: Hallway\n- names: Thermostat Motion\n  domain: binary_sensor\n  areas: Hallway\n- names: Third Reality Temp Temperature\n  domain: sensor\n  areas: Office\n- names: Third reality humidity\n  domain: sensor\n  areas: Office\n- names: sidetable lamp\n  domain: switch\n  areas: Living Room\n\nWhen controlling Home Assistant always call the intent tools. Use intent__HassTurnOn to lock and intent__HassTurnOff to unlock a lock. When controlling a device, prefer passing just name and domain. When controlling an area, prefer passing just area name and domain.\nYou are in area Living Room (floor Floor 1) and all generic commands like 'turn on the lights' should target this area.",
+    "model_system_satellite": "You are SaySo, a local Home Assistant voice agent.\nUse the available tools for home state queries and actions. Only claim an action succeeded when its tool result confirms success. Use names, areas, and context supplied by Home Assistant. If a request is ambiguous, ask one short question. Keep spoken responses brief. Do not describe tool calls.\nYou ARE equipped to answer questions about the current state of\nthe home by retrieving live context. This is a primary function. Do not state you lack the\nfunctionality if the question requires live data.\nIf the user asks about device existence/type (e.g., \"Do I have lights in the bedroom?\"): Answer\nfrom the static context below.\nIf the user asks about the CURRENT state, value, or mode (e.g., \"Is the lock locked?\",\n\"Is the fan on?\", \"What mode is the thermostat in?\", \"What is the temperature outside?\"):\n    1.  Recognize this requires live data.\n    2.  You MUST use the provided tool to retrieve live context. This tool will provide the needed real-time information (like temperature from the local weather, lock status, etc.).\n    3.  Use the tool's response** to answer the user accurately (e.g., \"The temperature outside is [value from tool].\").\nFor general knowledge questions not about the home: Answer truthfully from internal knowledge.\n\nStatic Context: An overview of the areas and the devices in this smart home:\n- names: Person One\n  domain: person\n- names: Apollo MSR-2 Radar Moving Target\n  domain: binary_sensor\n  areas: Bedroom\n- names: Aqara Dryer Sensor\n  domain: binary_sensor\n  areas: Kitchen\n- names: Christmas tree\n  domain: switch\n  areas: Living Room\n- names: Corner lamp\n  domain: switch\n  areas: Living Room\n- names: Date\n  domain: sensor\n- names: Date & Time\n  domain: sensor\n- names: Everywhere\n  domain: media_player\n- names: Home Assistant Climate\n  domain: sensor\n- names: Home Assistant Lights\n  domain: sensor\n- names: Home Assistant Media players\n  domain: sensor\n- names: Home Assistant Switches\n  domain: sensor\n- names: Home Assistant Timers\n  domain: sensor\n- names: Home Assistant To-do lists\n  domain: sensor\n- names: Humidifier Plugin\n  domain: switch\n  areas: Bedroom\n- names: Humidifier Plugin Bedroomcontrol\n  domain: humidifier\n  areas: Bedroom\n- names: Kitchen light\n  domain: light\n  areas: Kitchen\n- names: LEVDS-Switch-92D6\n  domain: light\n  areas: Kitchen\n- names: Levoit VeSync Core 300S Plus Smart Air Purifier\n  domain: fan\n  areas: Bedroom\n- names: Living Room Mic Volume\n  domain: number\n  areas: Living Room\n- names: Living Room Mute\n  domain: switch\n  areas: Living Room\n- names: Living room Lampshade\n  domain: switch\n  areas: Living Room\n- names: Living room lights\n  domain: switch\n  areas: Living Room\n- names: Person Two\n  domain: person\n- names: Movie\n  domain: scene\n  areas: Living Room\n- names: Nightstand\n  domain: light\n  areas: Bedroom\n- names: Outdoor Lights\n  domain: light\n  areas: Outside\n- names: Party Time\n  domain: media_player\n- names: Pending Notifications\n  domain: binary_sensor\n- names: PirateWeather Daytime High Temperature 0d\n  domain: sensor\n- names: PirateWeather Overnight Low Temperature 0d\n  domain: sensor\n- names: Porch_Light\n  domain: light\n  areas: Outside\n- names: Reminders\n  domain: todo\n- names: Rocky room cam\n  domain: switch\n  areas: Rock's room\n- names: SaySo (local)\n  domain: conversation\n  areas: Living Room\n- names: Sayso Satellite\n  domain: media_player\n  areas: Living Room\n- names: Shelf lamp\n  domain: switch\n  areas: Living Room\n- names: Sonoff Sensor Humidity\n  domain: sensor\n  areas: Bedroom\n- names: Sonoff Sensor Temperature\n  domain: sensor\n  areas: Bedroom\n- names: Sun\n  domain: sun\n- names: TV\n  domain: media_player\n  areas: Living Room\n- names: TV Active app\n  domain: sensor\n  areas: Living Room\n- names: TV Application\n  domain: select\n  areas: Living Room\n- names: Thermo Humidity\n  domain: sensor\n  areas: Hallway\n- names: Thermostat\n  domain: climate\n  areas: Hallway\n- names: Thermostat Current Temperature\n  domain: sensor\n  areas: Hallway\n- names: Thermostat Motion\n  domain: binary_sensor\n  areas: Hallway\n- names: Third Reality Temp Temperature\n  domain: sensor\n  areas: Office\n- names: Third reality humidity\n  domain: sensor\n  areas: Office\n- names: sidetable lamp\n  domain: switch\n  areas: Living Room\n\nWhen controlling Home Assistant always call the intent tools. Use intent__HassTurnOn to lock and intent__HassTurnOff to unlock a lock. When controlling a device, prefer passing just name and domain. When controlling an area, prefer passing just area name and domain.\nArea context:\nsatellite_area: Living Room\ntarget_area: Living Room\ntarget_area_source: satellite"
+  },
+  "static_context_yaml": "- names: Person One\n  domain: person\n- names: Apollo MSR-2 Radar Moving Target\n  domain: binary_sensor\n  areas: Bedroom\n- names: Aqara Dryer Sensor\n  domain: binary_sensor\n  areas: Kitchen\n- names: Christmas tree\n  domain: switch\n  areas: Living Room\n- names: Corner lamp\n  domain: switch\n  areas: Living Room\n- names: Date\n  domain: sensor\n- names: Date & Time\n  domain: sensor\n- names: Everywhere\n  domain: media_player\n- names: Home Assistant Climate\n  domain: sensor\n- names: Home Assistant Lights\n  domain: sensor\n- names: Home Assistant Media players\n  domain: sensor\n- names: Home Assistant Switches\n  domain: sensor\n- names: Home Assistant Timers\n  domain: sensor\n- names: Home Assistant To-do lists\n  domain: sensor\n- names: Humidifier Plugin\n  domain: switch\n  areas: Bedroom\n- names: Humidifier Plugin Bedroomcontrol\n  domain: humidifier\n  areas: Bedroom\n- names: Kitchen light\n  domain: light\n  areas: Kitchen\n- names: LEVDS-Switch-92D6\n  domain: light\n  areas: Kitchen\n- names: Levoit VeSync Core 300S Plus Smart Air Purifier\n  domain: fan\n  areas: Bedroom\n- names: Living Room Mic Volume\n  domain: number\n  areas: Living Room\n- names: Living Room Mute\n  domain: switch\n  areas: Living Room\n- names: Living room Lampshade\n  domain: switch\n  areas: Living Room\n- names: Living room lights\n  domain: switch\n  areas: Living Room\n- names: Person Two\n  domain: person\n- names: Movie\n  domain: scene\n  areas: Living Room\n- names: Nightstand\n  domain: light\n  areas: Bedroom\n- names: Outdoor Lights\n  domain: light\n  areas: Outside\n- names: Party Time\n  domain: media_player\n- names: Pending Notifications\n  domain: binary_sensor\n- names: PirateWeather Daytime High Temperature 0d\n  domain: sensor\n- names: PirateWeather Overnight Low Temperature 0d\n  domain: sensor\n- names: Porch_Light\n  domain: light\n  areas: Outside\n- names: Reminders\n  domain: todo\n- names: Rocky room cam\n  domain: switch\n  areas: Rock's room\n- names: SaySo (local)\n  domain: conversation\n  areas: Living Room\n- names: Sayso Satellite\n  domain: media_player\n  areas: Living Room\n- names: Shelf lamp\n  domain: switch\n  areas: Living Room\n- names: Sonoff Sensor Humidity\n  domain: sensor\n  areas: Bedroom\n- names: Sonoff Sensor Temperature\n  domain: sensor\n  areas: Bedroom\n- names: Sun\n  domain: sun\n- names: TV\n  domain: media_player\n  areas: Living Room\n- names: TV Active app\n  domain: sensor\n  areas: Living Room\n- names: TV Application\n  domain: select\n  areas: Living Room\n- names: Thermo Humidity\n  domain: sensor\n  areas: Hallway\n- names: Thermostat\n  domain: climate\n  areas: Hallway\n- names: Thermostat Current Temperature\n  domain: sensor\n  areas: Hallway\n- names: Thermostat Motion\n  domain: binary_sensor\n  areas: Hallway\n- names: Third Reality Temp Temperature\n  domain: sensor\n  areas: Office\n- names: Third reality humidity\n  domain: sensor\n  areas: Office\n- names: sidetable lamp\n  domain: switch\n  areas: Living Room",
+  "tools": {
+    "satellite_full_set": [
+      {
+        "function": {
+          "description": "Broadcast a message through the home",
+          "name": "assist_satellite__HassBroadcast",
+          "parameters": {
+            "properties": {
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Sets the target temperature of a climate device or entity",
+          "name": "climate__HassClimateSetTemperature",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "temperature": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "temperature"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Sets a fan's speed by percentage",
+          "name": "fan__HassFanSetSpeed",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "domain": {
+                "items": {
+                  "enum": [
+                    "fan"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "percentage": {
+                "description": "The speed percentage of the fan",
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "percentage"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Provides real-time information about the CURRENT state, value, or mode of devices, sensors, entities, or areas. Use this tool for: 1. Answering questions about current conditions (e.g., 'Is the light on?'). 2. As the first step in conditional actions (e.g., 'If the weather is rainy, turn off sprinklers' requires checking the weather first). You may filter for devices by name, domain, and area, including combining those filters. Prefer filtering by domain when searching for multiple devices of the same type.",
+          "name": "homeassistant__GetLiveContext",
+          "parameters": {
+            "properties": {
+              "area": {
+                "description": "Filter entities by area name or alias (case-insensitive).",
+                "type": "string"
+              },
+              "domain": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                ],
+                "description": "Filter entities by domain (e.g. 'light', 'sensor'). Accepts a single domain or a list."
+              },
+              "name": {
+                "description": "Filter entities by name or alias (case-insensitive).",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Cancels all timers",
+          "name": "intent__HassCancelAllTimers",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Cancels a timer",
+          "name": "intent__HassCancelTimer",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "start_hours": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_minutes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_seconds": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Removes time from a timer",
+          "name": "intent__HassDecreaseTimer",
+          "parameters": {
+            "anyOf": [
+              {
+                "required": [
+                  "hours"
+                ]
+              },
+              {
+                "required": [
+                  "minutes"
+                ]
+              },
+              {
+                "required": [
+                  "seconds"
+                ]
+              }
+            ],
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "hours": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "minutes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "seconds": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_hours": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_minutes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_seconds": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Adds more time to a timer",
+          "name": "intent__HassIncreaseTimer",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "hours": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "minutes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "seconds": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_hours": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_minutes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_seconds": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Pauses a running timer",
+          "name": "intent__HassPauseTimer",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "start_hours": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_minutes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_seconds": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Starts a new timer",
+          "name": "intent__HassStartTimer",
+          "parameters": {
+            "anyOf": [
+              {
+                "required": [
+                  "hours"
+                ]
+              },
+              {
+                "required": [
+                  "minutes"
+                ]
+              },
+              {
+                "required": [
+                  "seconds"
+                ]
+              }
+            ],
+            "properties": {
+              "conversation_command": {
+                "type": "string"
+              },
+              "hours": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "minutes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "seconds": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Reports the current status of timers",
+          "name": "intent__HassTimerStatus",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "start_hours": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_minutes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_seconds": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Turns off/closes a device or entity. For locks, this performs an 'unlock' action. Use for requests like 'turn off', 'deactivate', 'disable', or 'unlock'.",
+          "name": "intent__HassTurnOff",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "device_class": {
+                "items": {
+                  "enum": [
+                    "identify",
+                    "restart",
+                    "update",
+                    "awning",
+                    "blind",
+                    "curtain",
+                    "damper",
+                    "door",
+                    "garage",
+                    "gate",
+                    "shade",
+                    "shutter",
+                    "window",
+                    "tv",
+                    "speaker",
+                    "receiver",
+                    "projector",
+                    "outlet",
+                    "switch",
+                    "water",
+                    "gas"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "domain": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Turns on/opens/presses a device or entity. For locks, this performs a 'lock' action. Use for requests like 'turn on', 'activate', 'enable', or 'lock'.",
+          "name": "intent__HassTurnOn",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "device_class": {
+                "items": {
+                  "enum": [
+                    "identify",
+                    "restart",
+                    "update",
+                    "awning",
+                    "blind",
+                    "curtain",
+                    "damper",
+                    "door",
+                    "garage",
+                    "gate",
+                    "shade",
+                    "shutter",
+                    "window",
+                    "tv",
+                    "speaker",
+                    "receiver",
+                    "projector",
+                    "outlet",
+                    "switch",
+                    "water",
+                    "gas"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "domain": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Resumes a paused timer",
+          "name": "intent__HassUnpauseTimer",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "start_hours": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_minutes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "start_seconds": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Sets the brightness percentage or color of a light",
+          "name": "light__HassLightSet",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "brightness": {
+                "description": "The brightness percentage of the light between 0 and 100, where 0 is off and 100 is fully lit",
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "color": {
+                "type": "string"
+              },
+              "domain": {
+                "items": {
+                  "enum": [
+                    "light"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "temperature": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Provides the current date and time.",
+          "name": "llm__GetDateTime",
+          "parameters": {
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Skips a media player to the next item",
+          "name": "media_player__HassMediaNext",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "device_class": {
+                "items": {
+                  "enum": [
+                    "tv",
+                    "speaker",
+                    "receiver",
+                    "projector"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "domain": {
+                "items": {
+                  "enum": [
+                    "media_player"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Pauses a media player",
+          "name": "media_player__HassMediaPause",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "device_class": {
+                "items": {
+                  "enum": [
+                    "tv",
+                    "speaker",
+                    "receiver",
+                    "projector"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "domain": {
+                "items": {
+                  "enum": [
+                    "media_player"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Mutes a media player",
+          "name": "media_player__HassMediaPlayerMute",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "device_class": {
+                "items": {
+                  "enum": [
+                    "tv",
+                    "speaker",
+                    "receiver",
+                    "projector"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "domain": {
+                "items": {
+                  "enum": [
+                    "media_player"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "is_volume_muted": {
+                "description": "Whether the media player should be muted or unmuted"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Unmutes a media player",
+          "name": "media_player__HassMediaPlayerUnmute",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "device_class": {
+                "items": {
+                  "enum": [
+                    "tv",
+                    "speaker",
+                    "receiver",
+                    "projector"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "domain": {
+                "items": {
+                  "enum": [
+                    "media_player"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "is_volume_muted": {
+                "description": "Whether the media player should be muted or unmuted"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Replays the previous item for a media player",
+          "name": "media_player__HassMediaPrevious",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "device_class": {
+                "items": {
+                  "enum": [
+                    "tv",
+                    "speaker",
+                    "receiver",
+                    "projector"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "domain": {
+                "items": {
+                  "enum": [
+                    "media_player"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Resumes a media player",
+          "name": "media_player__HassMediaUnpause",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "device_class": {
+                "items": {
+                  "enum": [
+                    "tv",
+                    "speaker",
+                    "receiver",
+                    "projector"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "domain": {
+                "items": {
+                  "enum": [
+                    "media_player"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Sets the volume percentage of a media player",
+          "name": "media_player__HassSetVolume",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "device_class": {
+                "items": {
+                  "enum": [
+                    "tv",
+                    "speaker",
+                    "receiver",
+                    "projector"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "domain": {
+                "items": {
+                  "enum": [
+                    "media_player"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "volume_level": {
+                "description": "The volume percentage of the media player",
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "volume_level"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Increases or decreases the volume of a media player",
+          "name": "media_player__HassSetVolumeRelative",
+          "parameters": {
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "floor": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "volume_step": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "up",
+                      "down"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "maximum": 100,
+                    "minimum": -100,
+                    "type": "integer"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "volume_step"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ],
+    "satellite_full_set_fingerprint": "sha256:31b2d5635e5b1d1c2631994c543b9cfe2041e9ed4d3e1fd56e3e87d8cbce9903",
+    "timer_tools_source": "pinned ha_assist_tools.json (MCP has no device, so HA withholds timer tools there)",
+    "ignored": [
+      "calendar__get_events",
+      "humidifier__HassHumidifierMode",
+      "humidifier__HassHumidifierSetpoint",
+      "todo__HassListAddItem",
+      "todo__HassListCompleteItem",
+      "todo__HassListRemoveItem",
+      "todo__get_items"
+    ],
+    "routing_note": "SaySo sends a per-utterance subset chosen by domain hint; this is the full pre-routing set."
+  }
+}

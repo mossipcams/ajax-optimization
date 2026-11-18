@@ -6,7 +6,7 @@ from typing import Any
 
 from generators.capability_registry import CAPABILITIES
 from generators.gold import expected_no_action
-from generators.homes import _eval_cases_module, _eval_entity_names, generate_home, make_entity
+from generators.homes import _FIRST_NAMES, _eval_cases_module, _eval_entity_names, generate_home, make_entity
 
 SHARED_ALIAS_RATE = 0.6
 SCRIPT_VARIANT_SHARE = 0.15
@@ -28,12 +28,13 @@ _GENERIC_OPERATIONS: dict[str, tuple[str, ...]] = {
     "fans": ("turn_on", "turn_off"),
 }
 _LIGHT_NOUNS: tuple[str, ...] = ("Pendant", "Spot", "Strip", "Track", "Sconce", "Panel", "Lamp", "Fixture")
-_FIRST_NAMES: tuple[str, ...] = (
-    "Priya", "Mateo", "Noor", "Ellis", "Hana", "Tomas", "Ivy", "Dev", "Leona", "Oscar", "Wren", "Yusuf",
-)
 _ROUTINE_NAMES: tuple[str, ...] = (
     "Bedtime Routine", "Morning Routine", "Movie Mode", "Dinner Party",
     "Away Mode", "Good Morning", "Nap Time", "Study Session",
+    "Reading Hour", "Workout Mode", "Quiet Time", "Gaming Mode",
+    "Homework Time", "Guest Mode", "Holiday Mode", "Night Mode",
+    "Lazy Sunday", "Rainy Day", "Date Night", "Focus Mode",
+    "Sleep Mode", "Spa Night",
 )
 _SCRIPT_UTTERANCES: tuple[tuple[str, str], ...] = (
     ("run the routine", "routine"),
@@ -65,7 +66,7 @@ _TEMPLATES: dict[str, tuple[str, ...]] = {
         "brighten the {alias} in the {room}",
     ),
     "set_color": (
-        "set the {alias} to warm white",
+        "set the {alias} to yellow",
         "make the {alias} in the {room} blue",
         "change the {alias} to green",
         "set the {alias} in the {room} to purple",

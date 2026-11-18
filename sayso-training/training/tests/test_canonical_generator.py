@@ -14,11 +14,12 @@ REPO = ROOT.parent
 sys.path.insert(0, str(ROOT))
 
 from adapters.schema import v2_openai_tools
+from generators import rendering, row_generation
 from generators.pipeline import generate_row
 from generators.config import GeneratorConfig
 from generators.deduplication import DuplicateTracker
 from generators.manifest import build_manifest, dataset_hash
-from generators.planning import build_plan, verify_feasible
+from generators.planning import CORE_TOOL_NAMES, build_plan, verify_feasible
 from generators.pipeline import run_generation
 from generators.gold import gold_matches_family
 from generators.scenarios import area as area_scenarios
@@ -78,7 +79,17 @@ def test_production_catalog_is_answer_independent() -> None:
     row = render_example(spec)
     offered = {t["function"]["name"] for t in row["tools"]}
     catalog = {t["function"]["name"] for t in production_catalog(spec["home"])}
-    assert offered == catalog
+    assert not (spec["expected"].get("unavailable_tools") or spec.get("removed_tools"))
+    withheld = set(rendering._decoy_removals(spec, row["messages"]))
+    assert withheld <= catalog
+    assert offered == catalog - withheld
+    assert len(withheld) <= 2
+    needed = {call["function"]["name"] for m in row["messages"] for call in m.get("tool_calls") or []}
+    assert needed
+    assert needed <= offered
+    assert not withheld & needed
+    core = {namespaced_tool_name(name) for name in CORE_TOOL_NAMES}
+    assert core <= offered
     assert namespaced_tool_name("GetDateTime") in offered
 
 
@@ -314,7 +325,10 @@ def test_absence_family_never_labels_action_or_script_clarify() -> None:
         assert expected["response"] in ("area_unavailable", "device_absent")
 
 
-def test_unsupported_family_keeps_tool_and_labels_no_action() -> None:
+def test_unsupported_family_keeps_tool_and_labels_no_action(monkeypatch) -> None:
+    monkeypatch.setattr(row_generation, "CONTEXT_HARD_NEGATIVE_RATE", 1.0)
+    cfg = _small_config(count=40, seed=20)
+    kept = 0
     for seed in range(20):
         scenario = build_scenario(
             index=seed,
@@ -324,17 +338,37 @@ def test_unsupported_family_keeps_tool_and_labels_no_action() -> None:
             home_size=16,
             family="unsupported",
         )
-        expected = scenario["expected"]
-        assert gold_matches_family(expected, "unsupported")
-        assert expected["kind"] == "no_action"
-        assert expected["response"] == "device_unsupported"
-        assert not expected.get("unavailable_tools")
-        spec = scenario_to_spec(scenario)
-        spec["utterance"] = "Turn on the TV"
-        row = render_example(spec)
+        assert scenario["expected"]["kind"] == "reject"
+        assert scenario["expected"]["reason"] == "entity_lacks_capability"
+        slot = {
+            "index": seed,
+            "family": "unsupported",
+            "capability": "media_players",
+            "operation": "turn_on",
+            "home_size": 16,
+        }
+        row = None
+        for attempt in range(50):
+            row, reason = generate_row(
+                slot,
+                cfg,
+                __import__("random").Random(seed + 1000 * attempt),
+                excluded=set(),
+                dup_tracker=DuplicateTracker(near_limit=4),
+                attempt=attempt,
+            )
+            if row is not None:
+                break
+        assert row is not None, reason
+        kept += 1
+        assert row["messages"][-1]["content"].endswith(" does not support that.")
+        assert not row["metadata"]["unavailable_tools"]
+        assert row["metadata"]["capability"] == "media_players"
+        assert row["metadata"]["operation"] == "turn_on"
         offered = {t["function"]["name"] for t in row["tools"]}
         assert namespaced_tool_name("HassTurnOn") in offered
         assert not any(message.get("tool_calls") for message in row["messages"])
+    assert kept == 20
 
 
 def test_manifest_reconciles_row_count() -> None:

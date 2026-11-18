@@ -15,28 +15,47 @@ from generators.planning import build_plan
 from generators.validation import validate_spec
 
 
+MAX_ATTEMPTS = 200
+
+
+def _attempt(config, tracker, index, attempt):
+    slot = {
+        "index": index,
+        "family": "unsupported",
+        "capability": "media_players",
+        "operation": "turn_on",
+        "home_size": 16,
+    }
+    return row_generation.generate_row(
+        slot, config, random.Random(config.seed + index * MAX_ATTEMPTS + attempt),
+        excluded=set(), dup_tracker=tracker, attempt=attempt,
+        stt_remaining=config.count, stt_log_remaining=config.count, rows_remaining=config.count,
+    )
+
+
 def _sample(count=300):
     config = GeneratorConfig(count=count, seed=812, stt_noise_rate=0)
     tracker = DuplicateTracker()
     results = []
+    attempts = 0
     with patch.object(row_generation, "render_example", wraps=row_generation.render_example) as render:
         for index in range(count):
-            slot = {
-                "index": index,
-                "family": "unsupported",
-                "capability": "media_players",
-                "operation": "turn_on",
-                "home_size": 16,
-            }
-            row, reason = row_generation.generate_row(
-                slot, config, random.Random(config.seed + index),
-                excluded=set(), dup_tracker=tracker,
-                stt_remaining=count, stt_log_remaining=count, rows_remaining=count,
-            )
-            assert reason is None, reason
-            assert row is not None
-            results.append((row, copy.deepcopy(render.call_args.args[0])))
-    return results
+            for attempt in range(MAX_ATTEMPTS):
+                attempts += 1
+                row, reason = _attempt(config, tracker, index, attempt)
+                if row is not None:
+                    results.append((row, copy.deepcopy(render.call_args.args[0])))
+                    break
+                assert reason == "entity_lacks_capability", reason
+            else:
+                raise AssertionError(f"slot {index} produced no row in {MAX_ATTEMPTS} attempts")
+    return results, attempts
+
+
+def _first_attempts(count):
+    config = GeneratorConfig(count=count, seed=812, stt_noise_rate=0)
+    tracker = DuplicateTracker()
+    return [_attempt(config, tracker, index, 0) for index in range(count)]
 
 
 @pytest.fixture(scope="module")
@@ -50,9 +69,12 @@ def _is_context_refusal(spec):
 
 
 def test_context_hard_negative_share_and_labels(sample):
-    negatives = [(row, spec) for row, spec in sample if _is_context_refusal(spec)]
+    results, attempts = sample
+    assert len(results) == 300
+    negatives = [(row, spec) for row, spec in results if _is_context_refusal(spec)]
+    assert len(negatives) == len(results)
     assert 0.25 <= row_generation.CONTEXT_HARD_NEGATIVE_RATE <= 0.35
-    assert len(negatives) / len(sample) == pytest.approx(
+    assert len(negatives) / attempts == pytest.approx(
         row_generation.CONTEXT_HARD_NEGATIVE_RATE, abs=0.07
     )
     for row, spec in negatives:
@@ -111,10 +133,11 @@ def test_home_without_context_entities_is_unchanged(monkeypatch):
 
     monkeypatch.setattr(row_generation, "scenario_to_spec", without_context)
     monkeypatch.setattr(row_generation, "CONTEXT_HARD_NEGATIVE_RATE", 0.0)
-    before = _sample(8)
+    before = _first_attempts(8)
     monkeypatch.setattr(row_generation, "CONTEXT_HARD_NEGATIVE_RATE", 1.0)
-    assert _sample(8) == before
-    assert not any(_is_context_refusal(spec) for _, spec in before)
+    assert _first_attempts(8) == before
+    assert all(row is None for row, _ in before)
+    assert {reason for _, reason in before} == {"entity_lacks_capability"}
 
 
 def test_other_families_and_rng_are_unchanged(monkeypatch):

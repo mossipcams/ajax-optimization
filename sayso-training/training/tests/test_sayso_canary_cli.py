@@ -68,6 +68,7 @@ def _prepare_canary_module(sayso, monkeypatch, tmp_path, record):
     monkeypatch.setattr(sayso, "render_and_stage", lambda rec: "/data/staged.jsonl")
     monkeypatch.setattr(sayso, "write_current", lambda rec: None)
     monkeypatch.setattr(sayso, "settle_gpu", lambda: None)
+    monkeypatch.setattr(sayso, "check_trainer_python", lambda: None)
     train_commands = []
     monkeypatch.setattr(sayso, "run", lambda command, **kwargs: train_commands.append(command))
     capture = RunCapture()

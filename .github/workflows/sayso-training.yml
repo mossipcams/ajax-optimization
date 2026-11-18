@@ -1,0 +1,46 @@
+name: sayso-training
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sayso-training-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast-tests:
+    name: fast tests (light)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: sayso-training
+    steps:
+      - name: Check out repository and SaySo submodule
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install light test dependencies
+        # Light pins only: no transformers, tokenizers or Jinja2, so the Hugging Face tokenizer
+        # tests are marked slow and skipped here. The full suite runs locally via
+        # scripts/ci-local.sh before a pull request is opened or updated.
+        run: |
+          grep -E '^(hassil|jsonschema|PyYAML|hypothesis|pytest|voluptuous)==' training/requirements.txt > "$RUNNER_TEMP/ci-requirements.txt"
+          python -m pip install -r "$RUNNER_TEMP/ci-requirements.txt"
+
+      - name: Set PYTHONPATH as training_paths.py does
+        run: echo "PYTHONPATH=$(python training_paths.py)" >> "$GITHUB_ENV"
+
+      - name: Run fast tests
+        run: python -m pytest training/tests -m 'not slow' -q
