@@ -161,6 +161,27 @@ None of the 18 slow tests fails in either run.
 
 Current state at `511c239`: the full suite on the VM is 969 passed, 0 failed, 0 errors (`full-lfm`, 530.67 s). The collection error above is gone, and the workflow no longer needs `--continue-on-collection-errors`. The fast-set count at `511c239` was not re-measured; the table above is from step 2.
 
+## CI layout after PR #50
+
+Run 44200880780 hit the 15-minute timeout in the fast job. The 8 failures were the
+Hugging Face tokenizer tests (`LiquidAI/LFM2.5-230M-Base`). Once `transformers` was
+installed, every long row called `from_pretrained` again, because `_tokenizer`
+(`lru_cache`) does not cache load failures. Generation then stalled on repeated
+retries until the timeout. The same tree passes on the VM with an empty HF cache
+(1023 passed, 173 s).
+
+Owner decision (2026-11-18): verification runs locally before a pull request.
+GitHub PR CI stays light, and there is no GitHub nightly.
+
+- GitHub (`sayso-training.yml`): one job, `fast tests (light)`, on pull requests and
+  pushes to `main`. It installs only the non-tokenizer pins and runs
+  `training/tests -m 'not slow'`. The seven tests that need the tokenizer or run the
+  generator end to end carry `@pytest.mark.slow`.
+- Local (`sayso-training/scripts/ci-local.sh`): the full suite on the merge with
+  current `origin/main`, with the exact CI pins. `--remote` runs it on the llm VM, and
+  `--post` publishes the `local-ci` commit status for a pushed `HEAD`. `AGENTS.md`
+  requires this before opening or updating a sayso-training pull request.
+
 ## Step 2b: fa9083b unsupported slot and context tests
 
 Decision: no planner or gate change. The unsupported media_players/turn_on slot still has a production path, so it is not a dead slot:

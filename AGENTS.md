@@ -65,6 +65,13 @@ Serving-only hard constraints unless the user says otherwise:
   and training gold sets.
 - Training and wake tooling runbooks are summarized in
   `sayso-training/README.md`.
+- Before opening a pull request, and before pushing new commits to an open pull
+  request, that touches `sayso-training/`, run
+  `sayso-training/scripts/ci-local.sh --remote <llm VM>` (full suite on the merge
+  with current `origin/main`, exact CI pins; heavy runs go to the llm VM, not the
+  Mac). Push only when it prints `local-ci: PASS`. After pushing, run
+  `sayso-training/scripts/ci-local.sh --post` so the PR shows the `local-ci`
+  status. GitHub CI runs only the light fast job and is not the verification gate.
 
 ## GPU host safety
 
@@ -153,7 +160,8 @@ need a comment, restructure the code or name it so the comment is unnecessary.
 Evidence that a change works is required. Prefer focused verification first,
 then the strongest practical broader check for the risk: the FA correctness
 harness (`bench/fa_correctness.sh`), the microbench (`bench/fa_perf.sh`), and an
-end-to-end SOLO/PAIR A/B (`bench/fapack_ab.sh`).
+end-to-end SOLO/PAIR A/B (`bench/fapack_ab.sh`). For `sayso-training/` changes,
+the gate is `sayso-training/scripts/ci-local.sh` (see SaySo training above).
 
 If validation cannot run because of missing tools, environment limits, time, or
 unrelated failures, report the exact command and result. Final reports must say

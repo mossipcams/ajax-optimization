@@ -61,6 +61,7 @@ def _row(family: str, seed: int = 20260922, **config_kwargs):
     return None
 
 
+@pytest.mark.slow
 def test_count_row_tokens_counts_a_row_with_tool_calls():
     row = _row("ordinary")
     assert row is not None, "no ordinary row generated"
@@ -72,6 +73,7 @@ def test_count_row_tokens_counts_a_row_with_tool_calls():
     assert not row["metadata"].get("_token_length_estimated", False)
 
 
+@pytest.mark.slow
 def test_cheap_token_bound_never_understates_the_real_count():
     for family in ("ordinary", "settings", "multi_action", "exclusion", "junk"):
         row = _row(family)

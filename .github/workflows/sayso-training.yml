@@ -4,10 +4,6 @@ on:
   pull_request:
   push:
     branches: [main]
-  schedule:
-    # 1:00 AM US Central standard time
-    - cron: "0 7 * * *"
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -18,10 +14,9 @@ concurrency:
 
 jobs:
   fast-tests:
-    name: fast tests (not slow)
-    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    name: fast tests (light)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: sayso-training
@@ -36,11 +31,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install generator test dependencies
-        # Only the pins the generator tests import. Torch and llama-cpp-python stay out of CI:
-        # no test loads a model, and the tokenizer tests need only the tokenizer package.
+      - name: Install light test dependencies
+        # Light pins only: no transformers, tokenizers or Jinja2, so the Hugging Face tokenizer
+        # tests are marked slow and skipped here. The full suite runs locally via
+        # scripts/ci-local.sh before a pull request is opened or updated.
         run: |
-          grep -E '^(hassil|jsonschema|PyYAML|hypothesis|pytest|transformers|tokenizers|voluptuous|Jinja2)==' training/requirements.txt > "$RUNNER_TEMP/ci-requirements.txt"
+          grep -E '^(hassil|jsonschema|PyYAML|hypothesis|pytest|voluptuous)==' training/requirements.txt > "$RUNNER_TEMP/ci-requirements.txt"
           python -m pip install -r "$RUNNER_TEMP/ci-requirements.txt"
 
       - name: Set PYTHONPATH as training_paths.py does
@@ -48,33 +44,3 @@ jobs:
 
       - name: Run fast tests
         run: python -m pytest training/tests -m 'not slow' -q
-
-  full-tests:
-    name: full suite (nightly)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    defaults:
-      run:
-        working-directory: sayso-training
-    steps:
-      - name: Check out repository and SaySo submodule
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install generator test dependencies
-        run: |
-          grep -E '^(hassil|jsonschema|PyYAML|hypothesis|pytest|transformers|tokenizers|voluptuous|Jinja2)==' training/requirements.txt > "$RUNNER_TEMP/ci-requirements.txt"
-          python -m pip install -r "$RUNNER_TEMP/ci-requirements.txt"
-
-      - name: Set PYTHONPATH as training_paths.py does
-        run: echo "PYTHONPATH=$(python training_paths.py)" >> "$GITHUB_ENV"
-
-      - name: Run full suite
-        run: python -m pytest training/tests -q
