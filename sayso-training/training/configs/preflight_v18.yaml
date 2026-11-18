@@ -1,5 +1,5 @@
 dataset: training/datasets/sayso_full_sft_v18_20261118.jsonl
-baseline: training/configs/training_baseline.json
+baseline: training/configs/training_baseline_v18.json
 critical_fixtures:
   - schemas/sayso-tool-schema-v2.json
   - training/fixtures/ha_assist_tools.json

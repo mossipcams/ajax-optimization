@@ -44,7 +44,9 @@ each stage; host paths and the GPU lock are defined in `sayso`.
   `training/configs/preflight.yaml`). `coverage.min_behavior_share` (default 0.005) sets the
   audit's minimum multi-call/exclusion/alias row share, and `ordinary_ops` accepts a
   `cap.op: weight` mapping. v18 uses `preflight_v18.yaml` with multi_action 300 and GetDateTime
-  150 and min_behavior_share 0.003, approved by the user on 2026-11-18.
+  150 and min_behavior_share 0.003, approved by the user on 2026-11-18; v18 compares drift against
+  `training/configs/training_baseline_v18.json` (measured v18 family shares, user-approved 2026-11-18)
+  instead of the v11-era baseline.
 - **Label gates (enforced at generation, checked here):** every tool call must pass the
   pinned schema; `ALLOWED_HASS_TOOLS` in `training/adapters/schema.py` is the dataset-build
   gate for that contract. Coverage and eval-overlap gates live in
