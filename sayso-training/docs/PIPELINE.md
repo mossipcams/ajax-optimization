@@ -39,6 +39,12 @@ each stage; host paths and the GPU lock are defined in `sayso`.
   `scripts/preflight.py <dataset>` (see `cmd_validate` in `sayso`).
 - **Inputs:** the unchanged candidate dataset from stage 1. The CLI re-checks the
   dataset sha256 against the recorded value before running preflight.
+- **Preflight config:** a generation YAML may set top-level `preflight: <path>`, which
+  `sayso validate` passes to `scripts/preflight.py` as `--config` (default
+  `training/configs/preflight.yaml`). `coverage.min_behavior_share` (default 0.005) sets the
+  audit's minimum multi-call/exclusion/alias row share, and `ordinary_ops` accepts a
+  `cap.op: weight` mapping. v18 uses `preflight_v18.yaml` with multi_action 300 and GetDateTime
+  150 and min_behavior_share 0.003, approved by the user on 2026-11-18.
 - **Label gates (enforced at generation, checked here):** every tool call must pass the
   pinned schema; `ALLOWED_HASS_TOOLS` in `training/adapters/schema.py` is the dataset-build
   gate for that contract. Coverage and eval-overlap gates live in

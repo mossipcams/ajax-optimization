@@ -7,6 +7,7 @@ import zlib
 from typing import Any
 
 from generators.ohf import render_call
+from generators.stt_noise import _int_to_words
 from generators.capability_registry import is_satellite
 
 _WORDING_PILE = None
@@ -460,10 +461,28 @@ def _timer_room_phrasing(spec: dict[str, Any], call: dict[str, Any], seed: str) 
     return rng.choice(_TIMER_ROOM_PHRASES).format(delta=delta, area=rng.choice(areas))
 
 _VOLUME_STEP_PHRASES: dict[str, tuple[str, ...]] = {
-    "up": ("turn {target} volume up {n} percent", "make {target} louder by {n}",
-           "raise {target} volume by {n} percent"),
-    "down": ("turn {target} volume down {n} percent", "lower {target} volume by {n}",
-             "{target}, turn it down {n}"),
+    "up": (
+        "turn {target} volume up by {n} percent",
+        "turn up {target} volume by {n} percent",
+        "raise {target} volume by {n} percent",
+        "make {target} louder by {n}",
+        "increase {target} volume by {n}",
+        "turn {target} volume up by {n}",
+        "turn {target} up by {n}",
+        "turn {target} up {n}",
+        "turn up {target} volume {n}",
+    ),
+    "down": (
+        "turn {target} volume down by {n} percent",
+        "turn down the volume on {target} by {n} percent",
+        "lower {target} volume by {n} percent",
+        "make {target} quieter by {n}",
+        "decrease {target} volume by {n}",
+        "turn {target} volume down by {n}",
+        "turn {target} down by {n}",
+        "turn {target} down {n}",
+        "turn the volume on {target} down {n}",
+    ),
 }
 
 _VOLUME_UP_PHRASES = ("turn up {0} volume", "make {0} a lot louder")
@@ -471,11 +490,19 @@ _VOLUME_UP_PHRASES = ("turn up {0} volume", "make {0} a lot louder")
 _VOLUME_DOWN_PHRASES = ("turn down {0} volume", "not so loud, {0}")
 
 
+def _volume_step_number(step: int, rng: random.Random) -> str:
+    words = _int_to_words(step)
+    if words and rng.random() < 0.5:
+        return words
+    return str(step)
+
+
 def _volume_phrasing(target: str, call: dict[str, Any], seed: str) -> str:
     step = (call.get("arguments") or {}).get("volume_step")
     rng = random.Random(zlib.crc32(f"volume:{seed}".encode()))
     if isinstance(step, int):
-        return rng.choice(_VOLUME_STEP_PHRASES["up" if step > 0 else "down"]).format(target=target, n=abs(step))
+        template = rng.choice(_VOLUME_STEP_PHRASES["up" if step > 0 else "down"])
+        return template.format(target=target, n=_volume_step_number(abs(step), rng))
     if step == "up":
         return rng.choice(_VOLUME_UP_PHRASES).format(target)
     if step == "down":

@@ -884,6 +884,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
         min_positive_per_tool=config.scaled_floor(config.min_positive_per_tool),
         max_absence_rate=config.max_absence_rate,
         get_datetime_positive_min=config.scaled_floor(config.get_datetime_positive_min),
+        min_behavior_share=config.min_behavior_share,
         allowed_operation_shortfall=(
             config.get_datetime_positive_min if quota is not None else 0
         ),

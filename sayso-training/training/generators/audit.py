@@ -39,6 +39,7 @@ def audit_rows(
     max_absence_rate=None,
     get_datetime_positive_min=0,
     allowed_operation_shortfall=0,
+    min_behavior_share=0.005,
 ):
     counts = Counter()
     casing = {"call": Counter(), "no_call": Counter()}
@@ -150,7 +151,7 @@ def audit_rows(
             raise ValueError(f"label-dependent casing for {kind}: {dict(cases)}")
     if counts["rows"] >= 1000:
         for behavior in ("multi_call_rows", "exclusion_rows", "alias_rows"):
-            if counts[behavior] < counts["rows"] * 0.005:
+            if counts[behavior] < counts["rows"] * min_behavior_share:
                 raise ValueError(f"insufficient actual {behavior}: {counts[behavior]}")
 
     missing_operations = {}

@@ -58,6 +58,7 @@ class GeneratorConfig:
     area_distribution_path: Path | None = None
     min_positive_per_operation: int = 1
     min_positive_per_tool: int = 1
+    min_behavior_share: float = 0.005
     recipe_count: int = 0
     max_absence_rate: float = 0.10
     get_datetime_positive_min: int = 1
@@ -80,7 +81,13 @@ class GeneratorConfig:
             total = sum(self.allocations.values())
             if abs(total - 1.0) > 0.02:
                 raise ValueError(f"allocations must sum to ~1.0, got {total:.4f}")
-        for name in ("grounding_rate", "discrimination_rate", "bare_name_rate", "stt_log_rate"):
+        for name in (
+            "grounding_rate",
+            "discrimination_rate",
+            "bare_name_rate",
+            "stt_log_rate",
+            "min_behavior_share",
+        ):
             value = getattr(self, name)
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{name} must be within [0, 1], got {value}")
@@ -156,11 +163,20 @@ class GeneratorConfig:
             real_home_path = root / real_home_path
         allocations = raw.get("allocations", {})
         parsed_ordinary_ops = []
-        for entry in raw.get("ordinary_ops") or ():
+        ops_raw = raw.get("ordinary_ops") or ()
+        if isinstance(ops_raw, dict):
+            op_entries = [(entry, weight) for entry, weight in ops_raw.items()]
+        else:
+            op_entries = [(entry, 1) for entry in ops_raw]
+        for entry, weight in op_entries:
+            if not isinstance(weight, int) or isinstance(weight, bool) or weight <= 0:
+                raise ValueError(
+                    f"ordinary_ops[{entry!r}] weight must be a positive int, got {weight!r}"
+                )
             cap_name, _, op_name = str(entry).partition(".")
             if not op_name:
                 raise ValueError(f"ordinary_ops entry {entry!r} must be 'capability.operation'")
-            parsed_ordinary_ops.append((cap_name, op_name))
+            parsed_ordinary_ops.extend([(cap_name, op_name)] * weight)
         ordinary_ops = tuple(parsed_ordinary_ops)
         pile = raw.get("wording_pile") or {}
         wording_pile = None
@@ -200,6 +216,7 @@ class GeneratorConfig:
             min_positive_per_operation=int(coverage.get("min_positive_per_operation", 1)),
             min_positive_per_tool=int(coverage.get("min_positive_per_tool", 1)),
             max_absence_rate=float(coverage.get("max_absence_rate", 0.10)),
+            min_behavior_share=float(coverage.get("min_behavior_share", 0.005)),
             get_datetime_positive_min=int(coverage.get("get_datetime_positive_min", 1)),
             real_home_path=real_home_path,
             real_home_rate=float(real.get("rate", 0.0)),

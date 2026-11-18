@@ -352,12 +352,18 @@ def cmd_generate(_: argparse.Namespace) -> None:
 
 
 def cmd_validate(_: argparse.Namespace) -> None:
+    import yaml
     record = current()
     if digest(Path(record["dataset_path"])) != record["dataset_sha256"]:
         raise SystemExit("Candidate changed since generation; generate a fresh run before validation")
     record.update(validated=False, canary_passed=False)
     write_current(record)
-    run([str(PYTHON), str(ROOT / "scripts/preflight.py"), record["dataset_path"]])
+    command = [str(PYTHON), str(ROOT / "scripts/preflight.py"), record["dataset_path"]]
+    recipe = yaml.safe_load((ROOT / record["config"]).read_text(encoding="utf-8")) or {}
+    preflight_config = recipe.get("preflight")
+    if preflight_config:
+        command += ["--config", str(ROOT / preflight_config)]
+    run(command)
     record["validated"] = True
     record["validated_sha256"] = record["dataset_sha256"]
     write_current(record)
