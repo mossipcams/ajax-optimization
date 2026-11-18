@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from generators.capability_registry import HOME_SIZE_WEIGHTS, TIER_PROPORTIONS
+from generators.capability_registry import CAPABILITIES, HOME_SIZE_WEIGHTS, TIER_PROPORTIONS
 from generators.planning import PRIMARY_FAMILIES
 
 DEFAULT_TRAIN_COUNT = 40_000
@@ -68,6 +68,7 @@ class GeneratorConfig:
     synthetic_only: bool = False
     wording_pile: dict[str, Any] | None = None
     pair_rates: dict[str, float] = field(default_factory=dict)
+    ordinary_ops: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         if self.synthetic_only:
@@ -93,6 +94,12 @@ class GeneratorConfig:
                 "grounding_rate + discrimination_rate must be <= 1, "
                 f"got {self.grounding_rate} + {self.discrimination_rate}"
             )
+        if self.ordinary_ops:
+            from generators.planning import _action_ops
+
+            for cap_name, op_name in self.ordinary_ops:
+                if cap_name not in CAPABILITIES or op_name not in _action_ops(CAPABILITIES[cap_name]):
+                    raise ValueError(f"unknown ordinary_op {cap_name}.{op_name}")
         from generators.utterances import set_wording_pile
 
         if self.wording_pile is None:
@@ -148,6 +155,13 @@ class GeneratorConfig:
         if real_home_path and not real_home_path.is_absolute():
             real_home_path = root / real_home_path
         allocations = raw.get("allocations", {})
+        parsed_ordinary_ops = []
+        for entry in raw.get("ordinary_ops") or ():
+            cap_name, _, op_name = str(entry).partition(".")
+            if not op_name:
+                raise ValueError(f"ordinary_ops entry {entry!r} must be 'capability.operation'")
+            parsed_ordinary_ops.append((cap_name, op_name))
+        ordinary_ops = tuple(parsed_ordinary_ops)
         pile = raw.get("wording_pile") or {}
         wording_pile = None
         if pile.get("path"):
@@ -193,6 +207,7 @@ class GeneratorConfig:
             synthetic_only=bool(gen.get("synthetic_only", True)),
             wording_pile=wording_pile,
             pair_rates={str(k): float(v) for k, v in (raw.get("pairs") or {}).items()},
+            ordinary_ops=ordinary_ops,
         )
 
     def recipe_hash(self) -> str:
@@ -240,4 +255,6 @@ class GeneratorConfig:
             }
         if self.pair_rates:
             data["pair_rates"] = self.pair_rates
+        if self.ordinary_ops:
+            data["ordinary_ops"] = [f"{cap}.{op}" for cap, op in self.ordinary_ops]
         return data

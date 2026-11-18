@@ -425,6 +425,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             real_home_rate=config.real_home_rate,
             min_positive_per_tool=config.scaled_floor(config.min_positive_per_tool),
             min_positive_per_operation=config.scaled_floor(config.min_positive_per_operation),
+            ordinary_ops=config.ordinary_ops,
         )
         tracker = FamilyTracker(plan)
     elif config.allocations:
@@ -439,6 +440,7 @@ def _run_generation(config: GeneratorConfig) -> dict[str, Any]:
             datetime_required=datetime_target,
             real_home_path=config.real_home_path,
             real_home_rate=config.real_home_rate,
+            ordinary_ops=config.ordinary_ops,
         )
         tracker = FamilyTracker(plan)
     else:

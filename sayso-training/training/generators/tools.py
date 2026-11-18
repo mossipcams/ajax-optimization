@@ -111,18 +111,11 @@ def _domain_args(entity: dict[str, Any]) -> dict[str, Any]:
     domain = entity["domain"]
     if domain in {"light", "fan", "switch", "media_player", "climate", "vacuum", "scene", "script"}:
         return {"domain": [domain]}
-    if domain == "lock":
-        return {}
-    if entity.get("device_class"):
-        return {"device_class": [entity["device_class"]]}
     return {}
 
 
 def _media_player_args(entity: dict[str, Any]) -> dict[str, Any]:
-    args: dict[str, Any] = {"name": entity["name"], "domain": ["media_player"]}
-    if entity.get("device_class"):
-        args["device_class"] = [entity["device_class"]]
-    return args
+    return {"name": entity["name"], "domain": ["media_player"]}
 
 
 def build_turn_on(entity: dict[str, Any]) -> dict[str, Any]:

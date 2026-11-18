@@ -178,7 +178,7 @@ def request_seed_from_spec(spec: dict[str, Any]) -> str:
                 provenance.append({"source": "sayso_fallback", "intent": call["name"]})
             phrases.append(routine)
             continue
-        phrases.append(_phrase_for_call(str(target), _lock_phrasing(call, spec), f"{seed_key}:{index}", provenance,
+        phrases.append(_phrase_for_call(str(target), _lock_phrasing(_phrasing_device_class(call, spec), spec), f"{seed_key}:{index}", provenance,
                                         half_durations=half_durations))
     seed = " and ".join(phrases)
     excluded = spec.get("excluded_names") or []
@@ -200,6 +200,29 @@ def _leave_clause(excluded: list[str], spec: dict[str, Any]) -> str:
     seed_key = spec.get("phrasing_seed") or spec.get("candidate_id", "")
     rng = random.Random(zlib.crc32(f"leave:{seed_key}".encode()))
     return rng.choice(_LEAVE_CLAUSES).format(n=" and ".join(excluded), p="it" if len(excluded) == 1 else "them")
+
+
+_NAMED_CLASS_MEDIA_TOOLS = frozenset({
+    "HassMediaPause", "HassMediaUnpause", "HassSetVolume", "HassMediaPlayerMute",
+    "HassMediaPlayerUnmute", "HassMediaNext", "HassMediaPrevious",
+})
+_DOMAIN_ARG_DOMAINS = frozenset({"light", "fan", "switch", "media_player", "climate", "vacuum", "scene", "script", "lock"})
+
+
+def _phrasing_device_class(call: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:
+    arguments = call.get("arguments") or {}
+    if "device_class" in arguments or not arguments.get("name"):
+        return call
+    by_name = {entity["name"]: entity for entity in (spec.get("home") or {}).get("entities", [])}
+    entity = by_name.get(arguments["name"]) or {}
+    device_class = entity.get("device_class")
+    if not device_class:
+        return call
+    media = entity.get("domain") == "media_player" and call.get("name") in _NAMED_CLASS_MEDIA_TOOLS
+    other = call.get("name") in {"HassTurnOn", "HassTurnOff"} and entity.get("domain") not in _DOMAIN_ARG_DOMAINS
+    if not (media or other):
+        return call
+    return {**call, "arguments": {**arguments, "device_class": [device_class]}}
 
 
 def _lock_phrasing(call: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:

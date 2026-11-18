@@ -1,0 +1,32 @@
+{
+  "count": 1934,
+  "created": "2026-11-17T02:29:01+00:00",
+  "per_op": {
+    "covers.close": 88,
+    "covers.open": 115,
+    "fans.turn_off": 123,
+    "fans.turn_on": 132,
+    "lights.turn_off": 112,
+    "lights.turn_on": 92,
+    "locks.lock": 106,
+    "locks.unlock": 98,
+    "media_players.mute": 78,
+    "media_players.pause": 42,
+    "media_players.play": 53,
+    "media_players.turn_off": 40,
+    "media_players.turn_on": 46,
+    "media_players.volume_down": 145,
+    "media_players.volume_up": 113,
+    "switches.turn_off": 77,
+    "switches.turn_on": 52,
+    "timers.cancel": 55,
+    "timers.cancel_all": 53,
+    "timers.pause": 42,
+    "timers.unpause": 81,
+    "vacuums.return_home": 126,
+    "vacuums.start": 65
+  },
+  "sha256": "570e5c945ea747918d864a859bb7d0d23ea3ce8b83e514096756a53a9c6c8685",
+  "verifier": "qwen3.8-27b",
+  "writer": "swift-1.5-qwen3.8-27b"
+}

@@ -1,0 +1,91 @@
+# Full fine-tune corpus v17: v16 recipe with wording pile v2 (timer phrasings must name the timer) and no device_class on calls that name a device. Ordinary rows are drawn from the ops this home uses; rare families and floors cut.
+version: 1
+count: 40000
+seed: 20261025
+split: train
+output: training/datasets/sayso_full_sft_v17_20261117.jsonl
+manifest: training/datasets/sayso_full_sft_v17_20261117.manifest.json
+
+tokenizer:
+  model: LiquidAI/LFM2.5-230M-Base
+
+schema:
+  path: schemas/sayso-tool-schema-v2.json
+
+allocations:
+  ordinary: 0.285
+  follow_up: 0.08
+  status: 0.03
+  settings: 0.03
+  contrast: 0.05
+  clarify: 0.08
+  correction: 0.05
+  junk: 0.12
+  multi_action: 0.025
+  exclusion: 0.01
+  aliases: 0.05
+  unavailable: 0.04
+  unsupported: 0.06
+  absence: 0.03
+  timer_context: 0.03
+  conversation_context: 0.02
+  relative_brightness: 0.01
+
+ordinary_ops:
+  - lights.turn_on
+  - lights.turn_off
+  - switches.turn_on
+  - switches.turn_off
+  - media_players.turn_on
+  - media_players.turn_off
+  - media_players.pause
+  - media_players.play
+  - media_players.volume_up
+  - media_players.volume_down
+  - media_players.volume_set
+  - timers.start
+  - fans.turn_on
+  - fans.turn_off
+
+cross_cutting:
+  area:
+    enabled: true
+    distribution: training/configs/area_distribution_v1.json
+
+generation:
+  stt_noise_rate: 0.15
+  stt_log_rate: 0.10
+  paraphrase_enabled: false
+  token_budget: 8000
+  near_duplicate_limit: 8
+  max_attempts_multiplier: 20
+  synthetic_only: false
+  bare_name_rate: 0.35
+
+wording_pile:
+  path: training/configs/piles/wording_v2.jsonl
+  sha256: 570e5c945ea747918d864a859bb7d0d23ea3ce8b83e514096756a53a9c6c8685
+  share: 0.3
+
+real_home:
+  path: training/fixtures/real_home.json
+  rate: 0.10
+  entity_cap: 0
+
+grounding:
+  rate: 0.08
+
+discrimination:
+  rate: 0.015
+
+coverage:
+  min_positive_per_operation: 40
+  min_positive_per_tool: 100
+  max_absence_rate: 0.10
+  get_datetime_positive_min: 300
+
+pairs:
+  withheld_tool: 1.0
+
+recipe_exclusions:
+  withheld_from_catalog: []

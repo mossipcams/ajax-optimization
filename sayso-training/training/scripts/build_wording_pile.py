@@ -74,6 +74,7 @@ UNNATURAL = "unnatural"
 
 _SLOT = re.compile(r"\{([^{}]*)\}")
 _WORD = re.compile(r"\{(?:name|area)\}|[a-z]+")
+TIMER_WORDS = re.compile(r"\b(timers?|countdowns?|count(?:ing|s)?|clocks?|tick(?:ing|s)?|alarms?|timing)\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -234,6 +235,13 @@ def noun_check(template: str, cap: CapabilitySpec) -> str | None:
     return None
 
 
+def timer_check(template: str, cap_name: str) -> str | None:
+    """Reject a timer template that never says timer, so pause or resume alone does not mean a timer."""
+    if cap_name == "timers" and not TIMER_WORDS.search(template):
+        return "timer_noun"
+    return None
+
+
 def template_key(template: str) -> str:
     text = template.replace("{name}", " slotname ").replace("{area}", " slotarea ")
     return eval_cases.normalize_utterance(text)
@@ -298,7 +306,11 @@ def admit(
     for raw in candidates:
         counts["candidates"] += 1
         template = " ".join(raw.split())
-        reason = slot_check(template, supports_area(cap, op)) or noun_check(template, cap)
+        reason = (
+            slot_check(template, supports_area(cap, op))
+            or noun_check(template, cap)
+            or timer_check(template, cap.name)
+        )
         if reason:
             counts[reason] += 1
             continue
@@ -420,7 +432,12 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
 def cmd_finalize(args: argparse.Namespace) -> int:
     entries = read_pile(args.pile)
-    kept = [entry for entry in entries if entry.get("verify", {}).get("agree") is True]
+    kept = [
+        entry
+        for entry in entries
+        if entry.get("verify", {}).get("agree") is True
+        and timer_check(entry["template"], entry["op"].split(".")[0]) is None
+    ]
     if not kept:
         raise SystemExit("no entries agreed with the verifier")
     writers = {entry["writer"] for entry in kept}
