@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import math
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +16,19 @@ from pathlib import Path
 from training_paths import configure
 
 configure()
+
+from dataset_gates import (
+    check_gate_changes,
+    check_snapshot,
+    check_trainable,
+    digest,
+    fingerprint_snapshot,
+    load,
+    materialize_snapshot,
+    save,
+    snapshot_environment,
+    snapshot_worktree,
+)
 
 ROOT = Path(__file__).resolve().parent
 PYTHON = Path(os.environ.get("PYTHON", ROOT / "training/.venv/bin/python"))
@@ -42,9 +55,9 @@ RELEASE_SUITES = ("promotion", "context", "regression")
 RELEASE_SLACK = 2
 
 
-def run(command: list[str], *, cwd: Path = ROOT) -> None:
+def run(command: list[str], *, cwd: Path = ROOT, env: dict | None = None) -> None:
     print("+", " ".join(map(str, command)), flush=True)
-    subprocess.run(command, cwd=cwd, check=True)
+    subprocess.run(command, cwd=cwd, env=env, check=True)
 
 
 def check_trainer_python() -> None:
@@ -57,39 +70,6 @@ def check_trainer_python() -> None:
         raise SystemExit(f"Trainer interpreter {TRAINER_PYTHON} failed the stack check in the unsloth container "
                          f"(exit {result.returncode}):\n{tail}\n"
                          "rebuild it with scripts/llm-host/sayso-trainer-venv.sh")
-
-
-def digest(path: Path) -> str:
-    result = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            result.update(chunk)
-    return result.hexdigest()
-
-
-def git_commit() -> str:
-    try:
-        return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    except (OSError, subprocess.CalledProcessError):
-        pass
-    try:
-        value = (ROOT / "REVISION").read_text(encoding="utf-8").strip()
-    except OSError:
-        return "unknown"
-    if len(value) == 40 and all(ch in "0123456789abcdef" for ch in value):
-        return value
-    return "unknown"
-
-
-def save(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_suffix(path.suffix + ".tmp")
-    temp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    temp.replace(path)
-
-
-def load(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def current() -> dict:
@@ -320,30 +300,46 @@ def compare_release(candidate: dict[str, list[dict]], champion: dict[str, list[d
     return report
 
 
-def cmd_generate(_: argparse.Namespace) -> None:
-    if not PYTHON.is_file():
-        raise SystemExit(f"Missing Python environment: {PYTHON}")
+def generate_dataset(checkout: Path, config: str, dataset: Path, manifest: Path) -> None:
     import yaml
-    recipe = yaml.safe_load((ROOT / GENERATION_CONFIG).read_text(encoding="utf-8"))
-    paraphrase = bool(recipe.get("generation", {}).get("paraphrase_enabled"))
-    run_id = new_id()
-    CANDIDATES.mkdir(parents=True, exist_ok=True)
-    dataset = CANDIDATES / f"{run_id}.jsonl"
-    manifest = CANDIDATES / f"{run_id}.manifest.json"
-    generator = [str(PYTHON), "-m", "generators.cli", "--config", Path(GENERATION_CONFIG).relative_to("training").as_posix(),
+
+    recipe = yaml.safe_load((checkout / config).read_text(encoding="utf-8"))
+    generator = [str(PYTHON), "-m", "generators.cli", "--config", str(checkout / config),
                  "--output", str(dataset), "--manifest", str(manifest)]
-    if paraphrase:
+    env = snapshot_environment(checkout)
+    if recipe.get("generation", {}).get("paraphrase_enabled"):
         gpu("serve")
         try:
-            run(generator, cwd=ROOT / "training")
+            run(generator, cwd=checkout / "training", env=env)
         finally:
             gpu("stop")
     else:
-        run(generator, cwd=ROOT / "training")
+        run(generator, cwd=checkout / "training", env=env)
+
+
+def cmd_generate(args: argparse.Namespace) -> None:
+    if not PYTHON.is_file():
+        raise SystemExit(f"Missing Python environment: {PYTHON}")
+    reason = getattr(args, "accept_drift", None)
+    if reason is not None and not reason.strip():
+        raise SystemExit("--accept-drift requires a non-empty reason")
+    config = Path(getattr(args, "config", GENERATION_CONFIG))
+    config = Path(os.path.abspath(ROOT / config)).relative_to(ROOT).as_posix()
+    snapshot = snapshot_worktree(ROOT)
+    run_id = new_id()
+    dataset = CANDIDATES / f"{run_id}.jsonl"
+    manifest = CANDIDATES / f"{run_id}.manifest.json"
+    gate_changes = check_gate_changes(ROOT, STATE, snapshot, reason, run_id, CANDIDATES)
+    with materialize_snapshot(ROOT, snapshot) as checkout:
+        gates = check_snapshot(checkout, PYTHON, snapshot, STATE, reason)
+        CANDIDATES.mkdir(parents=True, exist_ok=True)
+        generate_dataset(checkout, config, dataset, manifest)
+        fingerprint = fingerprint_snapshot(checkout, PYTHON, snapshot, config)
     record = {"run_id": run_id, "dataset_path": str(dataset), "manifest_path": str(manifest),
-              "rendered_path": str(CANDIDATES / f"{run_id}.rendered.jsonl"), "git_commit": git_commit(),
-              "config": GENERATION_CONFIG,
-              "config_sha256": digest(ROOT / GENERATION_CONFIG),
+              "rendered_path": str(CANDIDATES / f"{run_id}.rendered.jsonl"),
+              "git_commit": snapshot["snapshot_commit"], **snapshot, **gates, **gate_changes,
+              "input_fingerprint": fingerprint, "config": config,
+              "config_sha256": fingerprint["recipe_sha256"],
               "created_at": datetime.now(timezone.utc).isoformat(),
               "dataset_sha256": digest(dataset), "validated": False, "canary_passed": False,
               "trained": False, "final_eval_passed": False}
@@ -400,10 +396,32 @@ def cmd_canary(args: argparse.Namespace) -> None:
 
 def cmd_promote_dataset(_: argparse.Namespace) -> None:
     record = current()
+    if not record.get("snapshot_commit"):
+        raise SystemExit("Candidate has no saved snapshot; regenerate with ./sayso generate before promotion")
     if not record.get("validated") or record.get("validated_sha256") != digest(Path(record["dataset_path"])):
         raise SystemExit("Dataset promotion requires passing validation for the unchanged candidate")
     if not record.get("canary_passed"):
         raise SystemExit("Dataset promotion requires a passing canary evaluation")
+    if not PYTHON.is_file():
+        raise SystemExit(f"Missing Python environment: {PYTHON}")
+    with materialize_snapshot(ROOT, record) as checkout, \
+            tempfile.TemporaryDirectory(prefix="sayso-reproduce-") as directory:
+        dataset = Path(directory) / "dataset.jsonl"
+        manifest = Path(directory) / "manifest.json"
+        generate_dataset(checkout, record["config"], dataset, manifest)
+        candidate_sha256 = digest(Path(record["dataset_path"]))
+        reproduced_sha256 = digest(dataset)
+        if candidate_sha256 != reproduced_sha256:
+            raise SystemExit("Dataset reproduction failed: "
+                             f"candidate sha256={candidate_sha256}, regenerated sha256={reproduced_sha256}")
+        candidate_hash = load(Path(record["manifest_path"])).get("dataset_hash")
+        reproduced_hash = load(manifest).get("dataset_hash")
+        if candidate_hash != reproduced_hash:
+            raise SystemExit("Dataset reproduction failed: "
+                             f"candidate manifest dataset_hash={candidate_hash}, "
+                             f"regenerated manifest dataset_hash={reproduced_hash}")
+    record.update(reproduced=True, reproduced_sha256=reproduced_sha256,
+                  reproduced_at=datetime.now(timezone.utc).isoformat())
     promotion = {"promoted": True, "validation_passed": True, "canary_passed": True,
                  "run_id": record["run_id"], "dataset_path": record["dataset_path"],
                  "dataset_sha256": record["dataset_sha256"], "rendered_sha256": record["rendered_sha256"],
@@ -429,6 +447,7 @@ def cmd_train(_: argparse.Namespace) -> None:
         raise SystemExit("Full training blocked: promoted dataset changed after promotion")
     ensure_vm()
     check_trainer_python()
+    check_trainable(ROOT, PYTHON, record)
     pins = ensure_pinned()
     data = render_and_stage(record)
     if digest(Path(record["rendered_path"])) != promotion["rendered_sha256"]:
@@ -568,6 +587,9 @@ def main() -> int:
                           ("promote-dataset", cmd_promote_dataset), ("train", cmd_train), ("select", cmd_select),
                           ("eval", cmd_eval), ("promote-model", cmd_promote_model)):
         command = sub.add_parser(name)
+        if name == "generate":
+            command.add_argument("--config", default=GENERATION_CONFIG, help="generation recipe path")
+            command.add_argument("--accept-drift", metavar="REASON", help="accept golden drift with an audit reason")
         if name in {"select", "eval", "promote-model"}:
             command.add_argument("--train-id", help="training run to act on (default: the latest ./sayso train)")
         if name == "canary":
