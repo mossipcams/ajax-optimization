@@ -109,7 +109,8 @@ def test_shape_matches_generate_home():
 
     synthetic = generate_home(0, 8, random.Random(0))
     real = build_home(STATES, AREA_ROWS)
-    assert real.keys() == synthetic.keys()
+    assert synthetic.keys() - real.keys() == {"context_entities"}
+    assert real.keys() <= synthetic.keys()
     assert real["entities"][0].keys() == synthetic["entities"][0].keys()
 
 
