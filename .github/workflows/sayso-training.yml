@@ -22,7 +22,7 @@ jobs:
         working-directory: sayso-training
     steps:
       - name: Check out repository and SaySo submodule
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: true
 
