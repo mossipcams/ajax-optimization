@@ -150,7 +150,7 @@ def audit_rows(
         if total >= 10 and not 0.25 <= cases["upper"] / total <= 0.75:
             raise ValueError(f"label-dependent casing for {kind}: {dict(cases)}")
     if counts["rows"] >= 1000:
-        for behavior in ("multi_call_rows", "exclusion_rows", "alias_rows"):
+        for behavior in ("multi_call_rows", "alias_rows"):
             if counts[behavior] < counts["rows"] * min_behavior_share:
                 raise ValueError(f"insufficient actual {behavior}: {counts[behavior]}")
 

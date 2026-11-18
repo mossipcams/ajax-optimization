@@ -47,7 +47,7 @@ each stage; host paths and the GPU lock are defined in `sayso`.
 - **Preflight config:** a generation YAML may set top-level `preflight: <path>`, which
   `sayso validate` passes to `scripts/preflight.py` as `--config` (default
   `training/configs/preflight.yaml`). `coverage.min_behavior_share` (default 0.005) sets the
-  audit's minimum multi-call/exclusion/alias row share, and `ordinary_ops` accepts a
+  audit's minimum multi-call and alias row share (exclusion rows have no floor; the user does not prioritize exclusion phrasing, 2026-11-18), and `ordinary_ops` accepts a
   `cap.op: weight` mapping. v18 uses `preflight_v18.yaml` with multi_action 300 and GetDateTime
   150 and min_behavior_share 0.003, approved by the user on 2026-11-18; v18 compares drift against
   `training/configs/training_baseline_v18.json` (measured v18 family shares, user-approved 2026-11-18)
