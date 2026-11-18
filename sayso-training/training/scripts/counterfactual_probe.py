@@ -94,7 +94,7 @@ def _without(home: dict[str, Any], entity: dict[str, Any], household: str) -> di
 
 
 def _single_action_call(case: Case) -> dict[str, Any] | None:
-    if case.history or case.after_utterance or case.unavailable is not None:
+    if case.unavailable is not None:
         return None
     if case.expected["response_type"] != "action":
         return None
@@ -121,8 +121,6 @@ def _variant_case(
         expected=expected,
         provenance={"source": "counterfactual_probe", "derived_from": case.id, "kind": kind},
         source=f"counterfactual_probe:{kind}",
-        history=(),
-        after_utterance=(),
     )
 
 
@@ -183,7 +181,7 @@ def _tool_removed_pair(case: Case, home: dict[str, Any]) -> Pair | None:
 
 
 def _clarify_resolved_pair(case: Case, home: dict[str, Any]) -> Pair | None:
-    if case.history or case.after_utterance or case.unavailable is not None:
+    if case.unavailable is not None:
         return None
     if case.expected["response_type"] != "clarification":
         return None

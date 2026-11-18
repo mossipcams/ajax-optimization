@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+import dataset_gates as gates
+
 TESTS = Path(__file__).resolve().parent
 TRAINING = TESTS.parent
 SAYSO_TRAINING = TRAINING.parent
@@ -20,6 +22,8 @@ SPLIT_SCRIPT = TRAINING / "scripts" / "split_dataset.py"
 SMOKE_FIXTURE = TRAINING / "fixtures" / "sayso_lfm_smoke.jsonl"
 BASELINE = TRAINING / "configs" / "training_baseline.json"
 SCHEMA_V2 = SAYSO_TRAINING / "schemas" / "sayso-tool-schema-v2.json"
+DATASET_GATES = TRAINING / "dataset_gates.py"
+SAYSO_FILE = SAYSO_TRAINING / "sayso"
 
 DOC_TEXT = DOCS.read_text(encoding="utf-8")
 _INVARIANTS_MATCH = re.search(r"^## Pipeline invariants\s*$(.*?)(?=^## |\Z)", DOC_TEXT, re.M | re.S)
@@ -297,3 +301,123 @@ def test_eval_compares_against_baseline_champion() -> None:
     calls = {node.func.id for node in ast.walk(body) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
     assert "BASELINE" in names, "cmd_eval does not read the champion from BASELINE"
     assert "compare_release" in calls, "cmd_eval does not call compare_release"
+
+
+GENERATION_INVARIANTS = {
+    12: "Generation snapshots the working tree, never HEAD.",
+    13: "Generation tests gate every candidate.",
+    14: "Changes to gate files since the last promoted snapshot require `--accept-drift`.",
+    15: "Generation records an input fingerprint.",
+    16: "Promotion reproduces the candidate byte-for-byte.",
+    17: "Full training refuses unless the candidate is reproduced and still matches.",
+}
+
+
+def _invariant_text(number: int) -> str:
+    match = re.search(rf"^{number}\. \*\*.*?(?=^\d+\. \*\*|\Z)", INVARIANTS, re.M | re.S)
+    assert match is not None, f"PIPELINE.md has no invariant {number}"
+    return match.group(0)
+
+
+def _definition(path: Path, name: str) -> ast.FunctionDef:
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return node
+    raise AssertionError(f"{path.name} has no function {name}")
+
+
+def _text(path: Path, name: str) -> str:
+    return ast.get_source_segment(path.read_text(encoding="utf-8"), _definition(path, name)) or ""
+
+
+def _called(node: ast.AST) -> set[str]:
+    return {ast.unparse(call.func) for call in ast.walk(node) if isinstance(call, ast.Call)}
+
+
+def _dict_keys(node: ast.AST) -> set[str]:
+    return {
+        key.value
+        for mapping in ast.walk(node) if isinstance(mapping, ast.Dict)
+        for key in mapping.keys if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    }
+
+
+@pytest.mark.parametrize("number,title", sorted(GENERATION_INVARIANTS.items()))
+def test_generation_invariant_is_listed_in_doc(number: int, title: str) -> None:
+    assert re.match(rf"{number}\. \*\*{re.escape(title)}\*\*", _invariant_text(number)), (
+        f"PIPELINE.md invariant {number} does not read {title!r}"
+    )
+
+
+def test_generate_snapshots_worktree_not_head() -> None:
+    snapshot = _text(DATASET_GATES, "snapshot_worktree")
+    assert "refs/sayso/snapshots/" in snapshot
+    assert "commit-tree" in snapshot
+    assert '"snapshot_commit": commit' in snapshot
+    assert "HEAD" not in snapshot, "snapshot_worktree must not read HEAD"
+    assert "snapshot_worktree" in _called(_definition(SAYSO_FILE, "cmd_generate"))
+
+
+def test_generate_runs_fast_and_golden_tests_with_cache_and_drift_stop() -> None:
+    body = _text(DATASET_GATES, "check_snapshot")
+    assert '"training/tests", "-m", "not slow"' in body
+    assert '"training/tests/test_generator_golden.py"' in body
+    assert 'name == "fast" and result.returncode' in body, "fast-test failure must stop generation"
+    assert "\"test-cache\"" in body and "snapshot['snapshot_tree']" in body
+    assert "input_fingerprint" in body
+    assert "if reason is None" in body, "golden drift must stop without --accept-drift"
+    assert "check_snapshot" in _called(_definition(SAYSO_FILE, "cmd_generate"))
+
+
+def test_protected_gate_paths_and_drift_guard() -> None:
+    assert gates.GATE_PATHS == (
+        "training/tests",
+        "training/generators/validation.py",
+        "training/preflight.py",
+        "evals/config/gates.yaml",
+        "training/dataset_gates.py",
+        "sayso",
+    )
+    body = _text(DATASET_GATES, "check_gate_changes")
+    assert "gate-diff.patch" in body
+    assert "if reason is None" in body
+    assert "check_gate_changes" in _called(_definition(SAYSO_FILE, "cmd_generate"))
+    invariant = _invariant_text(14)
+    for path in gates.GATE_PATHS:
+        assert f"`{path}`" in invariant, f"invariant 14 does not list {path}"
+
+
+def test_input_fingerprint_covers_required_inputs() -> None:
+    required = {
+        "generator_tree", "recipe_sha256", "config_files", "eval_cases", "sayso_commit",
+        "python_version", "packages", "tokenizer",
+    }
+    assert required <= _dict_keys(_definition(DATASET_GATES, "input_fingerprint"))
+    assert '"input_fingerprint": fingerprint' in _text(SAYSO_FILE, "cmd_generate")
+
+
+def test_promote_dataset_regenerates_in_snapshot_and_compares_bytes() -> None:
+    node = _definition(SAYSO_FILE, "cmd_promote_dataset")
+    assert {"materialize_snapshot", "generate_dataset"} <= _called(node)
+    assert "candidate_sha256 != reproduced_sha256" in _text(SAYSO_FILE, "cmd_promote_dataset")
+
+
+def test_train_checks_candidate_before_gpu_run() -> None:
+    check = _text(DATASET_GATES, "check_trainable")
+    assert 'record.get("reproduced") is not True' in check
+    assert "reproduced_sha256" in check
+    assert "input fingerprint mismatch" in check
+    assert {"materialize_snapshot", "fingerprint_snapshot"} <= _called(_definition(DATASET_GATES, "check_trainable"))
+    assert "160000" in check and "generator_tree" in check and "sayso_commit" in check
+    train = _definition(SAYSO_FILE, "cmd_train")
+    checks = [
+        call.lineno for call in ast.walk(train)
+        if isinstance(call, ast.Call) and getattr(call.func, "id", None) == "check_trainable"
+    ]
+    gpu_runs = [
+        call.lineno for call in ast.walk(train)
+        if isinstance(call, ast.Call) and getattr(call.func, "id", None) == "run" and call.args
+        and isinstance(call.args[0], ast.List) and call.args[0].elts
+        and isinstance(call.args[0].elts[0], ast.Name) and call.args[0].elts[0].id == "GPU_LOCK"
+    ]
+    assert checks and gpu_runs and max(checks) < min(gpu_runs), "check_trainable must run before the GPU lock"

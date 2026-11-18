@@ -33,6 +33,11 @@ each stage; host paths and the GPU lock are defined in `sayso`.
   (`<run_id>.jsonl`, `<run_id>.manifest.json`) and a promotion state record under
   `training/runs/promotion/` (`current.json` pointing at `<run_id>.json`).
 
+- **Snapshot and gates:** `./sayso generate` snapshots the working tree and runs the generation
+  gates before writing a corpus (invariants 12–15). `--config <path>` overrides `GENERATION_CONFIG`
+  for one run. `--accept-drift "<reason>"` accepts golden drift or protected gate-file changes.
+  `promote-dataset` and `train` re-check the candidate (invariants 16–17).
+
 ## 2. Post-render validation and hard label gates
 
 - **Command:** `./sayso validate`. Runs the dataset through
@@ -169,6 +174,46 @@ direction rather than proceeding.
 11. **Promotion only against the deployed champion, case-for-case.** Defined by `compare_release` in
     `sayso`, the champion entry in `training/configs/training_baseline.json`, and the
     zero-tolerance flags in `evals/config/gates.yaml`.
+12. **Generation snapshots the working tree, never HEAD.** `./sayso generate` stages the whole
+    working tree (staged, unstaged, and untracked files that are not ignored) into a temporary
+    index, writes that tree, and wraps it in a parentless commit stored at
+    `refs/sayso/snapshots/<tree>`. The candidate records that commit as `snapshot_commit`, and
+    generation never reads `HEAD`. Defined by `snapshot_worktree` in `training/dataset_gates.py`
+    and `cmd_generate` in `sayso`.
+13. **Generation tests gate every candidate.** Against the snapshot, `generate` runs the fast tests
+    (`training/tests -m "not slow"`) and the golden test (`training/tests/test_generator_golden.py`).
+    A fast-test failure always stops generation. Golden drift (assertion failures only) stops
+    generation unless `--accept-drift "<reason>"` is given with a non-empty reason; a golden run that
+    fails without drift also stops. Results are cached in
+    `training/runs/promotion/test-cache/<snapshot_tree>.json` and reused only while the input
+    fingerprint for `training/configs/generation/smoke.yaml` (invariant 15) is unchanged. Defined by
+    `check_snapshot` in `training/dataset_gates.py`.
+14. **Changes to gate files since the last promoted snapshot require `--accept-drift`.** Protected
+    paths: `training/tests` (including the golden snapshot), `training/generators/validation.py`,
+    `training/preflight.py`, `evals/config/gates.yaml`, `training/dataset_gates.py`, and `sayso`.
+    If any of them differ between the promoted dataset's snapshot and the new snapshot, generation
+    stops unless `--accept-drift "<reason>"` is given. The diff is then saved as
+    `<run_id>.gate-diff.patch` in `training/datasets/candidates/`, and its path and sha256 are recorded
+    with the candidate. With no promoted dataset there is no baseline and this check does not run.
+    Defined by `GATE_PATHS` and `check_gate_changes` in `training/dataset_gates.py`.
+15. **Generation records an input fingerprint.** The candidate's `input_fingerprint` covers the
+    generator tree (`training/generators`); the recipe and its config files (tool schema, area
+    distribution, real-home fixture); the eval cases and SaySo commit; the Python version; the
+    installed packages; and the tokenizer (model name, `tokenizers` and `transformers` versions, and
+    tokenizer files). Each group has its own sha256, and the whole has a top-level `sha256`. Defined by
+    `input_fingerprint` in `training/dataset_gates.py` and `cmd_generate` in `sayso`.
+16. **Promotion reproduces the candidate byte-for-byte.** `./sayso promote-dataset` checks out the
+    candidate's snapshot in a separate detached worktree, fills `vendor/SaySo` from the recorded
+    `sayso_commit`, and regenerates the dataset there. The regenerated file's sha256 must equal the
+    candidate's byte-for-byte, and the manifest `dataset_hash` must match; otherwise promotion stops.
+    Only then are `reproduced` and `reproduced_sha256` recorded. Defined by `cmd_promote_dataset` in
+    `sayso` and `materialize_snapshot` in `training/dataset_gates.py`.
+17. **Full training refuses unless the candidate is reproduced and still matches.** `./sayso train`
+    stops before the GPU lock unless: the candidate is `reproduced`; its `reproduced_sha256` equals the
+    current dataset sha256; its input fingerprint recomputes to the recorded sha256 in the current
+    environment (`PYTHON`) from its snapshot; and committed `HEAD` has the same `training/generators`
+    tree and the same `vendor/SaySo` gitlink (`sayso_commit`) as the snapshot. Defined by
+    `check_trainable` in `training/dataset_gates.py` and the call in `cmd_train` in `sayso`.
 
 ## Guard rails
 
@@ -177,5 +222,6 @@ reads the constants from `sayso` and the trainer and fails when they drift from 
 parses the doc's stated values (base model, `VAL_RATIO`, `TRAIN_RECIPE`, `RELEASE_SLACK`,
 `RELEASE_QUANT`, `RELEASE_SUITES`, `GENERATION_CONFIG`), so changing the code or the doc alone fails
 the test. Run it from `sayso-training/`: `python -m pytest training/tests/test_pipeline_invariants.py -q`.
-Changing an invariant still requires explicit user approval, and the doc and this test must change in
+Invariants 12–17 are also checked by number against the doc text, and each cited guard must still
+exist in `training/dataset_gates.py` or `sayso`. Changing an invariant still requires explicit user approval, and the doc and this test must change in
 the same change.

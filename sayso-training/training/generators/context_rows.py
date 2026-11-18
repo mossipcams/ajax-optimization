@@ -37,7 +37,7 @@ def _balanced_upper(casing_counts: dict[str, Counter[str]] | None, spec: dict[st
     return None
 
 
-_TIMER_CONTEXT_NAMES = ("tea", "rice", "pasta", "bread", "coffee", "eggs", "pizza", "laundry")
+_TIMER_CONTEXT_NAMES = ("soup", "roast", "muffin", "bread", "coffee", "eggs", "stew", "laundry")
 _TIMER_CONTEXT_MINUTES = (5, 10, 15, 20, 30)
 _TIMER_CONTEXT_START_NAMED = ("set a {minutes} minute {name} timer", "start a {name} timer for {minutes} minutes")
 _TIMER_CONTEXT_START_UNNAMED = ("set a {minutes} minute timer", "start a timer for {minutes} minutes")
@@ -555,7 +555,7 @@ _RESTORE_READ = {
 }
 _RESTORE_CHANGE = {
     "lights": ("set {name} to {amount} percent", "make {name} {amount} percent bright"),
-    "media_players": ("set the {name} volume to {amount}", "turn the {name} volume to {amount} percent"),
+    "media_players": ("change the {name} volume to {amount}", "turn the {name} volume to {amount} percent"),
 }
 _RESTORE_BACK = ("put it back", "set it back to how it was", "put {name} back the way it was", "set {name} back to how it was")
 _RESTORE_DOMAINS = {"lights": "light", "media_players": "media_player"}
