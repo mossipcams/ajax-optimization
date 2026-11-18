@@ -22,14 +22,14 @@ jobs:
         working-directory: sayso-training
     steps:
       - name: Check out repository and SaySo submodule
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: true
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.15"
 
       - name: Install light test dependencies
         # Light pins only: no transformers, tokenizers or Jinja2, so the Hugging Face tokenizer
