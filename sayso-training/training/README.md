@@ -361,8 +361,7 @@ micro-batch 8 with gradient accumulation 4 (effective 32) and length-grouped
 sampling, completion-only labels, and right padding. It runs a batch-shape guard
 and preflight, checks ROCm availability, rejects rows beyond the context limit or
 with no supervised completion, and requires promotion metadata plus a matching
-rendered-data hash for full training. `train_unsloth_full.py` is the one-cycle
-rollback trainer. Static dataset checks and the guarded promotion sequence are
+rendered-data hash for full training. Static dataset checks and the guarded promotion sequence are
 documented in the
 [training lifecycle guide](../docs/SAYSO_TRAINING_LIFECYCLE.md).
 

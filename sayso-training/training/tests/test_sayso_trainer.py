@@ -13,9 +13,6 @@ SPEC = importlib.util.spec_from_file_location("sayso_trainer", SCRIPTS / "sayso_
 TRAIN = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(TRAIN)
 COMMON = sys.modules["train_common"]
-UNSLOTH_SPEC = importlib.util.spec_from_file_location("train_unsloth_full", SCRIPTS / "train_unsloth_full.py")
-UNSLOTH = importlib.util.module_from_spec(UNSLOTH_SPEC)
-UNSLOTH_SPEC.loader.exec_module(UNSLOTH)
 
 
 def _tensor(*shape: int) -> SimpleNamespace:
@@ -87,7 +84,6 @@ def test_guard_rejects_position_ids_even_with_attention_mask() -> None:
 
 def test_load_rows_is_the_train_common_load_rows() -> None:
     assert TRAIN.load_rows is COMMON.load_rows
-    assert UNSLOTH.load_rows is COMMON.load_rows
 
 
 def test_manifest_records_backend_and_train_common_hash(tmp_path: Path) -> None:

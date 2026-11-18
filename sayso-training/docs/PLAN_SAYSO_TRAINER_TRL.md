@@ -56,20 +56,20 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
   throughput no more than 10% worse. Estimated cost had it run: ~1.5-2.2 h GPU.
 - **5. Wire into `sayso`.** Done. `sayso canary` and `sayso train` call
   `sayso_trainer.py` through `TRAINER_PYTHON` (env `SAYSO_TRAINER_PYTHON`).
-  `train_unsloth_full.py` stays as the rollback trainer until the first full run
-  on `sayso_trainer.py` passes `./sayso eval` against the champion.
-  `test_pipeline_invariants.py` checks the active trainer, `sayso_trainer.py`.
+  `train_unsloth_full.py` and its test were deleted on 2026-11-18, so the
+  active trainer is the only trainer. `test_pipeline_invariants.py` checks
+  `sayso_trainer.py`.
 - **6. First full run vs champion.** Pending. The next promoted dataset trains
   through `./sayso train` and is compared with the champion.
 
 ## Decisions
 
 - **Unsloth backend dropped.** User decision. The SaySo Trainer does not use
-  Unsloth; `train_unsloth_full.py` is kept only for rollback.
+  Unsloth; `train_unsloth_full.py` and its test were deleted on 2026-11-18.
 - **GPU A/B skipped.** User decision ("not worth comparing"). The first
   `./sayso canary` is the first real run.
 - **TRL 1.18.1 in its own venv.** The container's trl 0.24.0 / transformers 5.5.0
-  stay for the rollback trainer. Unsloth 2026.9.x caps trl at 1.13 and
+  are left as they are. Unsloth 2026.9.x caps trl at 1.13 and
   transformers at 5.17, so the SaySo Trainer gets a separate venv rather than
   the container's Python. `sayso` launches it through `TRAINER_PYTHON`, which
   defaults to that venv's `bin/python`. transformers 5.x removed
@@ -87,7 +87,8 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
 ## Rollback
 
 Revert PR #49, then PR #41, then PR #40 (`git revert -m 1 <merge commit>` of each, newest first).
-That restores `training/scripts/train_unsloth_full.py` launched with the container's bare `python`.
+Reverting the deletion commit (`chore(sayso-training): delete the Unsloth rollback trainer and its test`) first
+restores `training/scripts/train_unsloth_full.py`, launched with the container's bare `python`.
 The unsloth container venv is untouched. The trainer venv can stay, or be deleted with
 `docker exec unsloth rm -rf /workspace/host/lfm/venvs/sayso-trainer`.
 

@@ -16,7 +16,6 @@ TRAINING = TESTS.parent
 SAYSO_TRAINING = TRAINING.parent
 DOCS = SAYSO_TRAINING / "docs" / "PIPELINE.md"
 ACTIVE_TRAINER = TRAINING / "scripts" / "sayso_trainer.py"
-ROLLBACK_TRAINER = TRAINING / "scripts" / "train_unsloth_full.py"
 SPLIT_SCRIPT = TRAINING / "scripts" / "split_dataset.py"
 SMOKE_FIXTURE = TRAINING / "fixtures" / "sayso_lfm_smoke.jsonl"
 BASELINE = TRAINING / "configs" / "training_baseline.json"
@@ -122,34 +121,14 @@ def test_canary_and_train_run_the_active_trainer() -> None:
         )
 
 
-@pytest.mark.parametrize("trainer", [ACTIVE_TRAINER, ROLLBACK_TRAINER], ids=["active", "rollback"])
-def test_base_model_matches_doc_in_sayso_and_trainer(trainer: Path) -> None:
+def test_base_model_matches_doc_in_sayso_and_trainer() -> None:
     doc_name = _doc_base_model()
     assert doc_name == "LFM2.5-230M-Base"
     assert Path(SAYSO.BASE_MODEL).name == doc_name, f"sayso BASE_MODEL {SAYSO.BASE_MODEL!r} != doc {doc_name!r}"
-    defaults = _model_defaults(trainer)
-    assert defaults, f"{trainer.name} has no --model default"
+    defaults = _model_defaults(ACTIVE_TRAINER)
+    assert defaults, f"{ACTIVE_TRAINER.name} has no --model default"
     for default in defaults:
         assert default.rsplit("/", 1)[-1] == doc_name, f"--model default {default!r} != doc {doc_name!r}"
-
-
-def test_rollback_trainer_kwargs_full_finetuning_bf16() -> None:
-    tree = ast.parse(ROLLBACK_TRAINER.read_text(encoding="utf-8"))
-    calls = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
-            kwargs = {kw.arg: kw.value for kw in node.keywords if kw.arg is not None}
-            calls.setdefault(ast.unparse(node.func), []).append(kwargs)
-    fast_model = calls.get("FastModel.from_pretrained", [])
-    training_args = calls.get("TrainingArguments", [])
-    assert any(_is_true(kwargs.get("full_finetuning")) for kwargs in fast_model), "FastModel(full_finetuning=True) missing"
-    assert any(ast.unparse(kwargs.get("dtype", "")) == "torch.bfloat16" for kwargs in fast_model), (
-        "FastModel(dtype=torch.bfloat16) missing"
-    )
-    assert not any(_is_true(kwargs.get("float32_mixed_precision")) for kwargs in fast_model), (
-        "FastModel(float32_mixed_precision=True) must not be set"
-    )
-    assert any(_is_true(kwargs.get("bf16")) for kwargs in training_args), "TrainingArguments(bf16=True) missing"
 
 
 def test_active_trainer_loads_bf16_without_fp32_master_weights() -> None:
@@ -175,9 +154,8 @@ def test_active_trainer_loads_bf16_without_fp32_master_weights() -> None:
     assert "peft" not in imported, "active trainer imports peft"
 
 
-@pytest.mark.parametrize("trainer", [ACTIVE_TRAINER, ROLLBACK_TRAINER], ids=["active", "rollback"])
-def test_trainer_has_no_adapter_path(trainer: Path) -> None:
-    tree = ast.parse(trainer.read_text(encoding="utf-8"))
+def test_trainer_has_no_adapter_path() -> None:
+    tree = ast.parse(ACTIVE_TRAINER.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             callee = ast.unparse(node.func).lower()
