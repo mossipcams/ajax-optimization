@@ -25,8 +25,10 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
   trl 0.24.0, transformers 5.5.0, torch 2.14.0+rocm7.2, and unsloth 2026.9.7
   for the rollback trainer. The SaySo Trainer runs on trl 1.18.1 in its own
   venv inside that container (host `/srv/llm/lfm/venvs/sayso-trainer`, created
-  by `sayso-training/scripts/llm-host/sayso-trainer-venv.sh`) with transformers
-  5.23.0, datasets 5.2.0, and tokenizers 0.23.3. A `.pth` reuses the
+  by `sayso-training/scripts/llm-host/sayso-trainer-venv.sh`) with the exact
+  pins in `sayso-training/training/requirements-sayso-trainer.txt` (trl 1.18.1,
+  transformers 5.23.0, datasets 5.2.0, tokenizers 0.23.3; Renovate-managed).
+  `sayso_trainer.check_installed_stack()` requires those exact versions. A `.pth` reuses the
   container's torch 2.14.0+rocm7.2 and accelerate 1.15.0.
 - **1. Shared code.** Done. `training/scripts/train_common.py` holds hashing,
   package versions (now with trl), the manifest (now with `backend` and
@@ -39,8 +41,9 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
   Trainer): TRL SFTTrainer on transformers, with the Unsloth backend dropped.
   It loads `AutoModelForCausalLM` in bf16 with sdpa, gradient checkpointing on,
   `use_cache` off, and right padding. The manifest records backend `hf`. The
-  batch-shape guard stays: it pulls one batch before training and restores the
-  torch RNG state, so sample order is unchanged.
+  batch-shape guard stays: before training it runs the trainer's collator on the first
+  rows and requires 2-D input_ids, an attention_mask, and no flattening keys
+  (seq_idx, cu_seq_lens_*, max_length_*, position_ids).
 - **3. CPU tests.** Done. `training/tests/test_sayso_trainer.py` covers the CLI,
   the guard, shared encode/load_rows/recipe identity, the manifest, and AST
   invariants (the `--model` default, `AutoModelForCausalLM` in bf16,
@@ -83,8 +86,10 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
 
 ## Rollback
 
-Point the two `run()` calls in `sayso` (canary and train) back at
-`training/scripts/train_unsloth_full.py`.
+Revert PR #49, then PR #41, then PR #40 (`git revert -m 1 <merge commit>` of each, newest first).
+That restores `training/scripts/train_unsloth_full.py` launched with the container's bare `python`.
+The unsloth container venv is untouched. The trainer venv can stay, or be deleted with
+`docker exec unsloth rm -rf /workspace/host/lfm/venvs/sayso-trainer`.
 
 ## Later work (separate plans)
 

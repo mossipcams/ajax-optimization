@@ -47,6 +47,18 @@ def run(command: list[str], *, cwd: Path = ROOT) -> None:
     subprocess.run(command, cwd=cwd, check=True)
 
 
+def check_trainer_python() -> None:
+    probe = (f"import sys; sys.path.insert(0, '{HOST_TRAINING}/training/scripts'); "
+             "import sayso_trainer; sayso_trainer.check_installed_stack()")
+    result = subprocess.run(["docker", "exec", "unsloth", TRAINER_PYTHON, "-c", probe],
+                            check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        tail = "\n".join((result.stdout + result.stderr).strip().splitlines()[-12:])
+        raise SystemExit(f"Trainer interpreter {TRAINER_PYTHON} failed the stack check in the unsloth container "
+                         f"(exit {result.returncode}):\n{tail}\n"
+                         "rebuild it with scripts/llm-host/sayso-trainer-venv.sh")
+
+
 def digest(path: Path) -> str:
     result = hashlib.sha256()
     with path.open("rb") as stream:
@@ -356,6 +368,8 @@ def cmd_canary(args: argparse.Namespace) -> None:
     if not record.get("validated") or record.get("validated_sha256") != digest(Path(record["dataset_path"])):
         raise SystemExit("Candidate must pass ./sayso validate after its last change")
     ensure_vm()
+    if not args.reuse_checkpoint:
+        check_trainer_python()
     record["canary_passed"] = False
     write_current(record)
     data = render_and_stage(record)
@@ -414,6 +428,7 @@ def cmd_train(_: argparse.Namespace) -> None:
     if promotion["dataset_sha256"] != digest(Path(record["dataset_path"])):
         raise SystemExit("Full training blocked: promoted dataset changed after promotion")
     ensure_vm()
+    check_trainer_python()
     pins = ensure_pinned()
     data = render_and_stage(record)
     if digest(Path(record["rendered_path"])) != promotion["rendered_sha256"]:

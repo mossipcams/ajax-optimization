@@ -56,38 +56,36 @@ def test_full_training_without_promotion_record_exits(tmp_path: Path) -> None:
         TRAIN.parse_args(["--data", str(data), "--out", str(tmp_path / "full")])
 
 
-def test_guard_rejects_non_2d_or_wrong_batch_dimension() -> None:
-    for shape in ((1, 16), (8,), (4, 16)):
-        with pytest.raises(ValueError):
-            TRAIN.check_batch({"input_ids": _tensor(*shape), "attention_mask": _tensor(*shape)}, 8)
+def test_guard_rejects_non_2d_input_ids() -> None:
+    with pytest.raises(ValueError):
+        TRAIN.check_batch({"input_ids": _tensor(8), "attention_mask": _tensor(8)})
 
 
 def test_guard_rejects_flattening_keys() -> None:
     batch = {"input_ids": _tensor(8, 16), "attention_mask": _tensor(8, 16), "cu_seq_lens_q": _tensor(9)}
     with pytest.raises(ValueError):
-        TRAIN.check_batch(batch, 8)
+        TRAIN.check_batch(batch)
 
 
 def test_guard_accepts_padded_batches() -> None:
     batch = {"input_ids": _tensor(8, 16), "attention_mask": _tensor(8, 16), "labels": _tensor(8, 16)}
-    TRAIN.check_batch(batch, 8)
+    TRAIN.check_batch(batch)
 
 
 def test_guard_rejects_padded_batch_without_attention_mask() -> None:
     batch = {"input_ids": _tensor(8, 16), "labels": _tensor(8, 16)}
     with pytest.raises(ValueError):
-        TRAIN.check_batch(batch, 8)
+        TRAIN.check_batch(batch)
 
 
-def test_guard_rejects_position_ids_without_attention_mask() -> None:
+def test_guard_rejects_position_ids_even_with_attention_mask() -> None:
     batch = {"input_ids": _tensor(8, 16), "attention_mask": _tensor(8, 16), "labels": _tensor(8, 16),
              "position_ids": _tensor(8, 16)}
     with pytest.raises(ValueError):
-        TRAIN.check_batch(batch, 8)
+        TRAIN.check_batch(batch)
 
 
-def test_encode_is_the_train_common_encode() -> None:
-    assert TRAIN.encode is COMMON.encode
+def test_load_rows_is_the_train_common_load_rows() -> None:
     assert TRAIN.load_rows is COMMON.load_rows
     assert UNSLOTH.load_rows is COMMON.load_rows
 
@@ -145,10 +143,50 @@ def test_sft_recipe_keeps_columns_eval_batch_and_group_by_length() -> None:
     assert training["train_sampling_strategy"] == "group_by_length"
 
 
-def test_sft_recipe_rejects_warmup_ratio_of_one() -> None:
-    args = TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary", "--warmup-ratio", "1.0"])
-    with pytest.raises(ValueError):
-        TRAIN.sft_recipe(args, evaluating=True)
+@pytest.mark.parametrize("ratio", ["1.0", "-0.1"])
+def test_parse_args_rejects_warmup_ratio_outside_unit_interval(ratio: str) -> None:
+    with pytest.raises(SystemExit):
+        TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary", "--warmup-ratio", ratio])
+
+
+def test_pins_parse_to_the_four_packages() -> None:
+    assert TRAIN.PINS == {"trl": "1.18.1", "transformers": "5.23.0", "datasets": "5.2.0", "tokenizers": "0.23.3"}
+
+
+def test_load_pins_skips_blank_and_comment_lines_and_inline_comments(tmp_path: Path) -> None:
+    reqs = tmp_path / "requirements-sayso-trainer.txt"
+    reqs.write_text("# renovate header\n\ntrl==1.18.1  # pinned by renovate\n\n"
+                    "   # indented comment\ntransformers==5.23.0\n")
+    assert TRAIN.load_pins(reqs) == {"trl": "1.18.1", "transformers": "5.23.0"}
+
+
+def test_check_stack_accepts_exact_pins() -> None:
+    TRAIN.check_stack(dict(TRAIN.PINS))
+
+
+def test_check_stack_rejects_newer_trl() -> None:
+    with pytest.raises(SystemExit):
+        TRAIN.check_stack({**TRAIN.PINS, "trl": "2.0.0"})
+
+
+def test_check_stack_rejects_older_trl() -> None:
+    with pytest.raises(SystemExit):
+        TRAIN.check_stack({**TRAIN.PINS, "trl": "0.24.0"})
+
+
+def test_check_stack_exits_with_message_when_a_package_is_missing() -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        TRAIN.check_stack({**TRAIN.PINS, "tokenizers": None})
+    message = str(excinfo.value)
+    assert "sayso-trainer stack found" in message
+    assert "'tokenizers': None" in message
+    assert sys.executable in message
+    assert "scripts/llm-host/sayso-trainer-venv.sh" in message
+
+
+def test_check_installed_stack_checks_the_installed_pins(monkeypatch) -> None:
+    monkeypatch.setattr(TRAIN, "package_versions", lambda names: {name: TRAIN.PINS[name] for name in names})
+    TRAIN.check_installed_stack()
 
 
 def test_sayso_trainer_config_sets_bf16_and_disables_packing_and_padding_free() -> None:
@@ -160,3 +198,4 @@ def test_sayso_trainer_config_sets_bf16_and_disables_packing_and_padding_free() 
     assert isinstance(kwargs["bf16"], ast.Constant) and kwargs["bf16"].value is True
     assert isinstance(kwargs["packing"], ast.Constant) and kwargs["packing"].value is False
     assert isinstance(kwargs["padding_free"], ast.Constant) and kwargs["padding_free"].value is False
+    assert isinstance(kwargs["gradient_checkpointing"], ast.Constant) and kwargs["gradient_checkpointing"].value is True
