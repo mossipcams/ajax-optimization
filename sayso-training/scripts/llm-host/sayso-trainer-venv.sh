@@ -4,10 +4,10 @@ ROOT=${SAYSO_TRAINING_HOST_ROOT:-/workspace/host/lfm/ajax-optimization/sayso-tra
 VENV=/workspace/host/lfm/venvs/sayso-trainer
 BASE=/opt/unsloth-venv/lib/python3.12/site-packages
 SITE=$VENV/lib/python3.12/site-packages
-docker exec unsloth "$VENV/bin/python" -m pip --version >/dev/null 2>&1 || docker exec unsloth /usr/bin/python3.12 -m venv --clear "$VENV"
-docker exec unsloth sh -c 'printf "%s\n" "$1" > "$2"' sh "$BASE" "$SITE/zz-unsloth-venv-base.pth"
-docker exec unsloth "$VENV/bin/python" -m pip install -r "$ROOT/training/requirements-sayso-trainer.txt"
-docker exec unsloth "$VENV/bin/python" -c '
+docker exec sayso-trainer "$VENV/bin/python" -m pip --version >/dev/null 2>&1 || docker exec sayso-trainer /usr/bin/python3.12 -m venv --clear "$VENV"
+docker exec sayso-trainer sh -c 'printf "%s\n" "$1" > "$2"' sh "$BASE" "$SITE/zz-unsloth-venv-base.pth"
+docker exec sayso-trainer "$VENV/bin/python" -m pip install -r "$ROOT/training/requirements-sayso-trainer.txt"
+docker exec sayso-trainer "$VENV/bin/python" -c '
 import sys
 sys.path.insert(0, sys.argv[1])
 import sayso_trainer

@@ -12,7 +12,7 @@ This directory holds dataset preparation and historical training assets for
 host (`ssh llm`, see [Training host](#training-host-observed-2026-09-23)).
 The active trainer is the SaySo Trainer ([scripts/sayso_trainer.py](scripts/sayso_trainer.py): TRL 1.18.1
 SFTTrainer on transformers 5.23.0), invoked by the local promotion command. It runs in its own venv inside the
-`unsloth` container (`/srv/llm/lfm/venvs/sayso-trainer`), created by
+`sayso-trainer` container (`/srv/llm/lfm/venvs/sayso-trainer`), created by
 [scripts/llm-host/sayso-trainer-venv.sh](../scripts/llm-host/sayso-trainer-venv.sh). Canonical JSONL stays OpenAI-shaped on disk; training
 consumes a derived prompt/completion view rendered with the Base chat template.
 Older trainer recipes and smoke results are historical, not the v5 path.
@@ -35,7 +35,7 @@ docker group yes. The VM has no GitHub credentials.
 | Repo checkout | `/srv/llm/sayso` → `/srv/llm/data/sayso` (HDD), git tracking `origin/main`, read-only deploy key so the VM can `git pull`. Generation venv: `training/.venv`. |
 | Base weights | `/srv/llm/lfm/models/LFM2.5-230M-Base` (SSD; `tokenizer_class` patched to `PreTrainedTokenizerFast`, original kept as `tokenizer_config.json.tf5`) |
 | v5 datasets / runs | `/srv/llm/data/lfm/datasets/` (HDD), `/srv/llm/lfm/runs/` (SSD) |
-| Training UI | Unsloth Studio container `unsloth` (`unsloth/unsloth-rocm:studio`), UI on host `:8002` (login required). Compose `/srv/llm/services/unsloth/`. Mounts only `/srv/llm/lfm` (rw), `data/lfm/datasets` (ro), `data/sayso` (ro) under `/workspace/host/`; shared SSD `hf-cache/` and SSD `services/unsloth/studio/`; `restart: unless-stopped` |
+| Training UI | Unsloth Studio container `sayso-trainer` (`unsloth/unsloth-rocm:studio`), UI on host `:8002` (login required). Compose `/srv/llm/services/unsloth/`. Mounts only `/srv/llm/lfm` (rw), `data/lfm/datasets` (ro), `data/sayso` (ro) under `/workspace/host/`; shared SSD `hf-cache/` and SSD `services/unsloth/studio/`; `restart: unless-stopped` |
 | LLM serving | vLLM container `vllm`, Qwen3.8-27B-INT4 on `:8000` at 0.98 GPU memory (vLLM v0.30.0, 64k context). Compose `/srv/llm/serve/vllm/docker-compose.yml`, never autostarts. `/srv/llm/bin/gpu serve` / `stop` |
 | GPU sharing | vLLM, Unsloth, and LiveKit share one XTX. Every training run starts through `/srv/llm/bin/gpu train lfm|wake` (stops vLLM, holds the GPU, releases on exit); `gpu serve` / `gpu stop` / `gpu status` for vLLM. Source: `scripts/llm-host/gpu`. Runs started by hand in the Studio UI bypass the lock, so only explore there while `gpu status` shows `idle`. |
 | Retired 2026-09-23 | Earlier trainer containers and launchers were removed; setup helpers are archived under `data/archive/task3-retired/`. |
@@ -373,7 +373,7 @@ reservation, owner/worker liveness, and VRAM use. A dead wrapper or worker leade
 a reservation while non-zombie members of its process group survive.
 
 SIGTERM, SIGINT, and SSH hangup terminate the worker group before releasing the
-GPU. A failed or interrupted LFM command restarts Unsloth to stop container-side
+GPU. A failed or interrupted LFM command restarts the `sayso-trainer` container to stop container-side
 workers; Studio briefly disconnects. If that cleanup fails, serving remains
 blocked pending inspection of `/srv/llm/run/gpu.state` and the container.
 `--serve-after` restarts vLLM after successful cleanup, including command failure;
@@ -382,6 +382,6 @@ training through its UI bypasses the reservation and is unsupported.
 
 After an LFM wrapper and Docker client both crash, `gpu status` reports
 `orphan:lfm` without changing services. The next `serve`, `stop`, or `train`
-command restarts Unsloth under the lock before reusing the GPU; restart failure
+command restarts the `sayso-trainer` container under the lock before reusing the GPU; restart failure
 leaves it blocked. An interrupted launch with no recorded worker PID stays
 blocked for process inspection instead of assuming the GPU is idle.

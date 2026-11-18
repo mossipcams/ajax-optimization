@@ -89,8 +89,8 @@ LlamaFactory wrap, so ROCm now and CUDA later need no rewrite.
 Revert PR #49, then PR #41, then PR #40 (`git revert -m 1 <merge commit>` of each, newest first).
 Reverting the deletion commit (`chore(sayso-training): delete the Unsloth rollback trainer and its test`) first
 restores `training/scripts/train_unsloth_full.py`, launched with the container's bare `python`.
-The unsloth container venv is untouched. The trainer venv can stay, or be deleted with
-`docker exec unsloth rm -rf /workspace/host/lfm/venvs/sayso-trainer`.
+The sayso-trainer container venv is untouched. The trainer venv can stay, or be deleted with
+`docker exec sayso-trainer rm -rf /workspace/host/lfm/venvs/sayso-trainer`.
 
 ## Later work (separate plans)
 

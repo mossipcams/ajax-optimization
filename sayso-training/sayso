@@ -50,11 +50,11 @@ def run(command: list[str], *, cwd: Path = ROOT) -> None:
 def check_trainer_python() -> None:
     probe = (f"import sys; sys.path.insert(0, '{HOST_TRAINING}/training/scripts'); "
              "import sayso_trainer; sayso_trainer.check_installed_stack()")
-    result = subprocess.run(["docker", "exec", "unsloth", TRAINER_PYTHON, "-c", probe],
+    result = subprocess.run(["docker", "exec", "sayso-trainer", TRAINER_PYTHON, "-c", probe],
                             check=False, capture_output=True, text=True)
     if result.returncode != 0:
         tail = "\n".join((result.stdout + result.stderr).strip().splitlines()[-12:])
-        raise SystemExit(f"Trainer interpreter {TRAINER_PYTHON} failed the stack check in the unsloth container "
+        raise SystemExit(f"Trainer interpreter {TRAINER_PYTHON} failed the stack check in the sayso-trainer container "
                          f"(exit {result.returncode}):\n{tail}\n"
                          "rebuild it with scripts/llm-host/sayso-trainer-venv.sh")
 
@@ -217,7 +217,7 @@ def eval_checkpoint(checkpoint: str, out_name: str, suite: str, profile: str | N
                "--suite", suite, "--out", str(results)]
     else:
         cmd = ["docker", "exec", "-e", "CUDA_VISIBLE_DEVICES=", "-e", "HIP_VISIBLE_DEVICES=",
-               "-w", HOST_TRAINING, "unsloth", "bash", "-c",
+               "-w", HOST_TRAINING, "sayso-trainer", "bash", "-c",
                'source ./env.sh && exec python "$@"', "sayso-eval",
                f"{HOST_TRAINING}/training/scripts/eval_checkpoint_cpu.py", checkpoint,
                "--suite", suite, "--out", f"{HOST}/lfm/runs/sayso-promotion/{out_name}"]
@@ -493,7 +493,7 @@ def export_release(training: dict, checkpoint: str) -> tuple[Path, str]:
     name = Path(checkpoint).name
     local = local_output(training) / "release"
     local.mkdir(parents=True, exist_ok=True)
-    run(["docker", "exec", "-e", "CUDA_VISIBLE_DEVICES=", "-e", "HIP_VISIBLE_DEVICES=", "unsloth", "python",
+    run(["docker", "exec", "-e", "CUDA_VISIBLE_DEVICES=", "-e", "HIP_VISIBLE_DEVICES=", "sayso-trainer", "python",
          CONVERTER, checkpoint, "--outfile", f"{training['output']}/release/{name}-F16.gguf", "--outtype", "f16"])
     gguf = local / f"{name}-{RELEASE_QUANT}.gguf"
     run([str(PYTHON), str(ROOT / "training/scripts/export_gguf.py"), str(local / f"{name}-F16.gguf"), str(gguf),

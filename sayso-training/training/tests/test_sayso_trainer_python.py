@@ -39,7 +39,7 @@ def test_check_trainer_python_runs_the_stack_check_in_the_container(sayso, monke
     commands = _stub_docker(monkeypatch, sayso, 0)
     sayso.check_trainer_python()
     [(command, kwargs)] = commands
-    assert command[:5] == ["docker", "exec", "unsloth", sayso.TRAINER_PYTHON, "-c"]
+    assert command[:5] == ["docker", "exec", "sayso-trainer", sayso.TRAINER_PYTHON, "-c"]
     assert "check_installed_stack" in command[5]
     assert f"{sayso.HOST_TRAINING}/training/scripts" in command[5]
     assert kwargs == {"check": False, "capture_output": True, "text": True}
@@ -84,7 +84,7 @@ def test_train_refuses_a_missing_interpreter_before_writing_any_record(sayso, tm
     with pytest.raises(SystemExit) as excinfo:
         sayso.cmd_train(argparse.Namespace())
     assert sayso.TRAINER_PYTHON in str(excinfo.value)
-    assert commands[0][0][:5] == ["docker", "exec", "unsloth", sayso.TRAINER_PYTHON, "-c"]
+    assert commands[0][0][:5] == ["docker", "exec", "sayso-trainer", sayso.TRAINER_PYTHON, "-c"]
     assert not (state / "train").exists()
     assert sayso.load(state / "A.json") == record
     assert sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*")) == before
