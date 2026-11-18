@@ -45,7 +45,8 @@ def promote_dataset(sayso, tmp_path, run_id):
     return record
 
 
-def test_training_leaves_the_newer_candidate_current(sayso, tmp_path):
+def test_training_leaves_the_newer_candidate_current(sayso, tmp_path, monkeypatch):
+    monkeypatch.setattr(sayso, "check_trainable", lambda *args: None)
     promote_dataset(sayso, tmp_path, "A")
     newer = {"run_id": "B", "dataset_path": str(tmp_path / "A.jsonl")}
     sayso.write_current(newer)
@@ -58,7 +59,8 @@ def test_training_leaves_the_newer_candidate_current(sayso, tmp_path):
     assert sayso.load(sayso.STATE / "A.json")["trained"] is True
 
 
-def test_eval_targets_the_trained_run_not_a_candidate_generated_afterwards(sayso, tmp_path):
+def test_eval_targets_the_trained_run_not_a_candidate_generated_afterwards(sayso, tmp_path, monkeypatch):
+    monkeypatch.setattr(sayso, "check_trainable", lambda *args: None)
     promote_dataset(sayso, tmp_path, "A")
     sayso.cmd_train(args())
     sayso.write_current({"run_id": "B", "dataset_path": str(tmp_path / "A.jsonl")})
@@ -67,7 +69,8 @@ def test_eval_targets_the_trained_run_not_a_candidate_generated_afterwards(sayso
     assert sayso.training_run(args())["dataset_run_id"] == "A"
 
 
-def test_retraining_cannot_be_promoted_with_the_previous_runs_eval(sayso, tmp_path):
+def test_retraining_cannot_be_promoted_with_the_previous_runs_eval(sayso, tmp_path, monkeypatch):
+    monkeypatch.setattr(sayso, "check_trainable", lambda *args: None)
     promote_dataset(sayso, tmp_path, "A")
     sayso.cmd_train(args())
     first = sayso.training_run(args())
