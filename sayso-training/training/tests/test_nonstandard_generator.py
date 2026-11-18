@@ -353,7 +353,7 @@ def test_satellite_has_no_absolute_volume():
     _, features = media_player_profile("SaySo Satellite")
     assert "volume" not in features and "volume_step" in features
     home, sat, _ = _satellite_home()
-    assert entity_supports(sat, "media_players", "volume_up")
+    assert not entity_supports(sat, "media_players", "volume_up")
     assert not entity_supports(sat, "media_players", "volume_set")
 
 
@@ -428,21 +428,23 @@ def test_contrast_clause_needs_exactly_one_satellite_and_one_other_device():
 
 
 def test_satellite_rows_from_generated_scenarios_target_the_satellite():
-    from generators.utterances import _SELF_VOLUME_DOWN, _SELF_VOLUME_UP
+    from generators.validation import validate_row
 
     seen = 0
     for index in range(400):
+        operation = ("pause", "mute")[index % 2]
         scenario = build_scenario(index=index, seed=20261020, capability="media_players",
-                                  operation="volume_down", home_size=24)
+                                  operation=operation, home_size=24)
         call = scenario["expected"]["calls"][0]
         satellites = [e["name"] for e in scenario["home"]["entities"] if e.get("name", "").endswith(" Satellite")]
         if call["arguments"]["name"] not in satellites:
             continue
+        assert call["name"] in {"HassMediaPause", "HassMediaPlayerMute"}, call
+        spec = scenario_to_spec(scenario)
+        spec["utterance"] = expand_utterance(spec)
+        assert validate_row(spec) is None, spec["utterance"]
         seen += 1
-        text = expand_utterance(scenario_to_spec(scenario)).casefold()
-        assert call["arguments"]["name"].casefold() not in text, text
-        assert any(phrase in text for phrase in (*_SELF_VOLUME_DOWN, *_SELF_VOLUME_UP)) or "percent" in text, text
-    assert seen >= 5, seen
+    assert seen >= 50, seen
 
 
 def test_self_volume_templates_never_match_eval_utterances():
@@ -466,64 +468,41 @@ def test_self_volume_templates_never_match_eval_utterances():
     assert not overlap, overlap
 
 
-def _satellite_tv_exclusion_scenario(index: int):
-    home, sat, tv = _satellite_home()
-    scenario = build_scenario(index=index, seed=20261020, capability="media_players",
-                              operation="volume_down", home_size=24, robustness="exclusion", home=home)
-    return scenario, sat, tv
-
-
-def test_satellite_tv_exclusion_builds_contrast_rows_in_both_directions():
-    counts = {"satellite": 0, "tv": 0}
-    for index in range(80):
-        scenario, sat, tv = _satellite_tv_exclusion_scenario(index)
-        if not scenario["excluded_names"]:
-            continue
-        calls = scenario["expected"]["calls"]
-        assert len(calls) == 1, calls
-        target = calls[0]["arguments"]["name"]
-        assert target in {sat["name"], tv["name"]}, target
-        other = tv["name"] if target == sat["name"] else sat["name"]
-        assert scenario["excluded_names"] == [other], scenario["excluded_names"]
-        counts["satellite" if target == sat["name"] else "tv"] += 1
-    assert counts["satellite"] >= 10 and counts["tv"] >= 10, counts
-
-
-def test_satellite_tv_contrast_rows_pass_validate_row():
-    from generators.validation import validate_row
+def test_no_volume_call_targets_the_satellite():
+    from generators.capability_registry import is_satellite
 
     checked = 0
-    for index in range(80):
-        scenario, sat, tv = _satellite_tv_exclusion_scenario(index)
-        if not scenario["excluded_names"]:
-            continue
-        spec = scenario_to_spec(scenario)
-        spec["utterance"] = expand_utterance(spec)
-        reason = validate_row(spec)
-        assert reason is None, (spec["utterance"], reason)
-        excluded = scenario["excluded_names"][0]
-        if excluded == sat["name"]:
-            assert spec["utterance"].endswith(", not you"), spec["utterance"]
-        else:
-            assert spec["utterance"].endswith(f", not the {tv['name']}"), spec["utterance"]
-        checked += 1
-    assert checked >= 10, checked
+    with_satellite = 0
+    for index in range(300):
+        operation = ("volume_set", "volume_up", "volume_down")[index % 3]
+        robustness = "exclusion" if index % 2 else "ordinary"
+        home = _satellite_home()[0] if index % 4 < 2 else None
+        scenario = build_scenario(index=index, seed=20261020, capability="media_players",
+                                  operation=operation, home_size=24, robustness=robustness, home=home)
+        satellites = {e["name"] for e in scenario["home"]["entities"] if is_satellite(e)}
+        with_satellite += bool(satellites)
+        for call in scenario["expected"]["calls"]:
+            if call["name"] in {"HassSetVolume", "HassSetVolumeRelative"}:
+                checked += 1
+                assert call["arguments"]["name"] not in satellites, call
+    assert with_satellite >= 100, with_satellite
+    assert checked >= 250, checked
 
 
 def test_exclusion_row_missing_excluded_device_fails_validation():
     from generators.validation import validate_spec, validate_utterance
 
     home, sat, tv = _satellite_home()
-    self_down = {"name": "HassSetVolumeRelative", "arguments": {"name": sat["name"], "volume_step": "down"}}
-    spec = _volume_spec(home, [self_down], excluded=(tv["name"],), seed="omit")
+    tv_down = {"name": "HassSetVolumeRelative", "arguments": {"name": tv["name"], "volume_step": "down"}}
+    spec = _volume_spec(home, [tv_down], excluded=(sat["name"],), seed="omit")
     assert validate_spec(spec) is None
-    spec["utterance"] = "turn yourself down a notch"
+    spec["utterance"] = f"turn the {tv['name']} down a notch"
     assert validate_utterance(spec) == "missing_exclusion"
-    spec["utterance"] = "turn yourself down a notch, not the Hallway Lamp"
+    spec["utterance"] = f"turn the {tv['name']} down a notch, not the Hallway Lamp"
     assert validate_utterance(spec) == "missing_exclusion"
-    spec["utterance"] = "turn yourself down a notch, not the TV"
+    spec["utterance"] = f"turn the {tv['name']} down a notch, not the {sat['name']}"
     assert validate_utterance(spec) == "missing_exclusion"
-    spec["utterance"] = "turn yourself down a notch, not the " + tv["name"]
+    spec["utterance"] = f"turn the {tv['name']} down a notch, not you"
     assert validate_utterance(spec) is None
 
 

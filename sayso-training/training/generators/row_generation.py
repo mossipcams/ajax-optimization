@@ -42,6 +42,7 @@ from generators.validation import (
     validate_row,
     validate_serialized_row,
     validate_spec,
+    validate_token_budget,
     validate_utterance,
 )
 
@@ -1046,6 +1047,24 @@ def _shared_alias_row(
     return row, None
 
 
+def _labelled_gate_row(row: dict[str, Any]) -> dict[str, Any]:
+    if row["metadata"].get("family") != "correction":
+        return row
+    untried_ids = {
+        call["id"]
+        for message in row["messages"]
+        if message["role"] == "assistant" and not message.get("train_on_turn")
+        for call in message.get("tool_calls") or []
+    }
+    messages = [
+        message
+        for message in row["messages"]
+        if message.get("tool_call_id") not in untried_ids
+        and not untried_ids.intersection(call["id"] for call in message.get("tool_calls") or [])
+    ]
+    return {**row, "messages": messages}
+
+
 def generate_row(
     slot: dict[str, Any],
     config: GeneratorConfig,
@@ -1549,9 +1568,12 @@ def generate_row(
     row["metadata"]["discrimination"] = discrimination
     if family:
         row["metadata"]["family"] = family
+    gate_row = _labelled_gate_row(row)
     reason = validate_serialized_row(
-        row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
+        gate_row, token_budget=config.token_budget, tokenizer_model=config.tokenizer_model
     )
+    if reason is None and gate_row is not row:
+        reason = validate_token_budget(row, config.token_budget, tokenizer_model=config.tokenizer_model)
     if reason:
         return None, reason
     if quota is not None and family not in {"datetime", "junk"}:

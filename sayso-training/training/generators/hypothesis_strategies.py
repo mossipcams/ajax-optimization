@@ -74,11 +74,27 @@ def scenario_strategy(
     return _scenario()
 
 
-def valid_spec_strategy() -> SearchStrategy[dict[str, Any]]:
+def trainable_pairs() -> tuple[tuple[str, str], ...]:
+    return tuple(
+        (name, op.name)
+        for name, cap in CAPABILITIES.items()
+        for op in trainable_operations(cap)
+    )
+
+
+def trainable_scenario_strategy(
+    pairs: tuple[tuple[str, str], ...] | None = None,
+) -> SearchStrategy[dict[str, Any]]:
+    return st.sampled_from(pairs or trainable_pairs()).flatmap(
+        lambda pair: scenario_strategy(capability=pair[0], operation=pair[1])
+    )
+
+
+def _spec_strategy(pairs: tuple[tuple[str, str], ...]) -> SearchStrategy[dict[str, Any]]:
     from generators.labels import scenario_to_spec
     from generators.utterances import expand_utterance
 
-    return scenario_strategy(capability="lights", operation="turn_on").map(
+    return trainable_scenario_strategy(pairs).map(
         lambda scenario: scenario_to_spec(
             {
                 **scenario,
@@ -93,7 +109,11 @@ def valid_spec_strategy() -> SearchStrategy[dict[str, Any]]:
     )
 
 
+def valid_spec_strategy() -> SearchStrategy[dict[str, Any]]:
+    return _spec_strategy(trainable_pairs())
+
+
 def corrupted_spec_strategy(field: str) -> SearchStrategy[dict[str, Any]]:
-    return valid_spec_strategy().filter(
+    return _spec_strategy((("lights", "turn_on"),)).filter(
         lambda spec: bool((spec.get("expected") or {}).get("calls"))
     ).map(lambda spec: corrupt_spec(spec, field))

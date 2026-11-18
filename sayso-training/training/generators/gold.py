@@ -227,6 +227,9 @@ def gold_from_scenario(scenario: dict[str, Any], rng: random.Random) -> dict[str
             calls.append(timer)
         return {"kind": "action", "calls": calls, "script_targets": script_targets}
 
+    target = scenario.get("target_entity")
+    if target and not entity_supports(target, capability, operation):
+        return {"kind": "reject", "reason": "entity_lacks_capability", "calls": []}
     entity = _pick_entity(scenario, rng)
     if entity is None:
         return expected_no_action("clarify")
@@ -288,10 +291,10 @@ def _ambiguous_gold(
     if capability == "scripts":
         return expected_no_action("clarify")
     area, present = _requested(home, capability, intent)
-    matches = (
-        present if capability == "media_players" and (intent or {}).get("name") == "tv"
-        else entities_supporting(present, capability, operation)
+    two_visible_tvs = (
+        capability == "media_players" and (intent or {}).get("name") == "tv" and len(present) > 1
     )
+    matches = present if two_visible_tvs else entities_supporting(present, capability, operation)
     matches = list({entity["name"].casefold(): entity for entity in matches}.values())
     if len(matches) == 0:
         if present:

@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from generators.capability_registry import CAPABILITIES
 from generators.config import GeneratorConfig, default_allocations
 from generators.context import serialize_context
@@ -10,6 +12,7 @@ from generators.planning import REAL_HOME_REFUSAL_SHARE_CAP
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "synthetic_reference_home.json"
 
 
+@pytest.mark.slow
 def test_real_home_absence_and_junk_keep_the_production_context():
     result = run_generation(GeneratorConfig(
         count=1500, seed=515, real_home_path=FIXTURE, real_home_rate=0.25,

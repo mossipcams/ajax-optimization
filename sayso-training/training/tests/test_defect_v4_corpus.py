@@ -61,6 +61,7 @@ def _row(family: str, seed: int = 20260922, **config_kwargs):
     return None
 
 
+@pytest.mark.slow
 def test_count_row_tokens_counts_a_row_with_tool_calls():
     row = _row("ordinary")
     assert row is not None, "no ordinary row generated"
@@ -72,6 +73,7 @@ def test_count_row_tokens_counts_a_row_with_tool_calls():
     assert not row["metadata"].get("_token_length_estimated", False)
 
 
+@pytest.mark.slow
 def test_cheap_token_bound_never_understates_the_real_count():
     for family in ("ordinary", "settings", "multi_action", "exclusion", "junk"):
         row = _row(family)
@@ -310,6 +312,7 @@ def test_ordinary_only_run_fills_with_balanced_real_home_mix() -> None:
     assert all(row["metadata"]["family"] == "ordinary" for row in result["rows"])
 
 
+@pytest.mark.slow
 def test_40k_shaped_refusal_leftover_fills_under_attempt_budget() -> None:
     base = _v4_config()
     plan = build_plan(

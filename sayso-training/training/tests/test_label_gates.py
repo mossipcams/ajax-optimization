@@ -24,12 +24,14 @@ from generators.utterances import (
 )
 from generators.validation import (
     gate_areas,
+    gate_call_referents,
     gate_clarification,
     gate_hidden_capability_refusal,
     gate_named_device_calls,
     gate_offered_tools,
     gate_on_off_polarity,
     gate_scripts,
+    gate_unjustified_refusal,
     validate_serialized_row,
 )
 
@@ -52,7 +54,7 @@ HOME = {
 TURN_ON_LIGHT = ("intent__HassTurnOn", {"name": DEN_LIGHT, "domain": ["light"]})
 
 
-def _row(calls, *, metadata=None, trained=True, home=HOME):
+def _row(calls, *, metadata=None, trained=True, home=HOME, utterance=UTTERANCE):
     assistant = {
         "role": "assistant",
         "content": "",
@@ -65,8 +67,8 @@ def _row(calls, *, metadata=None, trained=True, home=HOME):
     }
     return {
         "messages": [
-            {"role": "system", "content": system_prompt(home, UTTERANCE), "train_on_turn": False},
-            {"role": "user", "content": UTTERANCE, "train_on_turn": False},
+            {"role": "system", "content": system_prompt(home, utterance), "train_on_turn": False},
+            {"role": "user", "content": utterance, "train_on_turn": False},
             assistant,
         ],
         "tools": production_catalog(home),
@@ -76,6 +78,13 @@ def _row(calls, *, metadata=None, trained=True, home=HOME):
 
 def _serialized(row):
     return validate_serialized_row(row, token_budget=10**9, tokenizer_model="unused")
+
+
+def _with_target_area(row, area):
+    row["messages"][0]["content"] = re.sub(
+        r"^target_area: .+$", f"target_area: {area}", row["messages"][0]["content"], flags=re.MULTILINE
+    )
+    return row
 
 
 def test_g1_named_device_requires_exposed_canonical_name():
@@ -1084,3 +1093,48 @@ def test_routine_phrasing_skips_turn_on_for_polarity_names():
         for seed in range(200)
     ]
     assert any(phrase is not None and phrase.casefold().startswith("turn on my") for phrase in turned_on)
+
+
+def test_label_gate_correct_den_light_call_passes():
+    row = _row([TURN_ON_LIGHT])
+    assert gate_call_referents(row) is None
+    assert gate_unjustified_refusal(row) is None
+    assert _serialized(row) is None
+
+
+def test_label_gate_call_to_different_real_device_is_rejected():
+    row = _row([("intent__HassTurnOn", {"name": "Living Room TV", "domain": ["media_player"]})])
+    assert gate_call_referents(row) == "unreferenced_call_target"
+    assert _serialized(row) == "unreferenced_call_target"
+
+
+def test_label_gate_call_to_wrong_area_is_rejected():
+    row = _row([("intent__HassTurnOn", {"area": "Living Room", "domain": ["light"]})])
+    assert gate_call_referents(row) == "unreferenced_call_target"
+    assert _serialized(row) == "unreferenced_call_target"
+
+
+def test_label_gate_unjustified_refusal_is_rejected():
+    row = _refusal_row("I can't help with that request.", UTTERANCE, home=HOME)
+    assert gate_unjustified_refusal(row) == "unjustified_refusal_or_clarify"
+    assert _serialized(row) == "unjustified_refusal_or_clarify"
+
+
+def test_label_gate_needless_clarification_is_rejected():
+    row = _refusal_row("Did you mean the Den Ceiling Lights or the Living Room TV?", UTTERANCE, home=HOME)
+    assert gate_unjustified_refusal(row) == "unjustified_refusal_or_clarify"
+    assert _serialized(row) == "unjustified_refusal_or_clarify"
+
+
+def test_label_gate_spoken_area_beats_context_target_area():
+    row = _with_target_area(_row([("intent__HassTurnOn", {"area": "Living Room", "domain": ["light"]})]), "Living Room")
+    assert gate_call_referents(row) == "unreferenced_call_target"
+    assert _serialized(row) == "unreferenced_call_target"
+
+
+def test_label_gate_area_less_request_uses_context_target_area():
+    row = _with_target_area(
+        _row([("intent__HassTurnOn", {"area": "Den", "domain": ["light"]})], utterance="turn on the lights"), "Den"
+    )
+    assert gate_call_referents(row) is None
+    assert _serialized(row) is None

@@ -116,11 +116,13 @@ def smoke_row() -> dict:
     return _load_jsonl(SMOKE_CANONICAL)[0]
 
 
+@pytest.mark.slow
 def test_smoke_fixture_yields_two_supervised_views(smoke_row: dict) -> None:
     views = expand_canonical_row_to_views(smoke_row, source_row_index=0)
     assert len(views) == 2
 
 
+@pytest.mark.slow
 def test_first_supervised_view_contains_gold_tool_name(smoke_row: dict) -> None:
     views = expand_canonical_row_to_views(smoke_row)
     tool_view = views[0]
@@ -130,6 +132,7 @@ def test_first_supervised_view_contains_gold_tool_name(smoke_row: dict) -> None:
     assert "<tool_call>" not in tool_view["output"]
 
 
+@pytest.mark.slow
 def test_correction_wrong_call_stays_in_prompt_not_output() -> None:
     row = _correction_row()
     views = expand_canonical_row_to_views(row)
@@ -145,6 +148,7 @@ def test_correction_wrong_call_stays_in_prompt_not_output() -> None:
         assert not contains_chatml_tool_call_markers(view["output"])
 
 
+@pytest.mark.slow
 def test_render_supervised_turn_includes_native_end_marker(smoke_row: dict) -> None:
     rendered = render_supervised_turn(smoke_row, 2)
     assert rendered["output"].rstrip().endswith("<|im_end|>")
@@ -158,6 +162,7 @@ def test_dataset_info_fragment_maps_alpaca_columns() -> None:
     assert entry["columns"]["response"] == "output"
 
 
+@pytest.mark.slow
 def test_export_cli_writes_rendered_jsonl_and_dataset_info(tmp_path: Path) -> None:
     out = tmp_path / "rendered.jsonl"
     info = tmp_path / "dataset_info.fragment.json"

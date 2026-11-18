@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -9,7 +10,16 @@ REPO = ROOT.parent
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(ROOT))
 
-from custom_components.sayso.lfm_parse import parse_lfm_python_tool_call, parse_lfm_python_tool_calls
+from training_paths import SAYSO
+
+_SPEC = importlib.util.spec_from_file_location(
+    "sayso_lfm_parse", SAYSO / "custom_components" / "sayso" / "lfm_parse.py"
+)
+_LFM_PARSE = importlib.util.module_from_spec(_SPEC)
+sys.modules[_SPEC.name] = _LFM_PARSE
+_SPEC.loader.exec_module(_LFM_PARSE)
+parse_lfm_python_tool_call = _LFM_PARSE.parse_lfm_python_tool_call
+parse_lfm_python_tool_calls = _LFM_PARSE.parse_lfm_python_tool_calls
 
 
 def test_parse_apostrophe_names_in_single_quoted_values() -> None:

@@ -9,14 +9,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: sayso-training-${{ github.ref }}
+  group: sayso-training-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  runtime-contract:
-    name: runtime-contract behaviour tests
+  fast-tests:
+    name: fast tests (light)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: sayso-training
@@ -31,15 +31,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install generator test dependencies
-        # Only the pins the generator tests import. Torch, transformers, and
-        # llama-cpp-python stay out of CI: no test under these two files loads them.
+      - name: Install light test dependencies
+        # Light pins only: no transformers, tokenizers or Jinja2, so the Hugging Face tokenizer
+        # tests are marked slow and skipped here. The full suite runs locally via
+        # scripts/ci-local.sh before a pull request is opened or updated.
         run: |
-          grep -E '^(hassil|jsonschema|PyYAML|hypothesis|pytest)==' training/requirements.txt > "$RUNNER_TEMP/ci-requirements.txt"
+          grep -E '^(hassil|jsonschema|PyYAML|hypothesis|pytest|voluptuous)==' training/requirements.txt > "$RUNNER_TEMP/ci-requirements.txt"
           python -m pip install -r "$RUNNER_TEMP/ci-requirements.txt"
 
       - name: Set PYTHONPATH as training_paths.py does
         run: echo "PYTHONPATH=$(python training_paths.py)" >> "$GITHUB_ENV"
 
-      - name: Run runtime-contract behaviour tests
-        run: python -m pytest training/tests/test_runtime_behavior.py training/tests/test_label_gates.py -q
+      - name: Run fast tests
+        run: python -m pytest training/tests -m 'not slow' -q
