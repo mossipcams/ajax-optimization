@@ -464,10 +464,10 @@ _TIMER_CALLS: dict[str, Callable[[random.Random, str | None], dict[str, Any]]] =
     "start": lambda rng, _area: build_start_timer(rng),
     "pause": lambda rng, area: build_pause_timer(area=_maybe_area(rng, area, 0.3)),
     "unpause": lambda rng, area: build_unpause_timer(area=_maybe_area(rng, area, 0.3)),
-    "cancel": lambda _rng, _area: build_cancel_timer(),
+    "cancel": lambda rng, area: build_cancel_timer(area=_maybe_area(rng, area, 0.35)),
     "status": lambda rng, area: build_timer_status(area=_maybe_area(rng, area, 0.3)),
-    "increase": lambda rng, _area: build_adjust_timer(rng, direction="increase"),
-    "decrease": lambda rng, _area: build_adjust_timer(rng, direction="decrease"),
+    "increase": lambda rng, area: build_adjust_timer(rng, direction="increase", area=_maybe_area(rng, area, 0.35)),
+    "decrease": lambda rng, area: build_adjust_timer(rng, direction="decrease", area=_maybe_area(rng, area, 0.35)),
 }
 
 

@@ -96,7 +96,7 @@ CASES = [
         ),
         {"kind": "action", "calls": [
             {"name": "HassMediaPause", "arguments": {
-                "name": "Living Room TV", "domain": ["media_player"], "device_class": ["tv"]}},
+                "name": "Living Room TV", "domain": ["media_player"]}},
         ]},
         id="rename-tv-pause-ambiguity-uses-new-name",
     ),
@@ -204,7 +204,7 @@ CASES = [
         ),
         {"kind": "action", "calls": [
             {"name": "HassMediaPlayerMute", "arguments": {
-                "name": "Bedroom Speaker", "domain": ["media_player"], "device_class": ["speaker"]}},
+                "name": "Bedroom Speaker", "domain": ["media_player"]}},
         ]},
         id="alias-sleep-speaker-mute-resolves-canonical",
     ),
@@ -291,7 +291,7 @@ CASES = [
         ),
         {"kind": "action", "calls": [
             {"name": "HassMediaPause", "arguments": {
-                "name": "Living Room TV", "domain": ["media_player"], "device_class": ["tv"]}},
+                "name": "Living Room TV", "domain": ["media_player"]}},
         ]},
         id="capability-tv-with-pause-pauses",
     ),
@@ -305,7 +305,7 @@ CASES = [
         {"kind": "no_action", "response": "unsupported", "calls": [],
          "requested": {"kind": "action", "calls": [
              {"name": "HassMediaPause", "arguments": {
-                 "name": "Living Room TV", "domain": ["media_player"], "device_class": ["tv"]}},
+                 "name": "Living Room TV", "domain": ["media_player"]}},
          ]},
          "unavailable_tools": ["HassMediaPause"]},
         id="capability-pause-tool-withheld-is-unsupported",

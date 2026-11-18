@@ -565,9 +565,6 @@ def generate_row(
             targets.append(scenario["target_entity"])
         if any(entity not in real_home_context["entities"] for entity in targets):
             return None, "family_mismatch"
-        real_home_names = {entity["name"] for entity in real_home_context["entities"]}
-        if any(name not in real_home_names for name in scenario["expected"].get("candidates") or []):
-            return None, "family_mismatch"
         scenario["home"] = real_home_context
     if (
         capability == "media_players"
@@ -591,6 +588,9 @@ def generate_row(
         scenario["expected"] = gold_from_scenario(scenario, rng)
         scenario["semantic_id"] = semantic_id(scenario)
     if real_home_row:
+        real_home_names = {entity["name"] for entity in real_home_context["entities"]}
+        if any(name not in real_home_names for name in scenario["expected"].get("candidates") or []):
+            return None, "family_mismatch"
         if family == "junk":
             scenario["expected"] = expected_no_action("not_understood")
         scenario["semantic_id"] = semantic_id(scenario)
