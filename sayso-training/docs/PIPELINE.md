@@ -19,7 +19,7 @@ each stage; host paths and the GPU lock are defined in `sayso`.
 - **Command:** `./sayso generate`. Internally runs
   `python -m generators.cli --config <generation-config> --output <dataset> --manifest <manifest>`
   with the working directory set to `training/` (see `cmd_generate` in `sayso`).
-- **Config it reads:** `training/configs/generation/full_sft_v15.yaml`, named by the
+- **Config it reads:** `training/configs/generation/full_sft_v17.yaml`, named by the
   `GENERATION_CONFIG` constant in `sayso`. The generator configs under
   `training/configs/generation/` are versioned (`full_sft_v4.yaml` … `full_sft_v17.yaml`,
   plus `production.yaml` and `smoke.yaml`).
@@ -62,7 +62,7 @@ explicitly promoted dataset. Both run the same trainer through the GPU lock.
 
 Both canary and full invoke, via the GPU lock,
 `gpu train lfm <TRAINER_PYTHON> <host>/training/scripts/sayso_trainer.py --data <staged> [--eval-data <staged-val>] …`
-(`TRAINER_PYTHON` is env `SAYSO_TRAINER_PYTHON`, default the SaySo Trainer venv's `bin/python`; its exact pins live in `training/requirements-sayso-trainer.txt`) with the recipe `--lr 5e-5 --warmup-ratio 0.1` (`TRAIN_RECIPE` in `sayso`) plus `--batch 8 --accum 4`. The full run also
+(`TRAINER_PYTHON` is env `SAYSO_TRAINER_PYTHON`, default the SaySo Trainer venv's `bin/python`; its exact pins live in `training/requirements-sayso-trainer.txt`) with the recipe `--lr 5e-5 --warmup-ratio 0.1` (`TRAIN_RECIPE` in `sayso`) plus `--batch 1 --accum 32` (batch 8 x accum 4 measured 23% slower per step on the 7900 XTX; ROCm SDPA has no flash kernel with a padding mask). The full run also
 passes `--promotion-record`. `training/scripts/train_unsloth_full.py` is kept only as the rollback trainer until the first full run on `sayso_trainer.py` passes `./sayso eval` against the champion; rollback steps are in the [Rollback section](PLAN_SAYSO_TRAINER_TRL.md#rollback). Every GPU job runs inside a lock turn: `gpu run <label> -- <cmd>`
 (the CLI calls the `gpu` binary at `/srv/llm/bin/gpu`, overridable with `GPU_LOCK`).
 
