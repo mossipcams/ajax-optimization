@@ -547,7 +547,7 @@ def _phrase_for_call(target: str, call: dict[str, Any], seed: str = "", provenan
     if name == "HassVacuumStart":
         return f"start {target}"
     if name == "HassVacuumReturnToBase":
-        return f"send {target} home"
+        return f"send {target} back to the dock"
     if name == "HassVacuumCleanArea":
         area = arguments.get("area")
         return f"vacuum {area}" if area else f"vacuum with {target}"

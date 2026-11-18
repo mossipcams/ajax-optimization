@@ -34,7 +34,7 @@ python scripts/wake_train.py --help
 ```
 
 The submodule is pinned to SaySo `origin/main` commit
-`738959a3b279a9d40c7f9258c97b8dd650472740`. Normal initialization uses the recorded
+`f854c8c5b4bd7c763d27c91dc33c5a5c865984cb`. Normal initialization uses the recorded
 commit; it does not follow later upstream changes.
 
 The full test suite is the verification gate, and it runs locally. Use
