@@ -104,8 +104,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--epochs", type=float, default=2)
     parser.add_argument("--lr", type=float, default=2e-5)
     parser.add_argument("--warmup-ratio", type=float, default=0.03)
-    parser.add_argument("--batch", type=int, default=8, help="per-device micro-batch size")
-    parser.add_argument("--accum", type=int, default=4)
+    parser.add_argument("--batch", type=int, default=1, help="per-device micro-batch size")
+    parser.add_argument("--accum", type=int, default=32)
     parser.add_argument("--max-steps", type=int, default=-1)
     parser.add_argument("--canary", action="store_true",
                         help=f"Run the first {CANARY_STEPS} optimizer steps of the full-run schedule")

@@ -70,7 +70,7 @@ def test_stop_callback_stops_at_the_requested_step() -> None:
 
 def test_default_micro_batch_and_accumulation_give_the_effective_batch_of_32() -> None:
     args = TRAIN.parse_args(["--canary", "--out", "/tmp/canary"])
-    assert (args.batch, args.accum) == (8, 4)
+    assert (args.batch, args.accum) == (1, 32)
     assert args.batch * args.accum == 32
 
 
@@ -85,8 +85,8 @@ def fake_transformers(monkeypatch):
 def test_training_arguments_use_micro_batch_and_group_by_length(fake_transformers) -> None:
     args = TRAIN.parse_args(["--canary", "--out", "/tmp/canary"])
     training = TRAIN.training_arguments(args, evaluating=True)
-    assert training["per_device_train_batch_size"] == 8
-    assert training["gradient_accumulation_steps"] == 4
+    assert training["per_device_train_batch_size"] == 1
+    assert training["gradient_accumulation_steps"] == 32
     assert training["train_sampling_strategy"] == "group_by_length"
     assert training["per_device_eval_batch_size"] == 1
     assert training["eval_strategy"] == "steps"
@@ -100,6 +100,6 @@ def test_manifest_records_micro_batch_and_accumulation(tmp_path: Path, fake_tran
     args.model = str(model)
     args.data = "/data.jsonl"
     manifest = TRAIN.build_manifest(args, TRAIN.training_arguments(args, evaluating=False), "data-sha")
-    assert manifest["training_args"]["per_device_train_batch_size"] == 8
-    assert manifest["training_args"]["gradient_accumulation_steps"] == 4
+    assert manifest["training_args"]["per_device_train_batch_size"] == 1
+    assert manifest["training_args"]["gradient_accumulation_steps"] == 32
     assert manifest["training_args"]["train_sampling_strategy"] == "group_by_length"

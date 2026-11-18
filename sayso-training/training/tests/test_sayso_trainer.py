@@ -27,10 +27,10 @@ def test_backend_flag_is_gone() -> None:
         TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary", "--backend", "unsloth"])
 
 
-def test_defaults_give_batch_8_and_accum_4() -> None:
+def test_defaults_give_batch_1_and_accum_32() -> None:
     args = TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary"])
-    assert args.batch == 8
-    assert args.accum == 4
+    assert args.batch == 1
+    assert args.accum == 32
 
 
 def test_method_defaults_to_sft() -> None:
@@ -120,8 +120,8 @@ def test_sayso_trainer_uses_the_shared_recipe() -> None:
 def test_recipe_gives_micro_batch_group_by_length_and_no_bf16() -> None:
     args = TRAIN.parse_args(["--canary", "--out", "/tmp/sayso-trainer-canary"])
     training = TRAIN.recipe(args, evaluating=True)
-    assert training["per_device_train_batch_size"] == 8
-    assert training["gradient_accumulation_steps"] == 4
+    assert training["per_device_train_batch_size"] == 1
+    assert training["gradient_accumulation_steps"] == 32
     assert training["per_device_eval_batch_size"] == 1
     assert training["train_sampling_strategy"] == "group_by_length"
     assert training["eval_strategy"] == "steps"
