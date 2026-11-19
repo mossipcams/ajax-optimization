@@ -141,6 +141,52 @@ _MEDIA_CHATTER_SENTENCES = (
     "is the new show any good or is it a waste of time",
     "the TV guide listed the game for eight o'clock",
     "the music festival movie was a total mess",
+    "breaking news out of the city tonight as crowds gathered near the river",
+    "the mayor will visit the fairgrounds on friday to talk with residents",
+    "rain is expected across the valley for most of this weekend",
+    "the bridge near downtown is shut until further notice",
+    "traffic on the highway is heavy this morning and drivers should allow extra time",
+    "he took the shot from way out and it bounced right off the rim",
+    "the crowd went wild when they saw the score in the second half",
+    "what a catch in the corner, that is the highlight of the game so far",
+    "the pitcher threw a fastball right down the middle and it was called a ball",
+    "they are up by four with one minute left on the clock",
+    "who would have believed this matchup when the season began",
+    "oh no, i told her we were not going to the party and now she is angry",
+    "you cannot just walk into my kitchen without knocking first",
+    "i have been saying this for years and nobody ever listens",
+    "the best surprise happened right after everyone sat down for dinner",
+    "where did i put the keys to the car in the first place",
+    "you promised you would help me move the furniture this weekend",
+    "i am telling you it was not my fault that the cake fell on the floor",
+    "this month only, save big on kitchen appliances at the big blue store",
+    "call now and get a free sample of our new breakfast cereal",
+    "ask your doctor about the new way to sleep better every night",
+    "buy one pair of shoes today and take two pairs home tonight",
+    "let me see a show of hands in the audience who has been to space",
+    "three thousand dollars or walk, the contestant thinks about his answer",
+    "the wheel lands on twenty five and the family cheers loudly",
+    "wrong answer! i thought it was the blue door but he picked red",
+    "be kind to your sister, she just wants to build a block tower with you",
+    "remember to brush your teeth before bed or the monster will find them",
+    "share your snacks with the little ones and they will share theirs with you",
+    "the little bunny hops across meadow lane every single morning",
+    "welcome back everybody, tonight our guest has a story you will not believe",
+    "and now the weather: sunny and warm all week with a chill coming in saturday",
+    "the chef says the secret is to slow down and let the soup simmer for hours",
+    "do you want to know my biggest regret? i never learned how to sing",
+    "i called grandma three times last night and she kept saying goodnight",
+    "the dog ran into the yard and chased a squirrel all afternoon",
+    "if you win this round, name your prize and we will make it happen",
+    "two minutes to go and the home team needs just one more score",
+    "he slipped on the wet floor and everyone in the cafe laughed",
+    "my grandmother always says the best things come to those who wait",
+    "the singer took a long bow and the whole room stood up to clap",
+    "we asked ten strangers to pick their favorite color and five said blue",
+    "she sang the old lullaby one more time before bed",
+    "the news said the storm would stay to the east all week",
+    "he won a red bicycle in raffle number two this spring",
+    "the theater is having a long run of that old comedy through may"
 )
 _MEDIA_CHATTER_SHARE = 0.15
 _TALK_GARBLE_LEADS = (
@@ -289,10 +335,15 @@ def _clean_junk_text(rng: random.Random) -> str:
     return _junk_filler_text(rng)
 
 
-WRAPPED_COMMAND_RATE = 0.025
+WRAPPED_COMMAND_RATE = 0.05
 
 _CHATTER_PREFIX_FILLERS = ("okay so", "um", "hold on", "wait", "oh and")
-_CHATTER_SUFFIX_FILLERS = ("thanks", "please", "okay", "real quick")
+_CHATTER_SUFFIX_FILLERS = (
+    "thanks", "please", "okay", "real quick",
+    "thank you", "thanks koda", "appreciate it", "perfect", "cool",
+    "awesome thanks", "if you can", "when you get a chance", "for me",
+    "right now", "quickly please", "okay thanks", "that is all", "that's it",
+)
 
 
 def _chatter_filler(rng: random.Random, *, prefix: bool) -> str:
