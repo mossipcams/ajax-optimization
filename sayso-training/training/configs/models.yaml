@@ -1,0 +1,15 @@
+models:
+  230m:
+    trainer_model: /workspace/host/lfm/models/LFM2.5-230M-Base
+    lr: "5e-5"
+    warmup_ratio: 0.1
+    batch: 1
+    accum: 32
+    extra_args: []
+  350m:
+    trainer_model: /workspace/host/lfm/models/LFM2.5-350M-Base-sayso
+    lr: "2e-5"
+    warmup_ratio: 0.1
+    batch: 1
+    accum: 18
+    extra_args: ["--merge-views"]

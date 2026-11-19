@@ -33,12 +33,13 @@ from dataset_gates import (
 ROOT = Path(__file__).resolve().parent
 PYTHON = Path(os.environ.get("PYTHON", ROOT / "training/.venv/bin/python"))
 STATE = ROOT / "training/runs/promotion"
+LEDGER = ROOT / "training/runs/ledger.jsonl"
 CANDIDATES = ROOT / "training/datasets/candidates"
 GPU_LOCK = os.environ.get("GPU_LOCK", "/srv/llm/bin/gpu")
 GENERATION_CONFIG = "training/configs/generation/full_sft_v17.yaml"
-TRAIN_RECIPE = ["--lr", "5e-5", "--warmup-ratio", "0.1", "--batch", "1", "--accum", "32"]
+MODELS = ROOT / "training/configs/models.yaml"
+DEFAULT_MODEL = "230m"
 VAL_RATIO = 0.05
-BASE_MODEL = os.environ.get("BASE_MODEL", "/srv/llm/lfm/models/LFM2.5-230M-Base")
 DATASET_DIR = Path(os.environ.get("DATASET_DIR", "/srv/llm/data/lfm/datasets"))
 EVAL_RESULTS = Path(os.environ.get("EVAL_RESULTS", "/srv/llm/lfm/runs/sayso-promotion"))
 HOST = "/workspace/host"
@@ -53,6 +54,8 @@ CONVERTER = os.environ.get("GGUF_CONVERTER", f"{HOST}/lfm/convert-v7/convert_hf_
 RELEASE_QUANT = os.environ.get("RELEASE_QUANT", "Q4_K_M")
 RELEASE_SUITES = ("promotion", "context", "regression")
 RELEASE_SLACK = 2
+MID_CHECKPOINT_FRACTION = 0.57
+HELDOUT_LIMIT = 300
 
 
 def run(command: list[str], *, cwd: Path = ROOT, env: dict | None = None) -> None:
@@ -118,6 +121,25 @@ def host_path(container_path: str) -> Path:
     return LLM_ROOT / Path(container_path).relative_to(HOST)
 
 
+def model_profile(name: str) -> dict:
+    import yaml
+    profiles = yaml.safe_load(MODELS.read_text(encoding="utf-8"))["models"]
+    if name not in profiles:
+        raise SystemExit(f"Unknown model profile {name!r}; valid profiles: {', '.join(profiles)}")
+    return profiles[name]
+
+
+def train_recipe(name: str) -> list[str]:
+    profile = model_profile(name)
+    return ["--model", profile["trainer_model"], "--lr", str(profile["lr"]),
+            "--warmup-ratio", str(profile["warmup_ratio"]), "--batch", str(profile["batch"]),
+            "--accum", str(profile["accum"]), *profile["extra_args"]]
+
+
+def record_profile(record: dict) -> str:
+    return record.get("canary_profile") or DEFAULT_MODEL
+
+
 def git(*args: str, cwd: Path) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
 
@@ -176,7 +198,8 @@ def render_and_stage(record: dict) -> str:
     for split, out in (("train", rendered), ("val", rendered.with_suffix(".val.jsonl"))):
         run([str(PYTHON), str(ROOT / "training/scripts/export_llamafactory_view.py"), str(split_dir / f"sayso_{split}.jsonl"),
              "--output", str(out), "--dataset-name", f"sayso_{record['run_id']}_{split}",
-             "--dataset-info-out", str(out.with_suffix(".info.json")), "--model", BASE_MODEL])
+             "--dataset-info-out", str(out.with_suffix(".info.json")),
+             "--model", str(host_path(model_profile(record_profile(record))["trainer_model"]))])
         shutil.copy2(out, DATASET_DIR / out.name)
     record["rendered_sha256"] = digest(rendered)
     record["staged_data"] = f"{HOST}/datasets/{rendered.name}"
@@ -239,8 +262,83 @@ def step(name: str) -> float:
 
 
 def select_checkpoint(table: dict[str, dict]) -> str:
-    """Fewest safety flags, then highest dev pass rate, then the earliest step."""
-    return min(table, key=lambda name: (table[name]["safety_flags"], -table[name]["pass_rate"], step(name)))
+    """Fewest safety flags, then highest promotion pass rate, then highest held-out pass rate, then the earliest step."""
+    return min(table, key=lambda name: (table[name]["safety_flags"], -table[name]["pass_rate"],
+                                        -table[name].get("heldout_pass_rate", 0.0), step(name)))
+
+
+def mid_checkpoint(training: dict, names: list[str]) -> str:
+    max_steps = (training.get("manifest") or {}).get("max_steps")
+    if not max_steps:
+        return max(names, key=step)
+    target = MID_CHECKPOINT_FRACTION * max_steps
+    return min(names, key=lambda name: (abs(step(name) - target), step(name)))
+
+
+def eval_heldout(training: dict, checkpoint: str, name: str) -> dict:
+    view = load(STATE / f"{training['dataset_run_id']}.json").get("staged_eval_data")
+    if not view:
+        raise SystemExit(f"No staged held-out split for dataset run {training['dataset_run_id']}")
+    out_name = f"{training['train_id']}-heldout-{name}"
+    results = EVAL_RESULTS / out_name
+    results.mkdir(parents=True, exist_ok=True)
+    (results / "summary.json").unlink(missing_ok=True)
+    subprocess.run(["docker", "exec", "-e", "CUDA_VISIBLE_DEVICES=", "-e", "HIP_VISIBLE_DEVICES=",
+                    "-w", HOST_TRAINING, "sayso-trainer", "bash", "-c", 'source ./env.sh && exec python "$@"',
+                    "sayso-heldout", f"{HOST_TRAINING}/training/scripts/eval_rendered_cpu.py", checkpoint, view,
+                    "--limit", str(HELDOUT_LIMIT), "--out", f"{HOST}/lfm/runs/sayso-promotion/{out_name}/summary.json"],
+                   cwd=ROOT)
+    summary_path = results / "summary.json"
+    if not summary_path.is_file():
+        raise SystemExit(f"Held-out evaluation produced no summary: {summary_path}")
+    summary = load(summary_path)
+    return {"passed": summary["passed"], "total": summary["total"], "pass_rate": summary["pass_rate"],
+            "result_dir": str(results)}
+
+
+def score_checkpoint(training: dict, name: str, safety: set[str]) -> tuple[dict, dict]:
+    checkpoint = f"{training['output']}/{name}"
+    _, summaries = eval_checkpoint(checkpoint, f"{training['train_id']}-auto-{name}", "promotion")
+    promotion = suite_summary(summaries, "promotion")
+    heldout = eval_heldout(training, checkpoint, name)
+    flags = promotion["summary"]["flags"]
+    row = {"promotion_pass_rate": promotion["summary"]["overall_pass_rate"],
+           "promotion_passed": promotion["summary"]["passed"], "promotion_total": promotion["summary"]["total"],
+           "safety_flags": sum(flags.get(flag, 0) for flag in safety),
+           "heldout_pass_rate": heldout["pass_rate"], "heldout_total": heldout["total"],
+           "result_dirs": {"promotion": promotion["result_dir"], "heldout": heldout["result_dir"]}}
+    return row, {"promotion_flags": flags}
+
+
+def auto_eval(training: dict) -> None:
+    directory = local_output(training)
+    rows: dict[str, dict] = {}
+    details: dict[str, dict] = {}
+    try:
+        names = sorted((path.name for path in directory.glob("checkpoint-*")), key=step)
+        if not names:
+            raise SystemExit(f"No saved checkpoints to evaluate in {directory}")
+        safety = safety_flags()
+        for name in (mid_checkpoint(training, names), "final"):
+            rows[name], details[name] = score_checkpoint(training, name, safety)
+            row = rows[name]
+            print(f"{name}: promotion {row['promotion_passed']}/{row['promotion_total']} "
+                  f"({row['promotion_pass_rate']:.4f}), safety flags {row['safety_flags']}, "
+                  f"held-out {row['heldout_pass_rate']:.4f}", flush=True)
+    except (Exception, SystemExit) as exc:
+        training.update(failure={"stage": "auto_eval", "reason": str(exc)})
+        save_training(training)
+        raise
+    best = select_checkpoint({name: {"safety_flags": row["safety_flags"], "pass_rate": row["promotion_pass_rate"],
+                                     "heldout_pass_rate": row["heldout_pass_rate"]} for name, row in rows.items()})
+    selected = f"{training['output']}/{best}"
+    training.update(auto_eval=rows, selected_checkpoint=selected, release=None, final_metrics=None,
+                    final_eval_passed=False, failure=None)
+    save_training(training)
+    save(directory / "report.json", {"train_id": training["train_id"], "profile": training.get("profile"),
+                                     "dataset_run_id": training["dataset_run_id"], "auto_eval": rows,
+                                     "selected_checkpoint": selected, "checkpoints": details})
+    print(f"Selected: {best}", flush=True)
 
 
 def row_flags(row: dict) -> set[str]:
@@ -369,10 +467,15 @@ def cmd_canary(args: argparse.Namespace) -> None:
     record = current()
     if not record.get("validated") or record.get("validated_sha256") != digest(Path(record["dataset_path"])):
         raise SystemExit("Candidate must pass ./sayso validate after its last change")
+    profile = getattr(args, "model", DEFAULT_MODEL)
+    recipe = train_recipe(profile)
+    if args.reuse_checkpoint and record_profile(record) != profile:
+        raise SystemExit(f"Canary checkpoint was trained with profile {record_profile(record)}; "
+                         f"reuse it with --model {record_profile(record)}")
     ensure_vm()
     if not args.reuse_checkpoint:
         check_trainer_python()
-    record["canary_passed"] = False
+    record.update(canary_passed=False, canary_profile=profile, canary_recipe=recipe)
     write_current(record)
     data = render_and_stage(record)
     run_id = record["run_id"]
@@ -384,12 +487,10 @@ def cmd_canary(args: argparse.Namespace) -> None:
     else:
         try:
             run([GPU_LOCK, "train", "lfm", TRAINER_PYTHON, f"{HOST_TRAINING}/training/scripts/sayso_trainer.py",
-                 "--data", data, *eval_data_args(record), "--canary", "--out", out, *TRAIN_RECIPE])
+                 "--data", data, *eval_data_args(record), "--canary", "--out", out, *recipe])
         finally:
             settle_gpu()
     passed, metrics = eval_checkpoint(checkpoint, f"{run_id}-canary-eval", "smoke", "canary")
-    # Diagnostic only, and dev rather than tags: the old tag diagnostics included the locked context suite.
-    metrics.update(eval_checkpoint(checkpoint, f"{run_id}-canary-dev", "dev")[1])
     manifest = EVAL_RESULTS / f"{run_id}-canary" / "manifest.json"
     schedule = {key: load(manifest).get(key) for key in ("final_step", "max_steps", "last_logged_learning_rate")} \
         if manifest.is_file() else None
@@ -433,6 +534,7 @@ def cmd_promote_dataset(_: argparse.Namespace) -> None:
                  "dataset_sha256": record["dataset_sha256"], "rendered_sha256": record["rendered_sha256"],
                  "staged_data": record["staged_data"], "git_commit": record["git_commit"],
                  "config": record["config"], "canary_metrics": record["canary_metrics"],
+                 "canary_profile": record.get("canary_profile"), "canary_recipe": record.get("canary_recipe"),
                  "promoted_at": datetime.now(timezone.utc).isoformat()}
     save(STATE / "promoted_dataset.json", promotion)
     record["dataset_promoted"] = True
@@ -440,7 +542,7 @@ def cmd_promote_dataset(_: argparse.Namespace) -> None:
     print(f"Promoted dataset: {record['run_id']}")
 
 
-def cmd_train(_: argparse.Namespace) -> None:
+def cmd_train(args: argparse.Namespace) -> None:
     promotion_path = STATE / "promoted_dataset.json"
     if not promotion_path.is_file():
         raise SystemExit("Full training blocked: explicitly promote a validated, canary-passing dataset first")
@@ -451,6 +553,14 @@ def cmd_train(_: argparse.Namespace) -> None:
     record = load(record_path)
     if promotion["dataset_sha256"] != digest(Path(record["dataset_path"])):
         raise SystemExit("Full training blocked: promoted dataset changed after promotion")
+    profile = getattr(args, "model", DEFAULT_MODEL)
+    recipe = train_recipe(profile)
+    if profile != record_profile(promotion):
+        raise SystemExit(f"Full training blocked: --model {profile} does not match the promoted canary profile "
+                         f"{record_profile(promotion)}")
+    if record_profile(record) != record_profile(promotion):
+        raise SystemExit("Full training blocked: candidate canary profile changed after promotion; "
+                         "promote the dataset again")
     ensure_vm()
     check_trainer_python()
     check_trainable(ROOT, PYTHON, record)
@@ -462,7 +572,8 @@ def cmd_train(_: argparse.Namespace) -> None:
     training = {"train_id": train_id, "dataset_run_id": record["run_id"],
                 "dataset_sha256": record["dataset_sha256"], "rendered_sha256": promotion["rendered_sha256"],
                 "generation_git_commit": record["git_commit"], "config": record["config"], **pins,
-                "recipe": TRAIN_RECIPE, "output": f"{HOST}/lfm/runs/sayso-promotion/{train_id}-full",
+                "profile": profile, "recipe": recipe,
+                "output": f"{HOST}/lfm/runs/sayso-promotion/{train_id}-full",
                 "started_at": datetime.now(timezone.utc).isoformat(), "trained": False}
     save_training(training)
     # The candidate pointer is left alone: a newer candidate stays current while this trains.
@@ -471,7 +582,7 @@ def cmd_train(_: argparse.Namespace) -> None:
     try:
         run([GPU_LOCK, "train", "lfm", TRAINER_PYTHON, f"{HOST_TRAINING}/training/scripts/sayso_trainer.py",
              "--data", data, *eval_data_args(record), "--out", training["output"],
-             "--promotion-record", f"{HOST_TRAINING}/training/runs/promotion/promoted_dataset.json", *TRAIN_RECIPE])
+             "--promotion-record", f"{HOST_TRAINING}/training/runs/promotion/promoted_dataset.json", *recipe])
     except BaseException:
         gpu("serve")
         raise
@@ -483,7 +594,9 @@ def cmd_train(_: argparse.Namespace) -> None:
     record["trained"] = True
     save(STATE / f"{record['run_id']}.json", record)
     settle_gpu()
-    print(f"Trained: {train_id}\nNext: ./sayso select")
+    print(f"Trained: {train_id}")
+    if not getattr(args, "chained", False):
+        print("Next: ./sayso select")
 
 
 def cmd_select(args: argparse.Namespace) -> None:
@@ -491,21 +604,8 @@ def cmd_select(args: argparse.Namespace) -> None:
     if not training.get("trained"):
         raise SystemExit("Checkpoint selection requires a completed full training run")
     ensure_vm()
-    names = sorted((path.name for path in local_output(training).glob("checkpoint-*")), key=step) + ["final"]
-    safety = safety_flags()
-    table: dict[str, dict] = {}
-    for name in names:
-        _, summaries = eval_checkpoint(f"{training['output']}/{name}", f"{training['train_id']}-dev-{name}", "dev")
-        summary = suite_summary(summaries, "dev")
-        table[name] = {"pass_rate": summary["summary"]["overall_pass_rate"],
-                       "safety_flags": sum(summary["summary"]["flags"].get(flag, 0) for flag in safety),
-                       "result_dir": summary["result_dir"]}
-        print(f"{name}: dev {table[name]['pass_rate']:.4f}, safety flags {table[name]['safety_flags']}", flush=True)
-    best = select_checkpoint(table)
-    training.update(dev_selection=table, selected_checkpoint=f"{training['output']}/{best}",
-                    release=None, final_metrics=None, final_eval_passed=False)
-    save_training(training)
-    print(f"Selected: {best}\nNext: ./sayso eval")
+    auto_eval(training)
+    print("Next: ./sayso eval")
 
 
 def export_release(training: dict, checkpoint: str) -> tuple[Path, str]:
@@ -586,6 +686,182 @@ def cmd_promote_model(args: argparse.Namespace) -> None:
     print(f"Promoted model: {release['gguf']} ({release['gguf_sha256']})")
 
 
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def load_run() -> dict | None:
+    path = STATE / "run.json"
+    return load(path) if path.is_file() else None
+
+
+def save_run(state: dict) -> None:
+    state["updated_at"] = utc_now().isoformat()
+    save(STATE / "run.json", state)
+
+
+def training_record(train_id: str | None) -> dict:
+    path = TRAINS / f"{train_id}.json" if train_id else None
+    return load(path) if path and path.is_file() else {}
+
+
+def append_ledger(entry: dict) -> None:
+    LEDGER.parent.mkdir(parents=True, exist_ok=True)
+    with LEDGER.open("a", encoding="utf-8") as ledger:
+        ledger.write(json.dumps(entry) + "\n")
+
+
+def ledger_entry(state: dict, verdict: str) -> dict:
+    training = training_record(state.get("train_id"))
+    suites = ((training.get("release") or {}).get("comparison") or {}).get("suites", {})
+    return {"run_key": state["run_key"], "finished_at": utc_now().isoformat(), "model": state["model"],
+            "hypothesis": state["hypothesis"], "config": state["config"],
+            "dataset_run_id": state.get("dataset_run_id"), "train_id": state.get("train_id"),
+            "git_commit": training.get("git_commit"), "auto_eval": training.get("auto_eval"),
+            "selected_checkpoint": training.get("selected_checkpoint"),
+            "release_comparison": {suite: {key: row[key] for key in ("candidate_passed", "champion_passed", "total")}
+                                   for suite, row in suites.items()},
+            "failure": state.get("failure"), "verdict": verdict}
+
+
+def promote_dataset_stage(state: dict) -> None:
+    cmd_promote_dataset(argparse.Namespace())
+    state["dataset_run_id"] = load(STATE / "promoted_dataset.json")["run_id"]
+
+
+def train_stage(state: dict) -> None:
+    cmd_train(argparse.Namespace(model=state["model"], chained=True))
+    state["train_id"] = load(STATE / "latest_train.json")["train_id"]
+
+
+def eval_stage(state: dict) -> None:
+    started = utc_now()
+    try:
+        cmd_eval(argparse.Namespace(train_id=state["train_id"]))
+    except SystemExit:
+        evaluated = (training_record(state["train_id"]).get("release") or {}).get("evaluated_at")
+        if not evaluated or datetime.fromisoformat(evaluated) < started:
+            raise
+
+
+def queue_stage(state: dict) -> None:
+    training = training_record(state["train_id"])
+    if not training.get("final_eval_passed"):
+        state["verdict"] = "not_promotable"
+        return
+    release = training["release"]
+    save(STATE / "promotion_queue" / f"{state['train_id']}.json", {
+        "train_id": state["train_id"], "run_key": state["run_key"], "dataset_run_id": state["dataset_run_id"],
+        "profile": state["model"], "hypothesis": state["hypothesis"], "checkpoint": training["selected_checkpoint"],
+        "gguf": release["gguf"], "gguf_sha256": release["gguf_sha256"], "comparison": release["comparison"],
+        "queued_at": utc_now().isoformat()})
+    state["verdict"] = "queued"
+
+
+def stage_plan() -> list[tuple[str, object]]:
+    return [
+        ("generate", lambda state: cmd_generate(argparse.Namespace(config=state["config"],
+                                                                   accept_drift=state["accept_drift"]))),
+        ("validate", lambda state: cmd_validate(argparse.Namespace())),
+        ("canary", lambda state: cmd_canary(argparse.Namespace(model=state["model"], reuse_checkpoint=False))),
+        ("promote-dataset", promote_dataset_stage),
+        ("train", train_stage),
+        ("select", lambda state: cmd_select(argparse.Namespace(train_id=state["train_id"]))),
+        ("eval", eval_stage),
+        ("queue", queue_stage),
+    ]
+
+
+def run_stage(state: dict, name: str, action) -> None:
+    state.update(stage=name, failure=None)
+    save_run(state)
+    print(f"== {name} ==", flush=True)
+    try:
+        action(state)
+    except (Exception, SystemExit) as exc:
+        state["failure"] = {"stage": name, "reason": str(exc)}
+        save_run(state)
+        try:
+            gpu("serve")
+        except Exception:
+            pass
+        append_ledger(ledger_entry(state, "failed"))
+        raise
+    state["stages_done"].append(name)
+    save_run(state)
+
+
+def new_run(args: argparse.Namespace) -> dict:
+    hypothesis = (args.hypothesis or "").strip()
+    if not hypothesis:
+        raise SystemExit("./sayso run needs a non-empty --hypothesis")
+    if not args.model:
+        raise SystemExit("./sayso run needs --model <profile>")
+    model_profile(args.model)
+    if args.accept_drift is not None and not args.accept_drift.strip():
+        raise SystemExit("--accept-drift requires a non-empty reason")
+    previous = load_run()
+    if previous and previous["stage"] != "finished":
+        raise SystemExit(f"Run {previous['run_key']} is unfinished at stage {previous['stage']}; "
+                         "continue it with ./sayso run --resume")
+    state = {"run_key": new_id(), "model": args.model, "hypothesis": hypothesis, "config": args.config,
+             "accept_drift": args.accept_drift, "stage": None, "stages_done": [], "dataset_run_id": None,
+             "train_id": None, "verdict": None, "failure": None, "started_at": utc_now().isoformat()}
+    save_run(state)
+    return state
+
+
+def resume_run() -> dict:
+    state = load_run()
+    if state is None:
+        raise SystemExit("No run to resume; start one with ./sayso run --model <profile> --hypothesis <text>")
+    if state["stage"] == "finished":
+        raise SystemExit(f"Run {state['run_key']} already finished ({state['verdict']}); nothing to resume")
+    return state
+
+
+def cmd_run(args: argparse.Namespace) -> None:
+    state = resume_run() if args.resume else new_run(args)
+    for name, action in stage_plan():
+        if name not in state["stages_done"]:
+            run_stage(state, name, action)
+    state["stage"] = "finished"
+    save_run(state)
+    append_ledger(ledger_entry(state, state["verdict"]))
+    print(f"Run {state['run_key']}: {state['verdict']}")
+
+
+def training_progress(train_id: str | None) -> dict | None:
+    path = TRAINS / f"{train_id}.json" if train_id else None
+    if path is None or not path.is_file():
+        return None
+    training = load(path)
+    directory = local_output(training)
+    steps = [step(checkpoint.name) for checkpoint in directory.glob("checkpoint-*")
+             if checkpoint.name.rsplit("-", 1)[-1].isdigit()]
+    manifest = directory / "manifest.json"
+    schedule = load(manifest) if manifest.is_file() else (training.get("manifest") or {})
+    return {"train_id": train_id, "step": max(steps, default=None), "max_steps": schedule.get("max_steps")}
+
+
+def next_command(run: dict) -> str | None:
+    if not run:
+        return None
+    if run.get("failure") or run.get("stage") != "finished":
+        return "./sayso run --resume"
+    if run.get("verdict") == "queued":
+        return f"./sayso promote-model --train-id {run['train_id']}"
+    return None
+
+
+def cmd_status(args: argparse.Namespace) -> None:
+    run = load_run() or {}
+    status = {"run": run, "training_progress": training_progress(run.get("train_id")),
+              "queued_promotions": sorted(path.stem for path in (STATE / "promotion_queue").glob("*.json")),
+              "next_command": next_command(run)}
+    print(json.dumps(status) if args.json else json.dumps(status, indent=2))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -598,6 +874,9 @@ def main() -> int:
             command.add_argument("--accept-drift", metavar="REASON", help="accept golden drift with an audit reason")
         if name in {"select", "eval", "promote-model"}:
             command.add_argument("--train-id", help="training run to act on (default: the latest ./sayso train)")
+        if name in {"canary", "train"}:
+            command.add_argument("--model", default=DEFAULT_MODEL,
+                                 help="model profile from training/configs/models.yaml")
         if name == "canary":
             command.add_argument("--reuse-checkpoint", action="store_true",
                                  help="skip canary training and evaluate the existing checkpoint")
@@ -605,10 +884,18 @@ def main() -> int:
             command.add_argument("--manual-override", action="store_true",
                                  help="promote an evaluated model whose final gates failed")
             command.add_argument("--reason", help="required audit note for a manual override")
+    run_parser = sub.add_parser("run")
+    run_parser.add_argument("--model", help="model profile from training/configs/models.yaml")
+    run_parser.add_argument("--hypothesis", help="what this run is expected to improve")
+    run_parser.add_argument("--config", default=GENERATION_CONFIG, help="generation recipe path")
+    run_parser.add_argument("--accept-drift", metavar="REASON", help="accept golden drift with an audit reason")
+    run_parser.add_argument("--resume", action="store_true", help="continue the unfinished run in run.json")
+    status_parser = sub.add_parser("status")
+    status_parser.add_argument("--json", action="store_true", help="print one compact JSON object")
     args = parser.parse_args()
     {"generate": cmd_generate, "validate": cmd_validate, "canary": cmd_canary,
      "promote-dataset": cmd_promote_dataset, "train": cmd_train, "select": cmd_select,
-     "eval": cmd_eval, "promote-model": cmd_promote_model}[args.command](args)
+     "eval": cmd_eval, "promote-model": cmd_promote_model, "run": cmd_run, "status": cmd_status}[args.command](args)
     return 0
 
 

@@ -1,18 +1,52 @@
 # SaySo LFM training pipeline
 
-Canonical, end-to-end description of the SaySo `LFM2.5-230M-Base` fine-tuning
-pipeline and the invariants a run must not deviate from. Design rationale lives in
+Canonical, end-to-end description of the SaySo LFM fine-tuning pipeline and the invariants a run
+must not deviate from. The base model and recipe come from a reviewed model profile in
+`training/configs/models.yaml` (invariant 1). Design rationale lives in
 [SAYSO_LFM_TRAINING_PLAN.md](SAYSO_LFM_TRAINING_PLAN.md); measured results live in
-`training/TRAINING_LOG.md`. This file is authoritative for *what* a compliant run
-does and *in what order*.
+`training/TRAINING_LOG.md`. This file is authoritative for *what* a compliant run does and *in what order*.
 
 ```text
-generate → validate → canary → promote-dataset → train → select → eval → promote-model ─ publish
-  (corpus)  (gates)   (smoke)     (gate)         (full SFT) (dev best)(champion A/B)(record)  (ship)
+run:       generate → validate → canary → promote-dataset → train → select → eval → queue
+             (corpus)  (gates)   (smoke)     (gate)        (full SFT) (CPU auto-eval) (champion A/B) (promotion queue)
+by hand:   promote-model → publish
 ```
 
-All commands run from the `sayso-training/` directory. The promotion CLI drives
-each stage; host paths and the GPU lock are defined in `sayso`.
+All commands run from the `sayso-training/` directory. `./sayso run` chains the stages above in
+that order; each stage is also a standalone command. Host paths and the GPU lock are defined in `sayso`.
+
+## Running the pipeline
+
+- **Command:** `./sayso run --model <profile> --hypothesis "<text>" [--config <path>] [--accept-drift "<reason>"]`.
+  `--model` (a profile from `training/configs/models.yaml`, invariant 1) and a non-empty `--hypothesis`
+  are required. `--config` defaults to `GENERATION_CONFIG`, and `--accept-drift` is passed to `generate`.
+- **Chain:** generate, validate, canary, promote-dataset, train, select, eval, queue. Canary and train
+  both use the run's `--model`, so their profiles always match.
+- **State:** `training/runs/promotion/run.json` records `run_key`, `model`, `hypothesis`, `config`,
+  `accept_drift`, `stage`, `stages_done`, `dataset_run_id`, `train_id`, `verdict`, `failure`,
+  `started_at`, and `updated_at`. A stage is added to `stages_done` only when it completes.
+- **Failure and resume:** a failing stage stores `failure` in `run.json`, calls `gpu serve`, appends a
+  `failed` ledger line, and exits nonzero. `./sayso run --resume` continues from the first stage not in
+  `stages_done`. A new `run` is refused while `run.json` is unfinished, and `--resume` is refused once the
+  run has finished.
+- **Release gates are not a stage failure:** if the release evaluation fails its gates, `eval` still
+  records the comparison, `queue` sets the verdict to `not_promotable`, and the run finishes normally.
+- **Status — command:** `./sayso status [--json]`. Prints one object with `run` (`run.json`),
+  `training_progress` (the latest training run's checkpoint step and `max_steps`, or null),
+  `queued_promotions` (train ids in the promotion queue), and `next_command`. `next_command` is
+  `./sayso run --resume` after a failed or unfinished run, `./sayso promote-model --train-id <id>` when a
+  model is queued, and null otherwise. `--json` prints one compact line; without it the object is indented.
+- **Ledger:** `training/runs/ledger.jsonl` is append-only. Each failing stage appends a line with verdict
+  `failed`, and each finished run appends one line with verdict `queued` or `not_promotable`. A line holds
+  the run key, model, hypothesis, config, dataset and train ids, git commit, `auto_eval`,
+  `selected_checkpoint`, per-suite release counts (candidate passed, champion passed, total), `failure`,
+  and `verdict`. A failure followed by a resume leaves one `failed` line and then the resumed run's own
+  finished line.
+- **Promotion queue:** a run whose release evaluation passes writes
+  `training/runs/promotion/promotion_queue/<train_id>.json` (profile, hypothesis, selected checkpoint, GGUF
+  path and sha256, release comparison). Nothing promotes or deploys it. A person runs
+  `./sayso promote-model --train-id <train_id>` (stage 5), which writes `promoted_model.json` and leaves the
+  queue entry in place. Deployment (stage 6) stays a separate manual step.
 
 ## 1. Corpus generation
 
@@ -63,61 +97,82 @@ each stage; host paths and the GPU lock are defined in `sayso`.
 
 ## 3. Training
 
-Training proceeds in two gated steps: a canary, then full fine-tuning of an
-explicitly promoted dataset. Both run the same trainer through the GPU lock.
+Training proceeds in two gated steps: a canary, then full fine-tuning of an explicitly promoted dataset.
+Both run the same trainer through the GPU lock, with the recipe of one model profile.
 
-- **Canary — command:** `./sayso canary` (optional `--reuse-checkpoint`). Renders and stages
-  the split, then runs the trainer's first 250 steps and scores smoke + dev.
+- **Canary — command:** `./sayso canary [--model <profile>] [--reuse-checkpoint]`. The profile defaults to
+  `230m`. Renders and stages the split, runs the trainer with `--canary` (its first 250 optimizer steps,
+  `CANARY_STEPS` in `training/scripts/train_common.py`), then scores the `smoke` suite with the canary
+  gates (`eval.canary` in `training/configs/training_baseline.json`). The candidate records
+  `canary_profile`, `canary_recipe`, and `canary_metrics`.
 - **Gate — command:** `./sayso promote-dataset`. Requires a passing validation *and* a passing
   canary for the unchanged candidate; writes `training/runs/promotion/promoted_dataset.json`.
-- **Full — command:** `./sayso train` (`--train-id` optional). Blocked until a valid promoted
-  dataset exists and its sha256 still matches.
+- **Full — command:** `./sayso train [--model <profile>]`. Blocked until a valid promoted
+  dataset exists and its sha256 still matches. `--model` must equal the promoted canary profile.
 
 Both canary and full invoke, via the GPU lock,
 `gpu train lfm <TRAINER_PYTHON> <host>/training/scripts/sayso_trainer.py --data <staged> [--eval-data <staged-val>] …`
-(`TRAINER_PYTHON` is env `SAYSO_TRAINER_PYTHON`, default the SaySo Trainer venv's `bin/python`; its exact pins live in `training/requirements-sayso-trainer.txt`) with the recipe `--lr 5e-5 --warmup-ratio 0.1` (`TRAIN_RECIPE` in `sayso`) plus `--batch 1 --accum 32` (batch 8 x accum 4 measured 23% slower per step on the 7900 XTX; ROCm SDPA has no flash kernel with a padding mask). The full run also
-passes `--promotion-record`. Every GPU job runs inside a lock turn: `gpu run <label> -- <cmd>`
+(`TRAINER_PYTHON` is env `SAYSO_TRAINER_PYTHON`, default the SaySo Trainer venv's `bin/python`; its exact pins live in `training/requirements-sayso-trainer.txt`)
+with the profile recipe below. The full run also passes `--promotion-record`. Every GPU job runs inside a lock turn: `gpu run <label> -- <cmd>`
 (the CLI calls the `gpu` binary at `/srv/llm/bin/gpu`, overridable with `GPU_LOCK`).
 
-- **Config it reads / recipe:** base model `LFM2.5-230M-Base` (`BASE_MODEL` in `sayso`;
-  `--model` default in `training/scripts/sayso_trainer.py`); learning rate and warmup from
-  `TRAIN_RECIPE`. The trainer is full-parameter (`AutoModelForCausalLM.from_pretrained`, no adapter) with BF16 weights and
+- **Model profiles and recipe:** `training/configs/models.yaml` holds the reviewed profiles. `train_recipe()`
+  in `sayso` turns a profile into `--model <trainer_model>`, `--lr`, `--warmup-ratio`, `--batch`, `--accum`,
+  followed by the profile's `extra_args`. Current values:
+
+  | Profile | Base model (`trainer_model` basename) | `lr` | `warmup_ratio` | `batch` | `accum` | `extra_args` |
+  |---|---|---|---|---|---|---|
+  | `230m` (default) | `LFM2.5-230M-Base` | `5e-5` | `0.1` | `1` | `32` | none |
+  | `350m` | `LFM2.5-350M-Base-sayso` | `2e-5` | `0.1` | `1` | `18` | `--merge-views` |
+
+  Batch 1 with accumulation is used because batch 8 x accum 4 measured 23% slower per step on the 7900 XTX; ROCm SDPA has no flash kernel with a padding mask.
+
+- **Trainer:** the trainer is full-parameter (`AutoModelForCausalLM.from_pretrained`, no adapter) with BF16 weights and
   compute (`dtype=torch.bfloat16`, `bf16=True`) and no FP32 master weights (`float32_mixed_precision` not set).
+  `--model` comes from the profile; the trainer's own `--model` default is the `230m` base model.
 - **Render + group-held-out split:** before training, the CLI renders both splits —
   `training/scripts/split_dataset.py` (whole-scenario-group held-out; the CLI gets `1 - VAL_RATIO`
   and `VAL_RATIO`, where `VAL_RATIO = 0.05` is defined in `sayso`, so a 95/5 train/val split) and `training/scripts/export_llamafactory_view.py` (the derived
-  prompt/completion view rendered with the pinned Base template; the tool list is placed before
+  prompt/completion view rendered with the chat template of the canary profile's base model; the tool list is placed before
   the `Area context:` block, as SaySo's embedded runtime prompts the model since 1.17.0, with each tool's
   keys in template order: `type`, then `function` `name`, `description`, `parameters`; `adapters/test_lfm.py` and SaySo
   `tests/test_tool_key_order.py` pin the same bytes). The val split is passed as
   `--eval-data` so the trainer reports group-held-out validation loss (`eval_strategy="steps"`).
-- **Outputs:** canary checkpoint + smoke/dev metrics under `/srv/llm/lfm/runs/sayso-promotion/`;
-  a full run's checkpoints at `<out>/checkpoint-*` and `<out>/final`, plus a training-run record
+- **Outputs:** the canary checkpoint and smoke results under `/srv/llm/lfm/runs/sayso-promotion/<run_id>-canary/`;
+  a full run's checkpoints at `<out>/checkpoint-*` and `<out>/final`, where `<out>` is
+  `/srv/llm/lfm/runs/sayso-promotion/<train_id>-full`; plus a training-run record
   `training/runs/promotion/train/<train_id>.json` and `latest_train.json`.
 
 ## 4. Evaluation
 
-- **Dev / checkpoint scoring — command:** `./sayso select` (`--train-id` optional). Scores every
-  retained checkpoint on the `dev` suite via
-  `training/scripts/eval_checkpoint_cpu.py --suite dev`, then picks the best (see stage 5).
-- **Release A/B — command:** `./sayso eval`. Exports the selected checkpoint to F16 then to the
-  release quantization (`RELEASE_QUANT = Q4_K_M`) through `training/scripts/export_gguf.py`, and
-  scores the candidate *and* the champion on each of `promotion`, `context`, and `regression`
-  (`RELEASE_SUITES`). Canary runs score the `smoke` suite instead.
+- **Auto-eval — command:** `./sayso select` (`--train-id` optional; stage 6 of `run`). Chooses the checkpoint
+  on CPU, without the GPU lock:
+  1. Two checkpoints are scored: `final`, and the saved `checkpoint-*` nearest 57% of the trainer's `max_steps`
+     (`MID_CHECKPOINT_FRACTION`). If the manifest has no `max_steps`, the highest saved step is used.
+  2. Each is scored on the `promotion` suite (`training/scripts/eval_checkpoint_cpu.py --suite promotion`,
+     run in the trainer container with GPUs hidden) and on 300 held-out rows (`HELDOUT_LIMIT`) of the run's own
+     group-held-out validation split (`training/scripts/eval_rendered_cpu.py`; one view per source row, drawn
+     with a fixed seed; a row passes on exact match of the output text).
+  3. The winner has the fewest safety flags (the promotion suite's `zero_tolerance_flags`), then the highest
+     promotion pass rate, then the highest held-out pass rate, then the earliest step.
+
+  The winner is recorded as `selected_checkpoint` on the training run, clearing any earlier release
+  evaluation for it. `report.json` (per-checkpoint scores and flags) is written to
+  `/srv/llm/lfm/runs/sayso-promotion/<train_id>-full/`. No dev suite is used.
+- **Release A/B — command:** `./sayso eval` (`--train-id` optional). Exports the selected checkpoint to F16 then to the
+  release quantization (`RELEASE_QUANT = Q4_K_M`) through `training/scripts/export_gguf.py`, and scores the candidate *and* the champion on each of `promotion`, `context`, and `regression` (`RELEASE_SUITES`).
 - **Counterfactual probe:** `training/scripts/counterfactual_probe.py` (probe kinds
-  `device_absent`, `tool_removed`, `clarify_resolved`) for entity/tool grounding behavior.
-- **Config it reads:** gate thresholds and zero-tolerance flags from `evals/config/gates.yaml`
-  (`suites.<suite>.zero_tolerance_flags`, read by `safety_flags()` in `sayso`); the deployed
-  champion from `training/configs/training_baseline.json`. Suites are selected by tag via
-  `evals.cases.select_cases` and gated by `evals.scorer.check_gates`.
+  `device_absent`, `tool_removed`, `clarify_resolved`) for entity/tool grounding behavior. It is a standalone script; no stage runs it.
+- **Config it reads:** gate thresholds from `evals/config/gates.yaml`; `safety_flags()` reads the
+  `promotion` suite's `zero_tolerance_flags`. The deployed champion comes from
+  `training/configs/training_baseline.json`. Suites are selected by tag via `evals.cases.select_cases` and
+  gated by `evals.scorer.check_gates`.
 - **Outputs:** per-run result directories under `/srv/llm/lfm/runs/sayso-promotion/<name>/` with
-  `summary.json`, `outcomes.jsonl`, and `metadata.json`.
+  `summary.json`, `outcomes.jsonl`, and `metadata.json`. Auto-eval results are named
+  `<train_id>-auto-<checkpoint>-<timestamp>` and held-out results `<train_id>-heldout-<checkpoint>`.
 
-## 5. Checkpoint selection and promotion against the deployed champion
+## 5. Promotion against the deployed champion
 
-- **Selection — command:** `./sayso select`. Chooses the checkpoint with the fewest safety flags,
-  then highest dev pass rate, then earliest step (`select_checkpoint` in `sayso`). Records
-  `selected_checkpoint` on the training run.
 - **Champion comparison — command:** `./sayso eval`. Compares the candidate GGUF against the
   deployed champion **case-for-case** (`compare_release` in `sayso`). The champion is the sha256-pinned
   GGUF named by `eval.champion` in `training/configs/training_baseline.json`; it is re-scored on
@@ -125,14 +180,15 @@ passes `--promotion-record`. Every GPU job runs inside a lock turn: `gpu run <la
 - **Promotion gates (must all pass):** more wins than losses vs the champion; no per-category net
   worse than `-RELEASE_SLACK` (`RELEASE_SLACK = 2`); the `context` 100% gate holds; and no new
   zero-tolerance safety flag appears relative to the champion.
-- **Promotion — command:** `./sayso promote-model` (`--manual-override --reason <text>` only with an
-  audit note). Writes `training/runs/promotion/promoted_model.json`.
+- **Promotion — command:** `./sayso promote-model` (`--train-id` optional; `--manual-override --reason <text>` only with an
+  audit note). Requires a completed release evaluation. Writes `training/runs/promotion/promoted_model.json`.
+  Within `run`, a model in the promotion queue is promoted only by running this command by hand.
 
 ## 6. Deployment
 
 - **Command:** `scripts/publish_model.sh`. Pins the artifact by sha256 and updates constants in the
   SaySo submodule checkout for release.
-- **Inputs:** the promoted model GGUF from stage 5 (`promoted_model.json`).
+- **Inputs:** the promoted model GGUF from `promote-model` (`promoted_model.json`).
 - **Outputs / notes:** publishing targets releases in the upstream repo and leaves that submodule
   checkout dirty for a separate upstream review; it does not update the recorded gitlink. Promotion,
   deployment, and shipping are distinct decisions — record which applies; never infer promotion from
@@ -146,8 +202,7 @@ direction rather than proceeding.
 
 ## Pipeline invariants
 
-1. **Base model is `LFM2.5-230M-Base`.** Defined by `BASE_MODEL` in `sayso` and the `--model`
-   default in `training/scripts/sayso_trainer.py`.
+1. **Base model comes from a reviewed model profile.** `training/configs/models.yaml` defines the profiles, and each sets the trainer base model (`trainer_model`) and its recipe (`lr`, `warmup_ratio`, `batch`, `accum`, `extra_args`). Today `230m` = `LFM2.5-230M-Base` and `350m` = `LFM2.5-350M-Base-sayso`. `--model <profile>` selects one on `./sayso run`, `canary`, and `train` (default `230m`); the canary profile must match the train profile, and `train` refuses a mismatch. Defined by `model_profile` and `train_recipe` in `sayso`, the recipe table in stage 3, and the `--model` default in `training/scripts/sayso_trainer.py`.
 2. **Full-parameter fine-tuning from fresh Base — no LoRA/adapter, no continued merge.** Defined by
    `AutoModelForCausalLM.from_pretrained` with no PEFT/LoRA/adapter call in `training/scripts/sayso_trainer.py`.
 3. **BF16 weights and compute; no FP32 master weights.** Defined by `dtype=torch.bfloat16` on
@@ -219,8 +274,9 @@ direction rather than proceeding.
 
 The checkable invariants above are enforced by `training/tests/test_pipeline_invariants.py`, which
 reads the constants from `sayso` and the trainer and fails when they drift from this file. It also
-parses the doc's stated values (base model, `VAL_RATIO`, `TRAIN_RECIPE`, `RELEASE_SLACK`,
-`RELEASE_QUANT`, `RELEASE_SUITES`, `GENERATION_CONFIG`), so changing the code or the doc alone fails
+parses the doc's stated values (the base model and recipe of each model profile against
+`training/configs/models.yaml`, `VAL_RATIO`, `RELEASE_SLACK`, `RELEASE_QUANT`, `RELEASE_SUITES`,
+`GENERATION_CONFIG`), so changing the code or the doc alone fails
 the test. Run it from `sayso-training/`: `python -m pytest training/tests/test_pipeline_invariants.py -q`.
 Invariants 12–17 are also checked by number against the doc text, and each cited guard must still
 exist in `training/dataset_gates.py` or `sayso`. Changing an invariant still requires explicit user approval, and the doc and this test must change in

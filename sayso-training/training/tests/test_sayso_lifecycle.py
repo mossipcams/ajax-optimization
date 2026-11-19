@@ -104,26 +104,6 @@ def test_select_prefers_fewer_safety_flags_then_pass_rate_then_earlier_step(says
     assert sayso.select_checkpoint(table) == "checkpoint-400"
 
 
-def test_select_scores_every_checkpoint_on_dev(sayso, tmp_path, monkeypatch):
-    training = {"train_id": "T", "trained": True, "output": "/workspace/host/lfm/runs/sayso-promotion/T-full"}
-    sayso.save_training(training)
-    for name in ("checkpoint-200", "checkpoint-1000", "checkpoint-400"):
-        (sayso.local_output(training) / name).mkdir(parents=True)
-    rates = {"checkpoint-200": 0.5, "checkpoint-400": 0.8, "checkpoint-1000": 0.8, "final": 0.7}
-    seen = []
-
-    def fake_eval(checkpoint, out_name, suite, profile=None):
-        name = Path(checkpoint).name
-        seen.append((name, suite))
-        return True, {"dev": {"summary": {"overall_pass_rate": rates[name], "flags": {}}, "result_dir": name}}
-
-    monkeypatch.setattr(sayso, "eval_checkpoint", fake_eval)
-    monkeypatch.setattr(sayso, "safety_flags", lambda: {"action_on_ambiguity"})
-    sayso.cmd_select(args())
-    assert seen == [(name, "dev") for name in ("checkpoint-200", "checkpoint-400", "checkpoint-1000", "final")]
-    assert sayso.training_run(args())["selected_checkpoint"].endswith("/checkpoint-400")
-
-
 def rows(passed, category="c", flags=None):
     return [{"case_id": f"case-{i}", "category": category, "passed": value, "outcome": "x",
              "flags": (flags or {}).get(i, [])} for i, value in enumerate(passed)]
@@ -223,5 +203,5 @@ def test_canary_diagnostics_never_touch_locked_suites(sayso, tmp_path, monkeypat
     manifest.parent.mkdir(parents=True)
     manifest.write_text(json.dumps({"final_step": 250, "max_steps": 2500, "last_logged_learning_rate": 5e-5}))
     sayso.cmd_canary(argparse.Namespace(reuse_checkpoint=False))
-    assert suites == ["smoke", "dev"]
+    assert suites == ["smoke"]
     assert record["canary_schedule"] == {"final_step": 250, "max_steps": 2500, "last_logged_learning_rate": 5e-5}
