@@ -141,9 +141,14 @@ def parse_args(argv: list[str] | None = None, parser: argparse.ArgumentParser | 
     return args
 
 
-def encode(row, tokenizer):
+def tokenize_view(row, tokenizer):
     prompt = tokenizer(row["instruction"], add_special_tokens=False)["input_ids"]
     completion = tokenizer(row["output"], add_special_tokens=False)["input_ids"]
+    return prompt, completion
+
+
+def encode(row, tokenizer):
+    prompt, completion = tokenize_view(row, tokenizer)
     return {
         "input_ids": prompt + completion,
         "attention_mask": [1] * (len(prompt) + len(completion)),
@@ -160,16 +165,65 @@ def rows(path, stamp):
             yield {"instruction": row["instruction"], "output": row["output"]}
 
 
-def load_rows(path, tokenizer):
+def view_groups(path):
+    seen = set()
+    group, source = [], None
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            row = json.loads(line)
+            index = row["metadata"]["source_row_index"]
+            if index != source:
+                if group:
+                    yield source, group
+                if index in seen:
+                    raise ValueError(f"source_row_index {index} reappears non-adjacently in {path}; "
+                                     "--merge-views needs each conversation's views adjacent")
+                seen.add(index)
+                group, source = [], index
+            group.append({"instruction": row["instruction"], "output": row["output"]})
+    if group:
+        yield source, group
+
+
+def merge_group(views, tokenizer, source):
+    if len(views) == 1:
+        return encode(views[0], tokenizer)
+    tokenized = [tokenize_view(view, tokenizer) for view in views]
+    full = max((prompt + completion for prompt, completion in tokenized), key=len)
+    labels = [-100] * len(full)
+    for prompt, completion in tokenized:
+        ids = prompt + completion
+        if full[:len(ids)] != ids:
+            raise ValueError(f"source_row_index {source}: a sibling view is not an exact token prefix of the "
+                             "longest view; --merge-views cannot merge it")
+        labels[len(prompt):len(ids)] = completion
+    return {
+        "input_ids": full,
+        "attention_mask": [1] * len(full),
+        "labels": labels,
+        "length": len(full),
+        "supervised": sum(label != -100 for label in labels),
+    }
+
+
+def merged_rows(path, stamp, tokenizer):
+    for source, views in view_groups(path):
+        yield merge_group(views, tokenizer, source)
+
+
+def load_rows(path, tokenizer, merge_views=False):
     from datasets import Dataset
 
     stat = os.stat(path)
-    dataset = Dataset.from_generator(rows, gen_kwargs={"path": path, "stamp": f"{stat.st_size}:{stat.st_mtime_ns}"})
+    stamp = f"{stat.st_size}:{stat.st_mtime_ns}"
+    if merge_views:
+        return Dataset.from_generator(merged_rows, gen_kwargs={"path": path, "stamp": stamp, "tokenizer": tokenizer})
+    dataset = Dataset.from_generator(rows, gen_kwargs={"path": path, "stamp": stamp})
     return dataset.map(encode, fn_kwargs={"tokenizer": tokenizer}, remove_columns=dataset.column_names, num_proc=6)
 
 
-def load_eval_rows(path, tokenizer, cutoff: int):
-    eval_dataset = load_rows(path, tokenizer).shuffle(seed=SEED)
+def load_eval_rows(path, tokenizer, cutoff: int, merge_views=False):
+    eval_dataset = load_rows(path, tokenizer, merge_views).shuffle(seed=SEED)
     eval_dataset = eval_dataset.select(range(min(EVAL_ROWS, len(eval_dataset))))
     eval_dataset = eval_dataset.filter(lambda row: row["length"] <= cutoff and row["supervised"] > 0)
     return eval_dataset.remove_columns(["length", "supervised"])

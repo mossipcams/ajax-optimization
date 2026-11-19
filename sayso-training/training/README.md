@@ -379,6 +379,31 @@ rendered-data hash for full training. Static dataset checks and the guarded prom
 documented in the
 [training lifecycle guide](../docs/SAYSO_TRAINING_LIFECYCLE.md).
 
+### Merged sibling views (`--merge-views`)
+
+`--merge-views` is opt-in and off by default, so `./sayso` runs are unchanged. The rendered file has one row per
+trained assistant turn. The views of one multi-turn conversation share `metadata.source_row_index` and sit adjacent
+in the file. With the flag, each such group becomes one training sequence: the longest view's prompt+completion
+token ids, with labels on every view's completion span and -100 elsewhere. Each view is tokenized exactly as
+`encode()` does (prompt and completion separately, `add_special_tokens=False`).
+
+Before merging, every shorter view's prompt+completion ids must be an exact token prefix of the longest view's ids.
+A view that fails the check, or a `source_row_index` that reappears non-adjacently, stops the run with an error;
+it never falls back to unmerged rows. `supervised` counts all labeled tokens. The flag applies to both `--data` and
+`--eval-data`. Single-view rows are encoded exactly as before.
+
+Measured on the v18 train split: 67,231 views become 37,934 sequences, and all 28,289 multi-view groups pass the
+prefix check. Sequences shrink about 1.77x, so pass `--accum 18` (not 32) with `--merge-views` to keep about 32
+views per optimizer step.
+
+### Labeled-position loss
+
+The trainer runs the LFM2 decoder, shifts labels by one token, and applies `lm_head` only where the next-token
+label is not -100. Cross-entropy uses float32 logits and sums over labeled positions, dividing by
+`num_items_in_batch` when supplied or the labeled count otherwise, preserving Trainer's accumulation scaling.
+`mean_token_accuracy` and `entropy` use those same positions; evaluation returns `eval_loss` without building
+full-sequence logits. Gradient checkpointing is unchanged.
+
 ### GPU reservation and cancellation
 
 Use `/srv/llm/bin/gpu train lfm|wake [--serve-after] COMMAND ...` for every
