@@ -76,9 +76,15 @@ so existing `scripts.fetch_ha_home` and `scripts.ha_websocket` imports keep work
 without copied modules. `scripts/preflight.py` runs the upstream validator with
 the local training packages and configuration.
 
-Use `./sayso generate`, `validate`, `canary`, `promote-dataset`, `train`, `eval`,
-and `promote-model` for the existing promotion workflow. Training and wake jobs
-still require the GPU host and its lock. Install
+Use `./sayso run --model <profile> --hypothesis "<text>"` to chain the promotion
+pipeline unattended (`generate`, `validate`, `canary`, `promote-dataset`, `train`,
+`select`, `eval`, then queue the model if it passes), and `./sayso status --json` to read
+its state. The stage commands also run by hand: `generate`, `validate`, `canary`,
+`promote-dataset`, `train`, `select`, `eval`, and `promote-model`. `select` is CPU
+auto-eval of the final and mid-run checkpoints, with no dev suite. `promote-model` is
+the manual step after a model is queued; deployment stays separate. Training and wake
+jobs still require the GPU host and its lock. The stages, `run.json`, the ledger, and the
+promotion queue are described in [docs/PIPELINE.md](docs/PIPELINE.md). Install
 `satellite/models/requirements-wake-train.txt` in the host training environment
 for actual wake training; it is not needed for the basic CPU tests. The existing
 `test_lfm_python_parse.py` imports the Home Assistant integration directly and

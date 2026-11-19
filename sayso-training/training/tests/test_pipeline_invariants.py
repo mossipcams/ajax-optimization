@@ -21,6 +21,7 @@ ACTIVE_TRAINER = TRAINING / "scripts" / "sayso_trainer.py"
 SPLIT_SCRIPT = TRAINING / "scripts" / "split_dataset.py"
 SMOKE_FIXTURE = TRAINING / "fixtures" / "sayso_lfm_smoke.jsonl"
 BASELINE = TRAINING / "configs" / "training_baseline.json"
+MODELS = TRAINING / "configs" / "models.yaml"
 SCHEMA_V2 = SAYSO_TRAINING / "schemas" / "sayso-tool-schema-v2.json"
 DATASET_GATES = TRAINING / "dataset_gates.py"
 SAYSO_FILE = SAYSO_TRAINING / "sayso"
@@ -41,8 +42,27 @@ def _doc_match(pattern: str, text: str, what: str) -> re.Match[str]:
     return match
 
 
-def _doc_base_model() -> str:
-    return _doc_match(r"Base model is `([A-Za-z0-9._\-]+)`", INVARIANTS, "the base model").group(1)
+def _doc_profile_models() -> dict[str, str]:
+    section = _doc_match(r"(?m)^1\. \*\*.*?(?=^2\. \*\*)", INVARIANTS, "invariant 1").group(0)
+    models = dict(re.findall(r"`([0-9a-z]+)` = `([A-Za-z0-9._\-]+)`", section))
+    assert models, "PIPELINE.md invariant 1 names no model profile"
+    return models
+
+
+def _doc_profile_recipes() -> dict[str, tuple[str, ...]]:
+    rows = re.findall(
+        r"^[ \t]*\| `([0-9a-z]+)`[^|]*\| `([A-Za-z0-9._\-]+)` \| `([0-9.e\-]+)` \| `([0-9.]+)` \| `([0-9]+)` \| `([0-9]+)` \|",
+        DOC_TEXT,
+        re.M,
+    )
+    assert rows, "PIPELINE.md has no model profile recipe table"
+    return {row[0]: row[1:] for row in rows}
+
+
+def _yaml_profiles() -> dict[str, dict]:
+    import yaml
+
+    return yaml.safe_load(MODELS.read_text(encoding="utf-8"))["models"]
 
 
 def _doc_val_ratio() -> float:
@@ -57,11 +77,6 @@ def _doc_generation_config() -> str:
     return _doc_match(
         r"`(training/configs/generation/[^`]+)`,?\s+named by the\s+`GENERATION_CONFIG`", DOC_TEXT, "GENERATION_CONFIG"
     ).group(1)
-
-
-def _doc_train_recipe() -> tuple[str, str]:
-    match = _doc_match(r"`--lr ([0-9.e\-]+) --warmup-ratio ([0-9.]+)`\s*\(`TRAIN_RECIPE`", DOC_TEXT, "TRAIN_RECIPE")
-    return match.group(1), match.group(2)
 
 
 def _doc_release_slack() -> int:
@@ -126,13 +141,16 @@ def test_canary_and_train_run_the_active_trainer() -> None:
 
 
 def test_base_model_matches_doc_in_sayso_and_trainer() -> None:
-    doc_name = _doc_base_model()
-    assert doc_name == "LFM2.5-230M-Base"
-    assert Path(SAYSO.BASE_MODEL).name == doc_name, f"sayso BASE_MODEL {SAYSO.BASE_MODEL!r} != doc {doc_name!r}"
+    profiles = _yaml_profiles()
+    doc_models = _doc_profile_models()
+    yaml_models = {name: Path(profile["trainer_model"]).name for name, profile in profiles.items()}
+    assert doc_models == yaml_models, f"PIPELINE.md profile base models {doc_models} != models.yaml {yaml_models}"
     defaults = _model_defaults(ACTIVE_TRAINER)
     assert defaults, f"{ACTIVE_TRAINER.name} has no --model default"
     for default in defaults:
-        assert default.rsplit("/", 1)[-1] == doc_name, f"--model default {default!r} != doc {doc_name!r}"
+        assert default.rsplit("/", 1)[-1] == doc_models[SAYSO.DEFAULT_MODEL], (
+            f"--model default {default!r} != doc {doc_models[SAYSO.DEFAULT_MODEL]!r}"
+        )
 
 
 def test_active_trainer_loads_bf16_without_fp32_master_weights() -> None:
@@ -223,9 +241,19 @@ def test_split_keeps_scenario_groups_out_of_both_splits(tmp_path: Path) -> None:
 
 
 def test_train_recipe_matches_doc() -> None:
-    doc_lr, doc_warmup = _doc_train_recipe()
-    assert SAYSO.TRAIN_RECIPE[SAYSO.TRAIN_RECIPE.index("--lr") + 1] == doc_lr
-    assert SAYSO.TRAIN_RECIPE[SAYSO.TRAIN_RECIPE.index("--warmup-ratio") + 1] == doc_warmup
+    profiles = _yaml_profiles()
+    recipes = _doc_profile_recipes()
+    assert set(recipes) == set(profiles), f"PIPELINE.md recipe table {sorted(recipes)} != models.yaml {sorted(profiles)}"
+    for name, profile in profiles.items():
+        base, lr, warmup, batch, accum = recipes[name]
+        assert (base, lr, warmup, batch, accum) == (
+            Path(profile["trainer_model"]).name, profile["lr"], str(profile["warmup_ratio"]),
+            str(profile["batch"]), str(profile["accum"]),
+        ), f"PIPELINE.md recipe for {name} != models.yaml"
+        recipe = SAYSO.train_recipe(name)
+        assert Path(recipe[recipe.index("--model") + 1]).name == base
+        assert recipe[recipe.index("--lr") + 1] == lr
+        assert recipe[recipe.index("--warmup-ratio") + 1] == warmup
 
 
 def test_release_constants_match_doc() -> None:

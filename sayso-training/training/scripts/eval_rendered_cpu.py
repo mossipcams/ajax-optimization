@@ -88,7 +88,11 @@ def main() -> int:
         family: {k: round(c[k] / c["n"], 3) for k in ("exact", "decision", "calls")} | {"n": c["n"]}
         for family, c in sorted(by_family.items())
     }
-    args.out.write_text(json.dumps({"checkpoint": args.checkpoint, "summary": summary, "rows": rows}, indent=1))
+    passed = sum(row["exact"] for row in rows)
+    total = len(rows)
+    args.out.write_text(json.dumps({"checkpoint": args.checkpoint, "passed": passed, "total": total,
+                                    "pass_rate": round(passed / total, 4) if total else 0.0,
+                                    "summary": summary, "rows": rows}, indent=1))
     print(json.dumps(summary["ALL"]))
     return 0
 
