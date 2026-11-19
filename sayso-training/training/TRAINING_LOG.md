@@ -791,3 +791,12 @@ run and no score for `sayso_trainer.py` yet. The first `./sayso canary` is its
 first run. `train_unsloth_full.py` stays as the rollback trainer for one full
 cycle; rollback steps are in the [Rollback section](../docs/PLAN_SAYSO_TRAINER_TRL.md#rollback) of the plan,
 [docs/PLAN_SAYSO_TRAINER_TRL.md](../docs/PLAN_SAYSO_TRAINER_TRL.md).
+
+## Trainer kernel: causal-conv1d — 2026-11-19
+
+The causal-conv1d kernel was missing from every trainer venv, including the old Unsloth one, so the
+LFM convolution ran the slow fallback path. The kernel is now built by
+`sayso-training/scripts/llm-host/sayso-trainer-venv.sh` as `causal-conv1d==1.7.0` (pinned in
+`requirements-sayso-trainer.txt`, gfx1100, C++20 patch). Once built, it matched the reference exactly for
+forward and dx, with dw rel 4e-6 at LFM2-350M shapes. Per op it is 3.4x faster at 512 tokens and 13x at 5.4k.
+The 350M v18 run went from 15.6 to 12.5 s/step (batch 1 x accum 32).

@@ -72,13 +72,54 @@ def sft_recipe(args, evaluating: bool) -> dict:
     training = recipe(args, evaluating=evaluating)
     training["warmup_steps"] = training.pop("warmup_ratio")
     training["remove_unused_columns"] = False
+    training["prediction_loss_only"] = True
     return training
+
+
+class LabeledPositionLossMixin:
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        import torch
+        from torch.nn import functional as F
+
+        decoder_inputs = {key: value for key, value in inputs.items() if key != "labels"}
+        decoder_inputs["use_cache"] = False
+        hidden_states = model.model(**decoder_inputs).last_hidden_state
+        labels = inputs["labels"][..., 1:].to(hidden_states.device)
+        labeled = labels != -100
+        logits = model.lm_head(hidden_states[..., :-1, :][labeled]).float()
+        targets = labels[labeled]
+        count = labeled.sum()
+        denominator = count if num_items_in_batch is None else num_items_in_batch
+        loss = F.cross_entropy(logits, targets, reduction="sum")
+        loss = loss / torch.as_tensor(denominator, device=loss.device).clamp(min=1)
+        if self.args.average_tokens_across_devices and num_items_in_batch is not None:
+            loss = loss * (self.accelerator.num_processes // self.get_tp_size())
+
+        mode = "train" if self.model.training else "eval"
+        with torch.no_grad():
+            log_probs = F.log_softmax(logits, dim=-1)
+            entropy = -(log_probs.exp() * log_probs).sum()
+            correct = (logits.argmax(dim=-1) == targets).sum()
+            num_valid = self.accelerator.gather_for_metrics(count).sum()
+            entropy_sum = self.accelerator.gather_for_metrics(entropy).sum()
+            num_correct = self.accelerator.gather_for_metrics(correct).sum()
+            self._metrics[mode]["entropy"].append((entropy_sum / num_valid).item() if num_valid > 0 else 0.0)
+            self._metrics[mode]["mean_token_accuracy"].append(
+                (num_correct / num_valid).item() if num_valid > 0 else 0.0
+            )
+            if mode == "train":
+                num_tokens = self.accelerator.gather_for_metrics(inputs["attention_mask"].sum()).sum().item()
+                self._total_train_tokens += num_tokens // self._tp_size
+            self._metrics[mode]["num_tokens"] = [self._total_train_tokens]
+
+        return (loss, {"loss": loss}) if return_outputs else loss
 
 
 def build_manifest(args, training_args: dict, data_sha256: str) -> dict:
     manifest = common_build_manifest(args, training_args, data_sha256, backend="hf",
                                      trainer_sha256=sha256(__file__))
     manifest["method"] = getattr(args, "method", "sft")
+    manifest["merge_views"] = getattr(args, "merge_views", False)
     return manifest
 
 
@@ -86,6 +127,8 @@ def parse_args(argv: list[str] | None = None):
     parser = common_build_parser()
     parser.add_argument("--model", default=f"{HOST}/lfm/models/LFM2.5-230M-Base")
     parser.add_argument("--method", choices=("sft",), default="sft")
+    parser.add_argument("--merge-views", action="store_true",
+                        help="train each conversation's sibling views as one exact-prefix sequence")
     return common_parse_args(argv, parser=parser, run_name="sayso-trainer")
 
 
@@ -110,11 +153,14 @@ def main() -> int:
     from transformers import DataCollatorForSeq2Seq
     from trl import SFTConfig, SFTTrainer
 
-    dataset = load_rows(args.data, tokenizer)
-    eval_dataset = load_eval_rows(args.eval_data, tokenizer, args.cutoff) if args.eval_data else None
+    class SaySoTrainer(LabeledPositionLossMixin, SFTTrainer):
+        pass
+
+    dataset = load_rows(args.data, tokenizer, args.merge_views)
+    eval_dataset = load_eval_rows(args.eval_data, tokenizer, args.cutoff, args.merge_views) if args.eval_data else None
     preflight(dataset, args.cutoff)
     dataset = dataset.remove_columns(["length", "supervised"])
-    trainer = SFTTrainer(
+    trainer = SaySoTrainer(
         model=model,
         train_dataset=dataset,
         eval_dataset=eval_dataset,

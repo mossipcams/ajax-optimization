@@ -66,6 +66,20 @@ Axolotl is not used. `training/scripts/train.py`, `train_lfm.py`, and
 is the generator/view/test environment only (CPU, no torch, no trainer). The
 GGUF export script prints instructions rather than executing a complete export.
 
+### SaySo Trainer venv and the causal-conv1d kernel
+
+[scripts/llm-host/sayso-trainer-venv.sh](../scripts/llm-host/sayso-trainer-venv.sh) builds the trainer venv
+inside the `sayso-trainer` container. Before `pip install -r`, it builds `causal-conv1d==1.7.0` from the
+PyPI sdist (sha256 pinned in the script) with `CAUSAL_CONV1D_FORCE_BUILD=TRUE HIP_ARCHITECTURES=gfx1100` and
+`--no-build-isolation`, so it compiles against the base venv's torch. The build is skipped when the venv already
+imports causal-conv1d 1.7.0.
+
+- Headers: `hipcub-dev` and `rocprim-dev` (installed when `/opt/rocm/include/hipcub/hipcub.hpp` is missing).
+- C++20: torch 2.14 headers need C++20, so the script changes `-std=c++17` to `-std=c++20` in the sdist's `setup.py` before building.
+- Target: gfx1100 (RX 7900 XTX) only.
+- `sayso_trainer.check_installed_stack` checks the kernel with the other pins in
+  `training/requirements-sayso-trainer.txt`, so training refuses to start when the kernel is missing or at another version.
+
 ## Quick start
 
 Generator, data-view, and test environment (CPU). On the VM it lives at
@@ -364,6 +378,31 @@ with no supervised completion, and requires promotion metadata plus a matching
 rendered-data hash for full training. Static dataset checks and the guarded promotion sequence are
 documented in the
 [training lifecycle guide](../docs/SAYSO_TRAINING_LIFECYCLE.md).
+
+### Merged sibling views (`--merge-views`)
+
+`--merge-views` is opt-in and off by default, so `./sayso` runs are unchanged. The rendered file has one row per
+trained assistant turn. The views of one multi-turn conversation share `metadata.source_row_index` and sit adjacent
+in the file. With the flag, each such group becomes one training sequence: the longest view's prompt+completion
+token ids, with labels on every view's completion span and -100 elsewhere. Each view is tokenized exactly as
+`encode()` does (prompt and completion separately, `add_special_tokens=False`).
+
+Before merging, every shorter view's prompt+completion ids must be an exact token prefix of the longest view's ids.
+A view that fails the check, or a `source_row_index` that reappears non-adjacently, stops the run with an error;
+it never falls back to unmerged rows. `supervised` counts all labeled tokens. The flag applies to both `--data` and
+`--eval-data`. Single-view rows are encoded exactly as before.
+
+Measured on the v18 train split: 67,231 views become 37,934 sequences, and all 28,289 multi-view groups pass the
+prefix check. Sequences shrink about 1.77x, so pass `--accum 18` (not 32) with `--merge-views` to keep about 32
+views per optimizer step.
+
+### Labeled-position loss
+
+The trainer runs the LFM2 decoder, shifts labels by one token, and applies `lm_head` only where the next-token
+label is not -100. Cross-entropy uses float32 logits and sums over labeled positions, dividing by
+`num_items_in_batch` when supplied or the labeled count otherwise, preserving Trainer's accumulation scaling.
+`mean_token_accuracy` and `entropy` use those same positions; evaluation returns `eval_loss` without building
+full-sequence logits. Gradient checkpointing is unchanged.
 
 ### GPU reservation and cancellation
 
