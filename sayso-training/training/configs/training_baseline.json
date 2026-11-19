@@ -21,43 +21,85 @@
   "eval": {
     "source": "accepted SaySo champion v5b; llama.cpp endpoint scorer run 20260925T174759Z-5ceb6471",
     "champion": {
-      "name": "SaySo LFM v11 Q4_K_M",
-      "note": "The deployed model (SaySo const.py DEFAULT_MODEL_FILENAME, release model-v4). ./sayso eval scores it beside every candidate on the same cases.",
-      "gguf": "/srv/llm/lfm/runs/sayso-promotion/SaySo-LFM-v11-Q4_K_M.gguf",
-      "gguf_sha256": "728cae4cf693498b9bd8ab128751848e8560ce75a061409703490e09f38fc972",
-      "previous_champion": {
-        "name": "SaySo LFM v5b",
-        "run_id": "v5b-20260925-adopted",
-        "promotion_mode": "manual_override",
-        "checkpoint": "/srv/llm/lfm/runs/sayso-lfm-v5-full/final",
-        "gguf": "/srv/llm/data/llama.cpp/models/sayso-lfm-v5b-f16.gguf",
-        "gguf_sha256": "7d4dff1cc6730f1494a3172b4ad8247566ff73dd5b25867be05283927e0b439e",
-        "promotion_suite": {
-          "passed": 73,
-          "total": 120,
-          "overall_pass_rate": 0.6083,
-          "summary": "/srv/llm/data/sayso/evals/results/20260925T174759Z-5ceb6471/summary.json"
+      "name": "SaySo LFM v18 350M Q4_K_M",
+      "note": "Champion for ./sayso eval: every candidate is scored beside it on the same cases. Promoted 2026-11-19 by manual override at the user's request; not yet deployed to SaySo (deployment is a separate decision).",
+      "gguf": "/srv/llm/lfm/runs/sayso-promotion/SaySo-LFM-v18-350M-Q4_K_M.gguf",
+      "gguf_sha256": "8c1477d9feb52a305955014136a104851105a58bb898fcd2f775263fc216e38a",
+      "promotion_mode": "manual_override",
+      "manual_override_reason": "User directive 2026-11-19 after the v18 350M run beat every prior 350M checkpoint on the SaySo promotion suite. ./sayso promote-model could not act on it: the run was trained outside ./sayso train (no canary, no promote-dataset reproduction, no training-run record).",
+      "base_model": "LFM2.5-350M-Base-sayso",
+      "checkpoint": "/srv/llm/lfm/runs/sayso-promotion/v350m-v18-merged-full/final",
+      "dataset_run_id": "20261118T234543Z-3945d6fc",
+      "dataset_sha256_prefix": "5d707acb4f3a",
+      "trainer_commit": "1a28fa4",
+      "recipe": {
+        "lr": 2e-05,
+        "warmup_ratio": 0.1,
+        "batch": 1,
+        "accum": 18,
+        "merge_views": true,
+        "epochs": 2,
+        "steps": 4216
+      },
+      "evidence": {
+        "promotion_suite_530_hf_fp32": {
+          "final": 395,
+          "checkpoint_2400": 389,
+          "total": 530,
+          "compared_with": {
+            "v17_350m_final": 374,
+            "v17_350m_checkpoint_2400": 346
+          },
+          "results": "/srv/llm/lfm/runs/sayso-promotion/v350m-v18-final-pr206-promotion"
         },
-        "smoke_suite": {
-          "passed": 17,
+        "smoke_suite_q4_k_m": {
+          "passed": 16,
           "total": 24,
-          "overall_pass_rate": 0.7083,
-          "summary": "/srv/llm/data/sayso/evals/results/20260925T181039Z-8ae231b2/summary.json"
+          "matches_fp32_on_same_cases": true,
+          "results": "/srv/llm/lfm/runs/sayso-promotion/v350m-v18-final-q4-smoke"
         },
+        "gate_status": "fails promotion gates (unavailable 0.32 < 0.6, aliases 0.57 < 0.7, ordinary 0.75 < 0.8, ambiguity 0.43 < 0.6, false_action_rate 0.57 > 0.2; tool_call_on_unavailable 19, wrong_domain 12, action_on_ambiguity 5, status_state_change 2)",
+        "not_run": "no paired ./sayso eval A/B against the previous champion (v11 Q4_K_M) and no context/regression suites"
+      },
+      "previous_champion": {
+        "name": "SaySo LFM v11 Q4_K_M",
+        "note": "The deployed model (SaySo const.py DEFAULT_MODEL_FILENAME, release model-v4). ./sayso eval scores it beside every candidate on the same cases.",
+        "gguf": "/srv/llm/lfm/runs/sayso-promotion/SaySo-LFM-v11-Q4_K_M.gguf",
+        "gguf_sha256": "728cae4cf693498b9bd8ab128751848e8560ce75a061409703490e09f38fc972",
         "previous_champion": {
-          "name": "v3-semantic-early-20260908 step-5000",
-          "passed": 31,
-          "total": 120,
-          "overall_pass_rate": 0.2583,
-          "summary": "/srv/llm/data/sayso/evals/results/20260925T172615Z-a7492f7f/summary.json"
-        },
-        "same_case_hash": "58b5892320175371677f393f4b562906f77aa49d7e39851b6744ac6ed992b5c9",
-        "same_suite_hash": "1c13634d2192a74caa6e2553b6afd8672a66a14ffdbd941ed9f279f3f2341017",
-        "validation_passed": false,
-        "canary_passed": false,
-        "final_eval_gate_passed": false,
-        "false_action_rate": 0.6,
-        "previous_champion_false_action_rate": 0.2
+          "name": "SaySo LFM v5b",
+          "run_id": "v5b-20260925-adopted",
+          "promotion_mode": "manual_override",
+          "checkpoint": "/srv/llm/lfm/runs/sayso-lfm-v5-full/final",
+          "gguf": "/srv/llm/data/llama.cpp/models/sayso-lfm-v5b-f16.gguf",
+          "gguf_sha256": "7d4dff1cc6730f1494a3172b4ad8247566ff73dd5b25867be05283927e0b439e",
+          "promotion_suite": {
+            "passed": 73,
+            "total": 120,
+            "overall_pass_rate": 0.6083,
+            "summary": "/srv/llm/data/sayso/evals/results/20260925T174759Z-5ceb6471/summary.json"
+          },
+          "smoke_suite": {
+            "passed": 17,
+            "total": 24,
+            "overall_pass_rate": 0.7083,
+            "summary": "/srv/llm/data/sayso/evals/results/20260925T181039Z-8ae231b2/summary.json"
+          },
+          "previous_champion": {
+            "name": "v3-semantic-early-20260908 step-5000",
+            "passed": 31,
+            "total": 120,
+            "overall_pass_rate": 0.2583,
+            "summary": "/srv/llm/data/sayso/evals/results/20260925T172615Z-a7492f7f/summary.json"
+          },
+          "same_case_hash": "58b5892320175371677f393f4b562906f77aa49d7e39851b6744ac6ed992b5c9",
+          "same_suite_hash": "1c13634d2192a74caa6e2553b6afd8672a66a14ffdbd941ed9f279f3f2341017",
+          "validation_passed": false,
+          "canary_passed": false,
+          "final_eval_gate_passed": false,
+          "false_action_rate": 0.6,
+          "previous_champion_false_action_rate": 0.2
+        }
       }
     },
     "smoke": {
