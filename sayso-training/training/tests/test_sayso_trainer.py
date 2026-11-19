@@ -146,7 +146,7 @@ def test_parse_args_rejects_warmup_ratio_outside_unit_interval(ratio: str) -> No
 
 
 def test_pins_parse_to_the_four_packages() -> None:
-    assert TRAIN.PINS == {"trl": "1.18.1", "transformers": "5.23.0", "datasets": "5.2.0", "tokenizers": "0.23.3"}
+    assert TRAIN.PINS == {"trl": "1.18.1", "transformers": "5.23.0", "datasets": "5.2.0", "tokenizers": "0.23.3", "causal-conv1d": "1.7.0"}
 
 
 def test_load_pins_skips_blank_and_comment_lines_and_inline_comments(tmp_path: Path) -> None:

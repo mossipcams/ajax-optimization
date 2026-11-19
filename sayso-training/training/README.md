@@ -66,6 +66,20 @@ Axolotl is not used. `training/scripts/train.py`, `train_lfm.py`, and
 is the generator/view/test environment only (CPU, no torch, no trainer). The
 GGUF export script prints instructions rather than executing a complete export.
 
+### SaySo Trainer venv and the causal-conv1d kernel
+
+[scripts/llm-host/sayso-trainer-venv.sh](../scripts/llm-host/sayso-trainer-venv.sh) builds the trainer venv
+inside the `sayso-trainer` container. Before `pip install -r`, it builds `causal-conv1d==1.7.0` from the
+PyPI sdist (sha256 pinned in the script) with `CAUSAL_CONV1D_FORCE_BUILD=TRUE HIP_ARCHITECTURES=gfx1100` and
+`--no-build-isolation`, so it compiles against the base venv's torch. The build is skipped when the venv already
+imports causal-conv1d 1.7.0.
+
+- Headers: `hipcub-dev` and `rocprim-dev` (installed when `/opt/rocm/include/hipcub/hipcub.hpp` is missing).
+- C++20: torch 2.14 headers need C++20, so the script changes `-std=c++17` to `-std=c++20` in the sdist's `setup.py` before building.
+- Target: gfx1100 (RX 7900 XTX) only.
+- `sayso_trainer.check_installed_stack` checks the kernel with the other pins in
+  `training/requirements-sayso-trainer.txt`, so training refuses to start when the kernel is missing or at another version.
+
 ## Quick start
 
 Generator, data-view, and test environment (CPU). On the VM it lives at
