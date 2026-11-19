@@ -800,3 +800,29 @@ LFM convolution ran the slow fallback path. The kernel is now built by
 `requirements-sayso-trainer.txt`, gfx1100, C++20 patch). Once built, it matched the reference exactly for
 forward and dx, with dw rel 4e-6 at LFM2-350M shapes. Per op it is 3.4x faster at 512 tokens and 13x at 5.4k.
 The 350M v18 run went from 15.6 to 12.5 s/step (batch 1 x accum 32).
+
+## Corpus mix: full SFT v19 — 2026-11-19
+
+- **Why:** v18 regressed the PR #206 530-case suite after its share cuts —
+  unavailable dropped to 9/28 (from 16) and aliases to 27/47 (from 35). v19
+  restores the affected families with user-approved shares: ordinary 0.585 ->
+  0.53, unavailable 0.02 -> 0.04, aliases 0.015 -> 0.05, absence stays 0.01 as in v18.
+  contrast, conversation_context, and relative_brightness stay out by user
+  decision; the dropped families remain excluded from the recipe.
+- **Config:** `training/configs/generation/full_sft_v19.yaml` (count 40,000,
+  seed 20261119), wired to `preflight_v19.yaml` and
+  `training_baseline_v19.json`. The v19 baseline's accepted_rows and family
+  shares are measured from the generated 40,000-row v19 corpus (preflight
+  counts, rounded to three decimals like v18).
+- **Not-exposed refusal (tried, removed):** a `device_absent` refusal for
+  unavailable on/off on a device that is not exposed was tried and removed by
+  user decision; unexposed entities are out of scope and no such replies are
+  trained.
+- **Generator changes (same slice):** STT device-noun damage for
+  lamp/switch/speaker/vacuum/heater/thermostat/plug applies only to a trailing
+  device noun, so verbs ("switch on", "vacuum the") are untouched, with names
+  folded back; wake prefix as an independent 25%
+  draw in log noise; 18 trailing-chatter suffixes with WRAPPED_COMMAND_RATE
+  0.05; 68 TV-dialogue junk lines.
+- **Dropped:** alias op coverage beyond on/off was attempted and dropped — the
+  alias path does not support non-on/off ops without a larger change.

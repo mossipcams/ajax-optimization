@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import random
 import re
-from typing import Any
+from typing import Callable
 
 _ONES = (
     "zero",
@@ -36,13 +36,20 @@ for tens_idx, tens_word in enumerate(_TENS[2:], start=2):
     for ones_idx, ones_word in enumerate(_ONES[1:10], start=1):
         _WORD_TO_INT[f"{tens_word} {ones_word}"] = tens_idx * 10 + ones_idx
 
-_ASR_TOKEN_MAP = {
+_ASR_TOKEN_MAP: dict[str, str] = {
     "lite": "light",
     "van": "fan",
     "blends": "blinds",
     "lok": "lock",
     "garaj": "garage",
     "teevee": "tv",
+    "lamb": "lamp",
+    "swish": "switch",
+    "speker": "speaker",
+    "vacuume": "vacuum",
+    "heeter": "heater",
+    "thermastat": "thermostat",
+    "prug": "plug",
 }
 
 
@@ -116,7 +123,14 @@ def utterance_contains_target(text: str, name: str) -> bool:
     return False
 
 
-def _corruption_pool() -> tuple[tuple[re.Pattern[str], Any, str], ...]:
+def _device_noun(word: str) -> re.Pattern[str]:
+    return re.compile(
+        rf"(?<=\S )\b{word}\b(?=\s*(?:$|[?.!,;]|to\s+\d|now\b|please\b))",
+        re.I,
+    )
+
+
+def _corruption_pool() -> tuple[tuple[re.Pattern[str], "str | Callable[[re.Match[str]], str]", str], ...]:
     return (
         (re.compile(r"\blight\b", re.I), "lite", "homophone_light"),
         (re.compile(r"\bfan\b", re.I), "van", "consonant_fan"),
@@ -127,6 +141,13 @@ def _corruption_pool() -> tuple[tuple[re.Pattern[str], Any, str], ...]:
         (re.compile(r"\bblinds\b", re.I), "blends", "vowel_blinds"),
         (re.compile(r"\bgarage\b", re.I), "garaj", "phonetic_garage"),
         (re.compile(r"\block\b", re.I), "lok", "phonetic_lock"),
+        (_device_noun("lamp"), "lamb", "homophone_lamp"),
+        (_device_noun("switch"), "swish", "homophone_switch"),
+        (_device_noun("speaker"), "speker", "vowel_speaker"),
+        (_device_noun("vacuum"), "vacuume", "phonetic_vacuum"),
+        (_device_noun("heater"), "heeter", "dropped_letter_heater"),
+        (_device_noun("thermostat"), "thermastat", "transposed_thermostat"),
+        (_device_noun("plug"), "prug", "phonetic_plug"),
         (re.compile(r"\bthe\b", re.I), "", "dropped_article"),
         (re.compile(r"\b(\d{1,3})\b"), _number_variant, "number_variant"),
         (
@@ -148,6 +169,7 @@ _LIVING_ROOM = re.compile(r"\bliving room\b", re.I)
 _LIVING_ROOM_LIGHT = re.compile(r"\bliving room(?= lights?\b)", re.I)
 # Leftover wake word from satellite captures ("kda turn on the tv").
 _WAKE_PREFIXES = ("kda", "koda")
+WAKE_PREFIX_RATE = 0.25
 _FILLER = re.compile(
     r"\b(the|a|an|uh|um|please|just|like|could you|can you|for me)\b",
     re.I,
@@ -178,8 +200,6 @@ def apply_log_stt_noise(
         candidates.append((_LIVING_ROOM.sub("livingium", utterance, count=1), "log_living_livingium"))
     if _LIVING_ROOM_LIGHT.search(utterance):
         candidates.append((_LIVING_ROOM_LIGHT.sub("little", utterance, count=1), "log_living_little"))
-    if utterance:
-        candidates.append((f"{rng.choice(_WAKE_PREFIXES)} {utterance}", "log_wake_prefix"))
     dropped = _FILLER.sub("", utterance, count=1)
     if dropped != utterance:
         candidates.append((dropped, "log_dropped_filler"))
@@ -196,14 +216,21 @@ def apply_log_stt_noise(
     if utterance and not utterance.isupper():
         candidates.append((utterance.upper() if rng.random() < 0.5 else utterance.lower(), "log_casing"))
     rng.shuffle(candidates)
+    selected: tuple[str, str | None] = (utterance, None)
     for corrupted, kind in candidates:
         cleaned = " ".join(corrupted.split())
         if cleaned == " ".join(utterance.split()):
             continue
         if not _protected(utterance, cleaned, target_names):
             continue
-        return cleaned, kind
-    return utterance, None
+        selected = (cleaned, kind)
+        break
+    text, _kind = selected
+    if utterance and rng.random() < WAKE_PREFIX_RATE:
+        prefixed = f"{rng.choice(_WAKE_PREFIXES)} {text}"
+        if _protected(utterance, prefixed, target_names):
+            return " ".join(prefixed.split()), "log_wake_prefix"
+    return text, _kind
 
 
 def apply_stt_noise(
