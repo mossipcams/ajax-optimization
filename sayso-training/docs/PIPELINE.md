@@ -160,7 +160,7 @@ with the profile recipe below. The full run also passes `--promotion-record`. Ev
   evaluation for it. `report.json` (per-checkpoint scores and flags) is written to
   `/srv/llm/lfm/runs/sayso-promotion/<train_id>-full/`. No dev suite is used.
 - **Release A/B — command:** `./sayso eval` (`--train-id` optional). Exports the selected checkpoint to F16 then to the
-  release quantization (`RELEASE_QUANT = Q4_K_M`) through `training/scripts/export_gguf.py`, and scores the candidate *and* the champion on each of `promotion`, `context`, and `regression` (`RELEASE_SUITES`).
+  release quantization (`RELEASE_QUANT = Q4_K_M`) through `training/scripts/export_gguf.py`, and scores the candidate *and* the champion on each of `promotion`, `context`, and `regression` (`RELEASE_SUITES`). The `regression` suite has no suite file; it is every case tagged `regression` (`evals/cases/regressions.jsonl` and the tagged cases in `evals/cases/context_lookalikes.jsonl`).
 - **Counterfactual probe:** `training/scripts/counterfactual_probe.py` (probe kinds
   `device_absent`, `tool_removed`, `clarify_resolved`) for entity/tool grounding behavior. It is a standalone script; no stage runs it.
 - **Config it reads:** gate thresholds from `evals/config/gates.yaml`; `safety_flags()` reads the
