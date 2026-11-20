@@ -15,13 +15,20 @@ sys.path.insert(0, str(ROOT))
 
 import evals.runner as runner
 from evals.adapters import InMemoryAdapter
-from evals.cases import select_cases
+from evals.cases import SUITES_DIR, select_cases
 from evals.outcomes import PRODUCTION_MAX_OUTPUT_TOKENS, PRODUCTION_TEMPERATURE
 from evals.scorer import summarize
 from eval_baseline import baseline_failures
 
 SUITES = ("smoke", "promotion", "context", "dev", "regression")
 GATED_SUITES = {"smoke", "promotion", "context"}
+SUITE_TAGS = {"regression": "regression"}
+
+
+def suite_cases(name: str):
+    if name in SUITE_TAGS and not (SUITES_DIR / f"{name}.yaml").is_file():
+        return select_cases(tag=SUITE_TAGS[name])
+    return select_cases(suite=name)
 
 
 def embedded_template_transform():
@@ -94,7 +101,7 @@ def main() -> int:
     adapter = InMemoryAdapter(predict)
     baseline = json.loads(args.baseline.read_text(encoding="utf-8"))["eval"]
     failures: list[str] = []
-    for label, cases in [(args.suite, select_cases(suite=args.suite)), *[(tag, select_cases(tag=tag)) for tag in args.tag]]:
+    for label, cases in [(args.suite, suite_cases(args.suite)), *[(tag, select_cases(tag=tag)) for tag in args.tag]]:
         results = runner.evaluate(cases, adapter)
         summary = summarize(results)
         dest = runner.write_run(
