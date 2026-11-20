@@ -22,6 +22,22 @@ swapped (satellite-lights, lamp, vacuum-dock, timer-name and restore-volume phra
 (exact match, Jaccard 0.8). All candidates generated before this change are unverified and must be regenerated under
 the new gates.
 
+## SaySo trainer
+
+### ROCm 10.2 and torch 2.14 for the trainer (2026-11-20)
+llm VM, RX 7900 XTX. v19 350M final checkpoint, batch 4 x 1024 random tokens, bf16, gradient checkpointing, AdamW, median of 10 steps.
+
+| stack | s/step | peak GiB | first-step loss |
+|---|---|---|---|
+| ROCm 7.2 (backup `/srv/llm/lfm/venvs/sayso-trainer.rocm72-bak-20261120`) | 0.252 | 5.24 | equal to 3 dp |
+| TheRock ROCm 10.2, torch 2.14.0+rocm10.2.0 | 0.234 | 5.34 | equal to 3 dp |
+
+- ROCm 10.2 is 7% faster for +0.10 GiB peak.
+- causal_conv1d max error vs F.conv1d: 0.031 on both stacks.
+- Logit parity between stacks: mean abs logit diff 0.06, argmax agreement 92.6% on random tokens.
+- TheRock 10.2 reports `torch.version.hip` 7.17.26434.
+- The llm VM trainer venv now runs the 10.2 stack (smoke passed). Rollback is the 7.2 backup above.
+
 ## Deployed
 
 ### One slot, 163840 context (2026-11-12)

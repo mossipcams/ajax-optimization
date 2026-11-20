@@ -1,3 +1,6 @@
+# AMD TheRock ROCm 10.2 wheels; torch is never resolved from PyPI or the base venv
+--extra-index-url https://stable.repo.amd.com/rocm/whl-next/
+torch[device-gfx1100]==2.14.0+rocm10.2.0
 trl==1.18.1
 transformers==5.23.0
 datasets==5.2.0
