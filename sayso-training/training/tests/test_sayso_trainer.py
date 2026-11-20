@@ -146,7 +146,7 @@ def test_parse_args_rejects_warmup_ratio_outside_unit_interval(ratio: str) -> No
 
 
 def test_pins_parse_to_the_four_packages() -> None:
-    assert TRAIN.PINS == {"trl": "1.18.1", "transformers": "5.23.0", "datasets": "5.2.0", "tokenizers": "0.23.3", "causal-conv1d": "1.7.0"}
+    assert TRAIN.PINS == {"torch": "2.14.0+rocm10.2.0", "trl": "1.18.1", "transformers": "5.23.0", "datasets": "5.2.0", "tokenizers": "0.23.3", "causal-conv1d": "1.7.0"}
 
 
 def test_load_pins_skips_blank_and_comment_lines_and_inline_comments(tmp_path: Path) -> None:
@@ -154,6 +154,13 @@ def test_load_pins_skips_blank_and_comment_lines_and_inline_comments(tmp_path: P
     reqs.write_text("# renovate header\n\ntrl==1.18.1  # pinned by renovate\n\n"
                     "   # indented comment\ntransformers==5.23.0\n")
     assert TRAIN.load_pins(reqs) == {"trl": "1.18.1", "transformers": "5.23.0"}
+
+
+def test_load_pins_tolerates_extras_and_index_url_lines(tmp_path: Path) -> None:
+    reqs = tmp_path / "requirements-sayso-trainer.txt"
+    reqs.write_text("--extra-index-url https://stable.repo.amd.com/rocm/whl-next/\n"
+                    "torch[device-gfx1100]==2.14.0+rocm10.2.0  # AMD TheRock\n")
+    assert TRAIN.load_pins(reqs) == {"torch": "2.14.0+rocm10.2.0"}
 
 
 def test_check_stack_accepts_exact_pins() -> None:

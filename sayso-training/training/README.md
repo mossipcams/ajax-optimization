@@ -29,7 +29,7 @@ docker group yes. The VM has no GitHub credentials.
 
 | Item | Observed |
 |---|---|
-| GPU | Radeon RX 7900 XTX, gfx1100, 24 GiB; host ROCm 7.2.4 |
+| GPU | Radeon RX 7900 XTX, gfx1100, 24 GiB; host driver + ROCm 7.2.4 apt; trainer venv on ROCm 10.2 wheels |
 | CPU / RAM | 8 vCPU; 19 GiB RAM + 12 GiB swapfile |
 | Disks | SSD `/` 300 G (Docker images, models, runs; ~60 G free). HDD `/srv/llm/data` 400 G (datasets and generation code; ~361 G free). Layout plan: [docs/PLAN_VM_LAYOUT.md](../docs/PLAN_VM_LAYOUT.md) |
 | Repo checkout | `/srv/llm/sayso` → `/srv/llm/data/sayso` (HDD), git tracking `origin/main`, read-only deploy key so the VM can `git pull`. Generation venv: `training/.venv`. |
@@ -69,16 +69,46 @@ GGUF export script prints instructions rather than executing a complete export.
 ### SaySo Trainer venv and the causal-conv1d kernel
 
 [scripts/llm-host/sayso-trainer-venv.sh](../scripts/llm-host/sayso-trainer-venv.sh) builds the trainer venv
-inside the `sayso-trainer` container. Before `pip install -r`, it builds `causal-conv1d==1.7.0` from the
-PyPI sdist (sha256 pinned in the script) with `CAUSAL_CONV1D_FORCE_BUILD=TRUE HIP_ARCHITECTURES=gfx1100` and
-`--no-build-isolation`, so it compiles against the base venv's torch. The build is skipped when the venv already
-imports causal-conv1d 1.7.0.
+inside the `sayso-trainer` container at `/workspace/host/lfm/venvs/sayso-trainer`. The stack is:
 
-- Headers: `hipcub-dev` and `rocprim-dev` (installed when `/opt/rocm/include/hipcub/hipcub.hpp` is missing).
+- Torch `2.14.0+rocm10.2.0` with the `device-gfx1100` extra, from AMD's TheRock index
+  `https://stable.repo.amd.com/rocm/whl-next/` (`--extra-index-url` in
+  `training/requirements-sayso-trainer.txt`). The exact local-version pin keeps torch from resolving from PyPI or
+  from the base venv's inherited `2.14.0+rocm7.2` (`zz-unsloth-venv-base.pth`).
+- The other pins from the same requirements file, installed before the kernel build. `causal-conv1d` is filtered
+  out of that first install because it is not on the index yet.
+- The ROCm 10.2 SDK as pip wheels: `rocm[devel,device-gfx1100]==10.2.0`, installed into the trainer venv.
+  `rocm-sdk path --root` prints the devel root, which contains `bin/hipcc` and the hipcub/rocprim headers.
+- `causal-conv1d==1.7.0` built from the PyPI sdist (sha256 pinned in the script) with
+  `CAUSAL_CONV1D_FORCE_BUILD=TRUE HIP_ARCHITECTURES=gfx1100`, `--no-build-isolation`, and
+  `ROCM_PATH`/`ROCM_HOME` set to the 10.2 devel root. It compiles against the venv's torch and the 10.2 SDK, not
+  the container's `/opt/rocm` 7.2.4.
+
+Details:
+
 - C++20: torch 2.14 headers need C++20, so the script changes `-std=c++17` to `-std=c++20` in the sdist's `setup.py` before building.
+- Skip check: the build is skipped only when the venv imports causal-conv1d 1.7.0 and `torch.__version__` ends with
+  `+rocm10.2.0`. If torch is not on 10.2 yet, any existing causal-conv1d is uninstalled first so a stale 7.2 build
+  is never kept. The check uses `torch.__version__`, not `torch.version.hip`: TheRock 10.2 wheels report
+  `torch.version.hip` as 7.17.x (TheRock numbers its HIP runtime 7.x), so a `10.2` prefix check on `torch.version.hip` never matches.
+- Smoke: the script prints `torch.version.hip` (7.17.x on TheRock 10.2) and asserts `torch.__version__` ends with `+rocm10.2.0`.
 - Target: gfx1100 (RX 7900 XTX) only.
-- `sayso_trainer.check_installed_stack` checks the kernel with the other pins in
+- Host: the host keeps its driver and ROCm 7.2.4 apt packages. Side-by-side ROCm 10.2 on the host is handled separately and is not
+  needed by this venv.
+- `sayso_trainer.check_installed_stack` checks torch and the kernel with the other pins in
   `training/requirements-sayso-trainer.txt`, so training refuses to start when the kernel is missing or at another version.
+
+Measured ROCm 7.2 vs ROCm 10.2 trainer stack (2026-11-20, v19 350M final checkpoint, batch 4 x 1024 random tokens,
+bf16, gradient checkpointing, AdamW, median of 10 steps):
+
+| Stack | s/step | Peak memory | Notes |
+|---|---|---|---|
+| ROCm 7.2 | 0.252 | 5.24 GiB | baseline |
+| ROCm 10.2 | 0.234 | 5.34 GiB | 7% faster |
+
+- First-step losses equal to 3 decimals on both stacks.
+- `causal_conv1d` max error vs `F.conv1d`: 0.031 on both stacks.
+- Eval logits mean abs diff 0.06; argmax agreement 92.6% on random tokens.
 
 ## Quick start
 

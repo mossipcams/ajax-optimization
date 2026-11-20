@@ -36,10 +36,10 @@ def load_pins(path: Path = REQUIREMENTS) -> dict[str, str]:
     pins = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
-        if not line or line.startswith("#"):
+        if not line or line.startswith(("#", "-")):
             continue
         name, _, pinned = re.split(r"\s+#", line, maxsplit=1)[0].partition("==")
-        pins[name] = pinned
+        pins[re.sub(r"\[.*\]", "", name)] = pinned
     return pins
 
 
