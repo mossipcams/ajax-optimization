@@ -6,7 +6,7 @@
 --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 hassil==3.12.1
 jsonschema==4.26.0
-PyYAML==6.0.3
+PyYAML==6.0.4
 voluptuous==0.16.0
 transformers==5.23.0
 tokenizers==0.23.3
