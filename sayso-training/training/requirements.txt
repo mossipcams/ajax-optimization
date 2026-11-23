@@ -15,4 +15,4 @@ requests>=2.32.0
 hypothesis==6.170.15
 pytest==9.2.0
 syrupy==7.0.2
-llama-cpp-python==0.3.37
+llama-cpp-python==0.3.38
