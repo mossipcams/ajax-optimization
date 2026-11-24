@@ -4,7 +4,7 @@
 # llama-cpp-python is the integration's embedded runtime (SaySo const.py LLAMA_CPP_*); ./sayso eval scores
 # and quantizes release GGUFs with it, so keep it on the same CPU wheel index.
 --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-hassil==3.12.1
+hassil==3.13.0
 jsonschema==4.26.0
 PyYAML==6.0.3
 voluptuous==0.16.0
