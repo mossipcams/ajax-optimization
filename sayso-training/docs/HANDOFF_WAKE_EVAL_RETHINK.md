@@ -90,10 +90,9 @@ replay is continuous within each chapter. Each activation is saved as
 `window.wav` + `context.wav` (±2.5 s) + `record.json`. Activations are
 bucketed by the transcripts of the utterances under the window:
 
-- `excluded_say_so`: the transcript contains "say so". These are kept, but
+- `excluded_koda`: the transcript contains KODA or CODA. These are kept, but
   their utterance time is removed from the FPPH denominator.
-- `hard_negative`: the transcript contains say/so/said/says/same/save/safe/
-  say some/say something. These are tagged at utterance level, since
+- `hard_negative`: the transcript contains BODA/CODE/CODED/CODES/COLA/COTTA/CODY/KOTA/KODAK/SODA/TODA. These are tagged at utterance level, since
   LibriSpeech has no word alignments.
 - `false_positive`: everything else.
 
