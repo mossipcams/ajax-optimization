@@ -16,8 +16,8 @@ import numpy as np
 from sayso.wake.livekit import HOP_SAMPLES, SAMPLE_RATE, WINDOW_SAMPLES
 from sayso.wake.replay import ReplayConfig
 
-SAY_SO = re.compile(r"\bSAY SO\b")
-HARD_TERMS = re.compile(r"\b(SAY SOMETHING|SAY SOME|SAY|SO|SAID|SAYS|SAME|SAVE|SAFE)\b")
+KODA = re.compile(r"\b(KODA|CODA)\b")
+HARD_TERMS = re.compile(r"\b(BODA|CODE|CODED|CODES|COLA|COTTA|CODY|KOTA|KODAK|SODA|TODA)\b")
 CONTEXT_MS = 2500
 
 _provider = None
@@ -25,8 +25,9 @@ _provider = None
 
 def classify(transcripts: list[str]) -> tuple[str, list[str]]:
     text = " ".join(t.upper() for t in transcripts)
-    if SAY_SO.search(text):
-        return "excluded_say_so", ["SAY SO"]
+    koda_match = KODA.search(text)
+    if koda_match:
+        return "excluded_koda", [koda_match.group(0)]
     terms = sorted(set(HARD_TERMS.findall(text)))
     return ("hard_negative" if terms else "false_positive"), terms
 
@@ -60,7 +61,7 @@ def _init_worker(model: str, threshold: float, refractory: float) -> None:
     logging.basicConfig(level=logging.WARNING)
     from sayso.wake.livekit import LiveKitWakeWordProvider
 
-    _provider = LiveKitWakeWordProvider(Path(model), "SaySo", threshold=threshold, refractory_seconds=refractory)
+    _provider = LiveKitWakeWordProvider(Path(model), "Koda", threshold=threshold, refractory_seconds=refractory)
     if not _provider.available:
         raise RuntimeError(f"wake model failed to load: {model}")
 
@@ -108,13 +109,13 @@ def mine_chapter(chapter_dir: Path, out: Path) -> dict:
         }
         (rec_dir / "record.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
         records.append(record)
-    excluded = sum(s[2] - s[1] for s in spans if SAY_SO.search(s[3].upper())) / SAMPLE_RATE
+    excluded = sum(s[2] - s[1] for s in spans if KODA.search(s[3].upper())) / SAMPLE_RATE
     summary = {
         "chapter": chapter_id,
         "duration_seconds": duration,
-        "excluded_say_so_seconds": excluded,
+        "excluded_koda_seconds": excluded,
         "activations": {c: sum(r["category"] == c for r in records)
-                        for c in ("false_positive", "hard_negative", "excluded_say_so")},
+                        for c in ("false_positive", "hard_negative", "excluded_koda")},
     }
     (out / "chapters" / f"{chapter_id}.json").write_text(json.dumps(summary) + "\n", encoding="utf-8")
     return summary
@@ -123,8 +124,8 @@ def mine_chapter(chapter_dir: Path, out: Path) -> dict:
 def summarize(out: Path, *, model: Path, threshold: float, refractory: float) -> dict:
     chapters = [json.loads(p.read_text(encoding="utf-8")) for p in sorted((out / "chapters").glob("*.json"))]
     hours = sum(c["duration_seconds"] for c in chapters) / 3600.0
-    scored_hours = hours - sum(c["excluded_say_so_seconds"] for c in chapters) / 3600.0
-    counts = {k: sum(c["activations"][k] for c in chapters) for k in ("false_positive", "hard_negative", "excluded_say_so")}
+    scored_hours = hours - sum(c["excluded_koda_seconds"] for c in chapters) / 3600.0
+    counts = {k: sum(c["activations"][k] for c in chapters) for k in ("false_positive", "hard_negative", "excluded_koda")}
     counted = counts["false_positive"] + counts["hard_negative"]
     return {
         "corpus": "LibriSpeech train-other-500 (openslr/librispeech_asr other/train.500)",
